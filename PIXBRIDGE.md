@@ -119,81 +119,387 @@ netsh advfirewall firewall add rule `
 
 ---
 
-### 0.5 Local Development Setup — Step by Step
+### 0.5 New Machine Dev Environment Setup — Complete Guide
 
-#### Step 1 — Clone the repository
+> This section covers **everything** needed to go from a clean Windows machine to a fully running PixBridge development environment. Follow every step in order.
+
+---
+
+#### PRE-FLIGHT — Install Required Tools
+
+Do these **before** cloning the repo.
+
+---
+
+**A. Install .NET SDK 8**
+
+1. Go to https://dotnet.microsoft.com/download/dotnet/8.0
+2. Download **.NET SDK 8.x** → Windows x64 Installer
+3. Run the installer → default settings → Finish
+4. Open a **new** PowerShell window and verify:
 ```powershell
+dotnet --version
+# Expected: 8.x.x
+dotnet --list-sdks
+# Should list at least one 8.x entry
+```
+
+---
+
+**B. Install Node.js 18 LTS (or 20 LTS)**
+
+1. Go to https://nodejs.org → download **LTS version**
+2. Run installer → tick **"Add to PATH"** (default is on) → Finish
+3. Open a **new** PowerShell window and verify:
+```powershell
+node --version    # Expected: v18.x.x or v20.x.x
+npm --version     # Expected: 9.x or 10.x
+```
+
+---
+
+**C. Install PostgreSQL 15+**
+
+1. Go to https://www.postgresql.org/download/windows/
+2. Click **"Download the installer"** → pick version **15.x** or **16.x** → Windows x86-64
+3. Run installer:
+   - Port: **5432** (keep default)
+   - Superuser password: set something you'll remember (e.g. `postgres`)
+   - Locale: default
+   - **Uncheck Stack Builder** at the end (not needed)
+4. **Add PostgreSQL bin to PATH** — this is often missed:
+```powershell
+# Run as Administrator
+$pgBin = "C:\Program Files\PostgreSQL\15\bin"   # adjust version number if needed
+[Environment]::SetEnvironmentVariable(
+    "PATH",
+    [Environment]::GetEnvironmentVariable("PATH","Machine") + ";$pgBin",
+    "Machine"
+)
+```
+5. Open a **new** PowerShell window and verify:
+```powershell
+psql --version
+# Expected: psql (PostgreSQL) 15.x
+```
+> If `psql` is still not found, open System Properties → Environment Variables → System PATH → add `C:\Program Files\PostgreSQL\15\bin` manually → OK → reopen PowerShell.
+
+---
+
+**D. Install Git**
+
+1. Go to https://git-scm.com/download/win → download 64-bit installer
+2. Run installer → keep all defaults → Finish
+3. Verify:
+```powershell
+git --version
+# Expected: git version 2.x.x
+```
+4. Set your identity (required for commits):
+```powershell
+git config --global user.name  "Your Name"
+git config --global user.email "your@email.com"
+```
+
+---
+
+**E. Install VS Code (Recommended IDE)**
+
+1. Go to https://code.visualstudio.com → Download for Windows
+2. Run installer → tick **"Add to PATH"** → Finish
+3. Install extensions (paste all at once in PowerShell):
+```powershell
+code --install-extension ms-dotnettools.csharp
+code --install-extension ms-dotnettools.csdevkit
+code --install-extension bradlc.vscode-tailwindcss
+code --install-extension dbaeumer.vscode-eslint
+code --install-extension esbenp.prettier-vscode
+code --install-extension ms-ossdata.vscode-postgresql
+code --install-extension humao.rest-client
+```
+
+---
+
+**F. Install EF Core CLI Tools (Global)**
+
+Required for running future database migrations:
+```powershell
+dotnet tool install --global dotnet-ef
+dotnet tool update  --global dotnet-ef   # if already installed, update it
+```
+Verify:
+```powershell
+dotnet ef --version
+# Expected: Entity Framework Core .NET Command-line Tools 8.x.x
+```
+
+---
+
+**G. Install Inno Setup 6 (Only needed to build the installer)**
+
+Skip this if you only want to run in dev mode and don't need to produce a `.exe` installer.
+
+1. Go to https://jrsoftware.org/isdl.php → download **Inno Setup 6**
+2. Run installer → default settings → Finish
+
+---
+
+#### STEP 1 — Verify All Tools Are Ready
+
+Open a fresh PowerShell window and run this checklist:
+```powershell
+Write-Host "=== PixBridge Dev Environment Check ===" -ForegroundColor Cyan
+
+$checks = @(
+    @{ Name = ".NET SDK 8";     Cmd = "dotnet --version";  Expected = "^8\." },
+    @{ Name = "Node.js";        Cmd = "node --version";    Expected = "^v1[89]\.|^v2" },
+    @{ Name = "npm";            Cmd = "npm --version";     Expected = "^\d" },
+    @{ Name = "PostgreSQL psql";Cmd = "psql --version";    Expected = "PostgreSQL" },
+    @{ Name = "Git";            Cmd = "git --version";     Expected = "git version" },
+    @{ Name = "dotnet-ef";      Cmd = "dotnet ef --version"; Expected = "Entity Framework" }
+)
+
+foreach ($c in $checks) {
+    $result = Invoke-Expression $c.Cmd 2>&1
+    if ($result -match $c.Expected) {
+        Write-Host "  ✓ $($c.Name): $result" -ForegroundColor Green
+    } else {
+        Write-Host "  ✗ $($c.Name): NOT FOUND or wrong version" -ForegroundColor Red
+    }
+}
+```
+All 6 should show ✓ before proceeding.
+
+---
+
+#### STEP 2 — Clone the Repository
+
+```powershell
+# Create working directory
+New-Item -ItemType Directory -Force -Path C:\CLS | Out-Null
+
+# Clone
 git clone https://github.com/gnans006/PixBridge.git C:\CLS\PixBridge
 cd C:\CLS\PixBridge
 ```
 
-#### Step 2 — Create the PostgreSQL database
+Verify the clone:
 ```powershell
-# Option A: Use the provided script
+Get-ChildItem   # Should show: src\ scripts\ docs\ NuGet.Config PixBridge.sln deploy.ps1 PIXBRIDGE.md
+```
+
+---
+
+#### STEP 3 — Verify NuGet.Config
+
+The repo includes a `NuGet.Config` at the root that pins NuGet to `nuget.org` only. This is **critical** if your machine has a corporate NuGet feed configured (e.g. Azure Artifacts). Without it, `dotnet restore` will fail with `NU1301`.
+
+```powershell
+Get-Content NuGet.Config
+# Should show nuget.org as the only source
+```
+
+If your machine has company-specific packages that also need restoring from a private feed, add that feed to `NuGet.Config` manually — but do NOT remove the nuget.org entry.
+
+---
+
+#### STEP 4 — Create the PostgreSQL Database
+
+```powershell
+# Option A — use the provided script (recommended)
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-postgresql.ps1
-
-# Option B: Run SQL manually (connect as postgres superuser)
-psql -U postgres
-```
-```sql
-CREATE USER pixbridge WITH PASSWORD 'pixbridge123';
-CREATE DATABASE pixbridge OWNER pixbridge;
-GRANT ALL PRIVILEGES ON DATABASE pixbridge TO pixbridge;
-\q
 ```
 
-#### Step 3 — Restore .NET packages
+Or manually:
 ```powershell
+psql -U postgres -c "CREATE USER pixbridge WITH PASSWORD 'pixbridge123';"
+psql -U postgres -c "CREATE DATABASE pixbridge OWNER pixbridge;"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE pixbridge TO pixbridge;"
+```
+
+Verify the DB was created:
+```powershell
+psql -U postgres -c "\l" | Select-String "pixbridge"
+# Should show: pixbridge | pixbridge | UTF8 ...
+```
+
+---
+
+#### STEP 5 — Verify `appsettings.json` Connection String
+
+Check that the connection string in the API config matches what you created:
+```powershell
+Get-Content src\EventPhoto.Api\appsettings.json | Select-String "Connection"
+# Should show: Host=localhost;Database=pixbridge;Username=pixbridge;Password=pixbridge123;
+```
+
+If you used a different DB name, user, or password in Step 4, edit `appsettings.json` and `src\EventPhoto.Worker\appsettings.json` to match.
+
+---
+
+#### STEP 6 — Restore .NET Packages
+
+```powershell
+cd C:\CLS\PixBridge
 dotnet restore
+# Should end with: Restore completed in X.Xs
+# Zero errors expected
 ```
 
-#### Step 4 — Install React dependencies
+If you see `NU1301` errors:
 ```powershell
-cd src\EventPhoto.React
-npm install
-cd ..\..
+# Check which feed is failing
+dotnet nuget list source
+# The NuGet.Config in the repo root should override machine-level sources
+# If not, force it:
+dotnet restore --configfile NuGet.Config
 ```
 
-#### Step 5 — Run all three components (3 separate terminals)
+---
+
+#### STEP 7 — Install React Dependencies
+
+```powershell
+cd C:\CLS\PixBridge\src\EventPhoto.React
+npm install
+# Installs ~350 packages — takes 1-2 min on first run
+cd C:\CLS\PixBridge
+```
+
+---
+
+#### STEP 8 — Add Windows Defender Exclusion (Strongly Recommended)
+
+Without this, Windows Defender scans every photo file the Worker processes, causing severe slowdowns in FileSystemWatcher and thumbnail generation:
+```powershell
+# Run as Administrator
+Add-MpPreference -ExclusionPath "C:\CLS\PixBridge"
+Add-MpPreference -ExclusionPath "C:\PixBridgePhotos"   # or wherever your photo watch folders will be
+
+# Verify
+Get-MpPreference | Select-Object -ExpandProperty ExclusionPath
+```
+
+---
+
+#### STEP 9 — Run All Three Components
+
+Open **3 separate PowerShell terminals**.
 
 **Terminal 1 — API Server**
 ```powershell
+cd C:\CLS\PixBridge
 dotnet run --project src\EventPhoto.Api
-# Starts on http://localhost:5000
-# On first run: auto-applies DB migration + seeds admin user
 ```
+Expected output on first run:
+```
+[INF] Applying database migrations...
+[INF] Running database seeder...
+[INF] Admin user created.
+[INF] Now listening on: http://0.0.0.0:5000
+```
+> ⚠️ If port 5000 is in use: `$env:ASPNETCORE_URLS="http://localhost:5001"` then update `vite.config.ts` proxy target accordingly.
+
+> ⚠️ Port 80 requires Administrator on Windows. In dev, the API defaults to **port 5000** (set in `launchSettings` / environment). Port 80 is production-only.
+
+---
 
 **Terminal 2 — Worker Service**
 ```powershell
+cd C:\CLS\PixBridge
 dotnet run --project src\EventPhoto.Worker
-# Starts FileWatcherService + ThumbnailProcessorService
+```
+Expected output:
+```
+[INF] FileWatcherService starting...
+[INF] ThumbnailProcessorService starting...
+[INF] Worker started. Press Ctrl+C to stop.
 ```
 
-**Terminal 3 — React Dev Server (hot reload)**
+---
+
+**Terminal 3 — React Dev Server**
 ```powershell
-cd src\EventPhoto.React
+cd C:\CLS\PixBridge\src\EventPhoto.React
 npm run dev
-# Starts on http://localhost:5173
-# Proxies /api → http://localhost:5000
-# Proxies /hubs (WebSocket) → http://localhost:5000
+```
+Expected output:
+```
+  VITE v6.x  ready in Xms
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://192.168.x.x:5173/
 ```
 
-#### Step 6 — Open the app
+---
+
+#### STEP 10 — Open the App
+
 ```
-Browser: http://localhost:5173/admin
+Browser → http://localhost:5173/admin
 Username: admin
 Password: Admin@1234!
 ```
 
-> Swagger UI (API explorer): http://localhost:5000/swagger
+API explorer (Swagger):
+```
+http://localhost:5000/swagger
+```
 
-#### Step 7 — Test the full photo flow
-1. Create an event in the admin UI — note the watch folder path
-2. Copy any `.jpg` / `.png` file into that watch folder
-3. Worker detects it → inserts DB record → queues thumbnail
-4. Thumbnail generated within 5 seconds
-5. Gallery updates in real time via SignalR (no page refresh needed)
-6. Scan the QR code on a phone connected to the same network
+---
+
+#### STEP 11 — Test the Full Photo Flow End-to-End
+
+1. Log in to admin panel → **Events** → **Create Event**
+   - Set a watch folder path (e.g. `C:\PixBridgePhotos\TestEvent`)
+   - Set status to **Active** → Save
+2. Create the watch folder if it doesn't exist:
+```powershell
+New-Item -ItemType Directory -Force -Path "C:\PixBridgePhotos\TestEvent"
+```
+3. Copy any `.jpg` or `.png` file into that folder:
+```powershell
+Copy-Item "C:\SomePhoto.jpg" "C:\PixBridgePhotos\TestEvent\"
+```
+4. Watch Terminal 2 — Worker should log:
+```
+[INF] New photo detected: SomePhoto.jpg
+[INF] Thumbnail generated for photo id: X
+```
+5. Back in the browser — gallery should update **automatically** (SignalR realtime, no refresh)
+6. Click the **QR Code** button on the event → scan with your phone → guest gallery opens
+
+---
+
+#### STEP 12 — (Optional) Test on Another Device on the Same Network
+
+```powershell
+# Find your machine's LAN IP
+ipconfig | Select-String "IPv4"
+# e.g. 192.168.1.105
+```
+
+On another device (phone/tablet) connected to the same Wi-Fi:
+```
+http://192.168.1.105:5173    ← Vite dev server (if accessible)
+```
+Or for production-like testing on port 80, run the published EXE instead.
+
+---
+
+#### Common First-Run Issues & Fixes
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `NU1301` on `dotnet restore` | Corporate NuGet feed unreachable | `dotnet restore --configfile NuGet.Config` |
+| `psql: command not found` | PostgreSQL bin not in PATH | Add `C:\Program Files\PostgreSQL\15\bin` to System PATH |
+| `Connection refused` on DB | PostgreSQL service not running | `Start-Service postgresql-x64-15` |
+| `password authentication failed` | Wrong DB credentials | Check `appsettings.json` matches what you created in Step 4 |
+| API starts but returns 500 | Migration not applied | Check Terminal 1 logs — look for EF migration errors |
+| `EADDRINUSE` on port 5173 | Another Vite instance running | Kill it: `npx kill-port 5173` |
+| `dotnet run` port 80 access denied | Port 80 needs admin or URL ACL | In dev, use port 5000 (default). For port 80: run terminal as Administrator |
+| Photos not detected by Worker | Watch folder path mismatch | Confirm folder in DB matches actual folder on disk |
+| Thumbnails never generate | ImageSharp write permission denied | Run Worker as Administrator or grant write permissions to `publish\` folder |
+| `dotnet-ef not found` | EF CLI tools not installed | `dotnet tool install --global dotnet-ef` |
 
 ---
 
