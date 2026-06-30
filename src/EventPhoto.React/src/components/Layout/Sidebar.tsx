@@ -1,10 +1,12 @@
-import { BarChart2, CalendarDays, LayoutDashboard, Settings } from 'lucide-react';
+import { BarChart2, CalendarDays, LayoutDashboard, Settings, ScrollText, Activity } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const links = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/events', label: 'Events', icon: CalendarDays, end: false },
   { to: '/admin/statistics', label: 'Statistics', icon: BarChart2, end: false },
+  { to: '/admin/logs', label: 'Logs', icon: ScrollText, end: false },
+  { to: '/admin/health', label: 'Health', icon: Activity, end: false },
   { to: '/admin/settings', label: 'Settings', icon: Settings, end: false },
 ];
 

@@ -11,6 +11,8 @@ import Gallery from './pages/Gallery';
 import Login from './pages/Login';
 import Settings from './pages/Settings';
 import Statistics from './pages/Statistics';
+import Logs from './pages/Logs';
+import HealthMonitoring from './pages/HealthMonitoring';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +39,8 @@ export default function App() {
             <Route path="events/new" element={<EventForm />} />
             <Route path="events/:eventId" element={<EventDetail />} />
             <Route path="statistics" element={<Statistics />} />
+            <Route path="logs" element={<Logs />} />
+            <Route path="health" element={<HealthMonitoring />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="/" element={<Navigate to="/admin" replace />} />
