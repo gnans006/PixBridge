@@ -1,4 +1,215 @@
 # PixBridge — Master Project Reference
+
+---
+
+## 0. System Requirements
+
+### 0.1 Hardware Requirements
+
+#### Production / Client Machine (Photographer's Laptop)
+
+| Component | Minimum | Recommended | Notes |
+|---|---|---|---|
+| **CPU** | Intel Core i3 / AMD Ryzen 3 (4 cores) | Core i5 / Ryzen 5 (6+ cores) | Thumbnail processing is CPU-intensive |
+| **RAM** | 8 GB | **16 GB** | PostgreSQL + API + Worker peak at 4–6 GB together |
+| **Storage** | 256 GB SSD | **512 GB SSD** | Photos fill up fast; HDD will bottleneck thumbnail I/O |
+| **Wi-Fi Adapter** | 802.11n (Wi-Fi 4) | **802.11ac / Wi-Fi 6** | Multiple guests streaming full-res photos simultaneously |
+| **OS** | Windows 10 64-bit (build 1809+) | Windows 10 / 11 64-bit | Windows Services are required |
+| **Display** | Any | Any | Admin UI is browser-based |
+
+> ⚠️ **RAM is the most critical resource.** 8 GB is tight when all three components (API, Worker, PostgreSQL) run together. 16 GB gives comfortable headroom for thumbnail batch processing.
+
+> ⚠️ **SSD is mandatory.** FileSystemWatcher + thumbnail generation performs constant disk I/O. A spinning HDD will cause visible lag in photo discovery and thumbnail rendering.
+
+#### Developer / Build Machine (your workstation)
+
+| Component | Minimum | Recommended |
+|---|---|---|
+| **CPU** | Any modern quad-core | 6+ cores |
+| **RAM** | 8 GB | 16 GB |
+| **Storage** | 50 GB free SSD | 100 GB free SSD |
+| **OS** | Windows 10/11 64-bit | Windows 10/11 64-bit |
+
+---
+
+### 0.2 Software Requirements
+
+#### Production / Client Machine — Only ONE install needed before running the PixBridge installer
+
+| Software | Version | Required? | Why |
+|---|---|---|---|
+| **PostgreSQL** | **15+** | ✅ **Must install** | The only prerequisite. The PixBridge installer checks for it and aborts if missing. |
+| Windows 10/11 x64 | Build 1809+ | ✅ Must | Windows Services are used for auto-start |
+| .NET 8 Runtime | 8.0+ | ❌ Not needed | Bundled inside `EventPhoto.Api.exe` (self-contained publish) |
+| Node.js / npm | any | ❌ Not needed | React is pre-built into `wwwroot/` at compile time |
+| IIS / Nginx | any | ❌ Not needed | Kestrel serves directly on port 80 |
+| Visual C++ Runtime | any | ❌ Not needed | Included in self-contained .NET publish |
+
+**→ Install PostgreSQL 15 → run `PixBridge-Setup-1.0.0.exe` → done.**
+
+Download PostgreSQL: https://www.postgresql.org/download/windows/
+During install: port `5432`, remember your superuser password.
+
+---
+
+#### Developer / Build Machine — Full toolchain
+
+| Software | Version | Download | Purpose |
+|---|---|---|---|
+| **Windows 10/11 x64** | Build 1809+ | — | Required OS |
+| **.NET SDK** | **8.0+** | https://dotnet.microsoft.com/download | Build + publish backend |
+| **Node.js** | **18 LTS+** | https://nodejs.org | Build React frontend |
+| **PostgreSQL** | **15+** | https://www.postgresql.org/download/windows/ | Local DB for dev |
+| **Git** | Any | https://git-scm.com | Clone + commit |
+| **Inno Setup 6** | 6.x | https://jrsoftware.org/isdl.php | Package installer (only needed to produce `.exe`) |
+| **VS Code** or **Visual Studio 2022** | Any | https://code.visualstudio.com | IDE |
+
+Verify installs:
+```powershell
+dotnet --version      # should print 8.x.x
+node --version        # should print v18.x or v20.x
+npm --version         # should print 9.x or 10.x
+psql --version        # should print psql (PostgreSQL) 15.x
+git --version         # should print git version 2.x
+```
+
+---
+
+### 0.3 Recommended VS Code Extensions
+
+Install via VS Code Extensions panel or:
+```powershell
+code --install-extension ms-dotnettools.csharp
+code --install-extension ms-dotnettools.csdevkit
+code --install-extension bradlc.vscode-tailwindcss
+code --install-extension dbaeumer.vscode-eslint
+code --install-extension esbenp.prettier-vscode
+code --install-extension ms-ossdata.vscode-postgresql
+code --install-extension humao.rest-client
+```
+
+| Extension | Purpose |
+|---|---|
+| `ms-dotnettools.csharp` | C# IntelliSense, go-to-definition, refactoring |
+| `ms-dotnettools.csdevkit` | .NET project management, run/debug .NET from VS Code |
+| `bradlc.vscode-tailwindcss` | Tailwind CSS class autocomplete in JSX/TSX |
+| `dbaeumer.vscode-eslint` | TypeScript/JavaScript linting |
+| `esbenp.prettier-vscode` | Code formatting |
+| `ms-ossdata.vscode-postgresql` | Browse PostgreSQL tables inside VS Code |
+| `humao.rest-client` | Test API endpoints with `.http` files |
+
+---
+
+### 0.4 Port Map
+
+| Port | Used By | Direction | Notes |
+|---|---|---|---|
+| `5432` | PostgreSQL | Internal | API + Worker connect to this |
+| `80` | PixBridge API (production) | Inbound from LAN | Guests + admins access on this port |
+| `5000` | PixBridge API (dev mode) | Localhost | Used when running `dotnet run` locally |
+| `5173` | Vite dev server (React) | Localhost | Hot-reload frontend in development only |
+
+Firewall rule needed for production:
+```powershell
+# Run as Administrator
+netsh advfirewall firewall add rule `
+    name="PixBridge HTTP" `
+    dir=in action=allow protocol=TCP localport=80
+```
+
+---
+
+### 0.5 Local Development Setup — Step by Step
+
+#### Step 1 — Clone the repository
+```powershell
+git clone https://github.com/gnans006/PixBridge.git C:\CLS\PixBridge
+cd C:\CLS\PixBridge
+```
+
+#### Step 2 — Create the PostgreSQL database
+```powershell
+# Option A: Use the provided script
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-postgresql.ps1
+
+# Option B: Run SQL manually (connect as postgres superuser)
+psql -U postgres
+```
+```sql
+CREATE USER pixbridge WITH PASSWORD 'pixbridge123';
+CREATE DATABASE pixbridge OWNER pixbridge;
+GRANT ALL PRIVILEGES ON DATABASE pixbridge TO pixbridge;
+\q
+```
+
+#### Step 3 — Restore .NET packages
+```powershell
+dotnet restore
+```
+
+#### Step 4 — Install React dependencies
+```powershell
+cd src\EventPhoto.React
+npm install
+cd ..\..
+```
+
+#### Step 5 — Run all three components (3 separate terminals)
+
+**Terminal 1 — API Server**
+```powershell
+dotnet run --project src\EventPhoto.Api
+# Starts on http://localhost:5000
+# On first run: auto-applies DB migration + seeds admin user
+```
+
+**Terminal 2 — Worker Service**
+```powershell
+dotnet run --project src\EventPhoto.Worker
+# Starts FileWatcherService + ThumbnailProcessorService
+```
+
+**Terminal 3 — React Dev Server (hot reload)**
+```powershell
+cd src\EventPhoto.React
+npm run dev
+# Starts on http://localhost:5173
+# Proxies /api → http://localhost:5000
+# Proxies /hubs (WebSocket) → http://localhost:5000
+```
+
+#### Step 6 — Open the app
+```
+Browser: http://localhost:5173/admin
+Username: admin
+Password: Admin@1234!
+```
+
+> Swagger UI (API explorer): http://localhost:5000/swagger
+
+#### Step 7 — Test the full photo flow
+1. Create an event in the admin UI — note the watch folder path
+2. Copy any `.jpg` / `.png` file into that watch folder
+3. Worker detects it → inserts DB record → queues thumbnail
+4. Thumbnail generated within 5 seconds
+5. Gallery updates in real time via SignalR (no page refresh needed)
+6. Scan the QR code on a phone connected to the same network
+
+---
+
+### 0.6 Storage Planning
+
+| Scenario | Estimated Storage Needed |
+|---|---|
+| Small event (200 photos, 5 MB avg) | ~1 GB (originals) + ~200 MB (thumbnails) |
+| Medium event (500 photos, 8 MB avg) | ~4 GB + ~500 MB |
+| Large event (1000 photos, 10 MB avg) | ~10 GB + ~1 GB |
+| Full-day multi-event (5 events) | ~50 GB recommended free |
+
+> Thumbnails are stored as JPEG at configurable quality (default in `ThumbnailService`). Original files are never modified.
+
+---
+
 ## 1. Project Overview
 **Project:** PixBridge  
 **Purpose:** Fully offline, LAN-based Event Photo Sharing Platform for photography studios  
@@ -247,11 +458,12 @@ Rules:
 ### 4.3 Scripts & Docs
 | File(s) | Purpose |
 |---|---|
-| `scripts\build-release.ps1` | Builds React and publishes API + Worker into `publish\` |
-| `scripts\setup-postgresql.ps1` | Creates DB/user and grants permissions |
-| `scripts\install-service.ps1` | Installs `PixBridgeApi` and `PixBridgeWorker` Windows Services |
-| `scripts\uninstall-service.ps1` | Stops/removes services |
-| `scripts\installer.iss` | Inno Setup installer script |
+| `deploy.ps1` | **Master deploy script** — single command: prereq check → React build → publish API + Worker → copy assets → Inno Setup packaging → ready-to-ship installer |
+| `scripts\build-release.ps1` | Low-level build helper (called internally by `deploy.ps1`) |
+| `scripts\setup-postgresql.ps1` | Creates DB/user and grants permissions (auto-run by installer) |
+| `scripts\install-service.ps1` | Installs `PixBridgeApi` and `PixBridgeWorker` as Windows Services (auto-run by installer) |
+| `scripts\uninstall-service.ps1` | Stops/removes services (auto-run by uninstaller) |
+| `scripts\installer.iss` | Inno Setup 6 installer script — packaged by `deploy.ps1` |
 | `docs\README.md`, `architecture.md`, `database-schema.sql`, `deployment-guide.md`, `icon.ico` | Supplemental docs and installer icon |
 
 ## 5. Domain Model
@@ -854,60 +1066,255 @@ npm run dev
 10. Verify gallery updates and photo download works
 
 ## 14. Deployment Guide
-### 14.1 Build for Production
-Release script:
+
+### 14.0 Deployment Strategy Overview
+
+PixBridge uses a **single master deploy script** (`deploy.ps1`) that produces a **one-click Windows installer** (`PixBridge-Setup-<version>.exe`). The installer is the only artifact you ship to the client machine.
+
+```
+Developer machine                          Client machine (photographer's laptop)
+─────────────────────────────────────────  ────────────────────────────────────────
+Source code                                1. Install PostgreSQL 15+ (once)
+    ↓                                      2. Double-click PixBridge-Setup-1.0.0.exe
+.\deploy.ps1  (runs once, ~3-5 min)        3. Click Next → Next → Finish
+    ↓                                      4. Browser opens → http://192.168.10.10/admin
+publish\installer\                         5. Login: admin / Admin@1234!
+  PixBridge-Setup-1.0.0.exe  ────────────→ Done — services auto-start on every reboot
+```
+
+**What the client machine runs (post-install):**
+```
+Windows Services (auto-start on boot, no console window, no manual launch)
+  PixBridgeApi     → port 80  — React UI + REST API + SignalR realtime hub
+  PixBridgeWorker              — FileWatcher + ThumbnailProcessor background jobs
+PostgreSQL 15+    → port 5432 — persistent photo/event metadata store
+```
+
+---
+
+### 14.1 Prerequisites — Developer Machine (build machine)
+
+Before running `deploy.ps1`, the **developer's build machine** must have:
+
+| Prerequisite | Version | Install link |
+|---|---|---|
+| .NET SDK | 8.0+ | https://dotnet.microsoft.com/download |
+| Node.js | 18 LTS+ | https://nodejs.org |
+| PostgreSQL client (`psql`) | 15+ | https://www.postgresql.org/download/windows/ |
+| Inno Setup | 6.x | https://jrsoftware.org/isdl.php |
+| Git | any | https://git-scm.com |
+
+> `deploy.ps1` validates all of these in Step 1 and prints install links for anything missing.
+
+---
+
+### 14.2 Master Deploy Script — `deploy.ps1`
+
+The single command that does everything:
+
 ```powershell
+# From repo root — run as Administrator (or regular user — no admin needed for build)
 Set-Location C:\CLS\PixBridge
-powershell -ExecutionPolicy Bypass -File .\scripts\build-release.ps1 -Version 1.0.0
+
+.\deploy.ps1                       # full build → installer (version 1.0.0)
+.\deploy.ps1 -Version "1.2.0"      # with custom version stamp
+.\deploy.ps1 -SkipInstaller        # build only, skip Inno Setup packaging
+.\deploy.ps1 -SkipPrereqCheck      # skip prereq validation (CI pipelines)
 ```
-What it does:
-1. builds React
-2. publishes `EventPhoto.Api`
-3. publishes `EventPhoto.Worker`
-4. copies scripts/docs into `publish\`
-Publish style:
-- self-contained
-- `win-x64`
-- single-file
-### 14.2 Windows Service Installation
+
+**What it does — step by step:**
+
+| Step | Action | Output |
+|---|---|---|
+| 1 | Validates Node, .NET SDK, psql, Inno Setup | Fails fast with install links |
+| 2 | `npm ci` + `npm run build` on React | Bundles into `src/EventPhoto.Api/wwwroot/` |
+| 3 | `dotnet publish EventPhoto.Api` | `publish\api\EventPhoto.Api.exe` (self-contained, ~80 MB) |
+| 4 | `dotnet publish EventPhoto.Worker` | `publish\worker\EventPhoto.Worker.exe` (self-contained) |
+| 5 | Copies scripts + docs + VERSION.txt | `publish\setup\`, `publish\README.md` |
+| 6 | Runs Inno Setup (`ISCC.exe`) | `publish\installer\PixBridge-Setup-1.0.0.exe` |
+
+**Publish flags used (API + Worker):**
+```
+--self-contained true          → No .NET runtime needed on client
+-p:PublishSingleFile=true      → Single .exe file (no DLL clutter)
+-p:PublishReadyToRun=true      → Pre-JIT compiled (faster startup)
+--runtime win-x64              → Windows 64-bit only
+--configuration Release        → Optimized, no debug symbols
+```
+
+**Output folder structure after `deploy.ps1`:**
+```
+publish\
+  api\
+    EventPhoto.Api.exe           ← Runs React UI + API + SignalR
+    appsettings.json             ← Runtime config
+    wwwroot\                     ← React SPA (bundled inside)
+  worker\
+    EventPhoto.Worker.exe        ← File watcher + thumbnail processor
+    appsettings.json
+  setup\
+    setup-postgresql.ps1         ← DB creation script
+    install-service.ps1          ← Windows Service installer
+    uninstall-service.ps1        ← Windows Service remover
+    installer.iss                ← Inno Setup source
+  installer\
+    PixBridge-Setup-1.0.0.exe    ← ★ Ship this to client ★
+  README.md
+  deployment-guide.md
+  PIXBRIDGE.md
+  VERSION.txt                    ← Build metadata stamp
+```
+
+---
+
+### 14.3 Inno Setup Installer — What It Does (`scripts\installer.iss`)
+
+When the client double-clicks `PixBridge-Setup-1.0.0.exe`:
+
+| Phase | Action |
+|---|---|
+| **Validation** | Checks if `psql` is on PATH. If not → shows download link + aborts |
+| **File copy** | Copies `api\*` → `C:\Program Files\PixBridge\api\` |
+| **File copy** | Copies `worker\*` → `C:\Program Files\PixBridge\worker\` |
+| **File copy** | Copies scripts + docs to install dir |
+| **DB setup** | Runs `setup-postgresql.ps1` → creates `pixbridge` DB + `pixbridge` user |
+| **Service install** | Runs `install-service.ps1` → registers + starts `PixBridgeApi` + `PixBridgeWorker` as Windows Services with `start= auto` |
+| **Finish** | Opens `http://192.168.10.10/admin` in default browser |
+
+On **uninstall** (via Windows Programs & Features):
+- Stops + removes both Windows Services
+- Deletes all installed files
+
+---
+
+### 14.4 Client Machine Prerequisites (minimal)
+
+The client machine (photographer's laptop) needs **only**:
+
+| Requirement | Notes |
+|---|---|
+| Windows 10 1809+ or Windows 11 | 64-bit required |
+| PostgreSQL 15+ | Must be installed **before** running the PixBridge installer. `psql` must be in PATH. |
+| Port 80 available | No IIS or other web server on port 80 |
+| .NET Runtime | **NOT needed** — bundled inside the EXE via self-contained publish |
+| Node.js | **NOT needed** — React is pre-built into `wwwroot` |
+
+**No development tools, no SDKs, no runtimes required on the client.**
+
+---
+
+### 14.5 Windows Services Installed
+
+After install, two services appear in Windows Services (`services.msc`):
+
+| Service Name | Display Name | Startup | Port | Role |
+|---|---|---|---|---|
+| `PixBridgeApi` | PixBridge API | Automatic | 80 | Serves React UI, REST API, SignalR hub |
+| `PixBridgeWorker` | PixBridge Worker | Automatic | — | Watches photo folders, generates thumbnails |
+
+Manage services:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install-service.ps1 -InstallDir "C:\PixBridge"
+# Check status
+Get-Service PixBridgeApi, PixBridgeWorker
+
+# Restart services (run as Admin)
+Restart-Service PixBridgeApi
+Restart-Service PixBridgeWorker
+
+# View logs (Serilog writes here)
+Get-Content "C:\Program Files\PixBridge\api\logs\pixbridge-.log" -Tail 50
 ```
-Installed services:
-- `PixBridgeApi`
-- `PixBridgeWorker`
-### 14.3 PostgreSQL Production Setup
+
+---
+
+### 14.6 Network Configuration (Static IP + Firewall)
+
+For guests to reach the server via QR code:
+
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\setup-postgresql.ps1
+# 1. Set static IP on the laptop's Wi-Fi adapter
+# Control Panel → Network → Adapter Properties → IPv4
+# IP: 192.168.10.10 | Mask: 255.255.255.0 | Gateway: 192.168.10.1
+
+# 2. Open port 80 in Windows Firewall (run as Admin)
+netsh advfirewall firewall add rule `
+    name="PixBridge HTTP" `
+    dir=in action=allow protocol=TCP localport=80
+
+# 3. Enable Mobile Hotspot (optional — laptop becomes Wi-Fi access point)
+# Settings → Network → Mobile Hotspot → On
+# Guests scan QR code → join hotspot → open http://192.168.10.10
 ```
-Then run API once or start service so migrations and seed execute.
-### 14.4 Network Configuration (Static IP + Firewall)
-- configure static IP `192.168.10.10`
-- keep API reachable on port `80`
-- allow inbound TCP 80 in firewall
-- ensure guests are on same LAN/Wi-Fi
-### 14.5 Inno Setup Installer
-Installer source:
-- `scripts\installer.iss`
-Expected packaged exe:
-- `PixBridge-Setup-1.0.0.exe`
-Installer behavior:
-- copies API/Worker
-- copies setup scripts and docs
-- can install services
-- runs PostgreSQL setup
-- opens admin panel
-### 14.6 Post-Deploy Checklist
-- [ ] PostgreSQL installed and reachable
-- [ ] DB/user created
-- [ ] JWT secret changed for production
-- [ ] admin password changed
-- [ ] firewall allows port 80
-- [ ] API service running
-- [ ] Worker service running
-- [ ] QR/gallery URL reachable from guest device
-- [ ] event ingestion works
-- [ ] thumbnail generation works
+
+> The API is pre-configured to listen on `http://0.0.0.0:80` via Kestrel. No IIS needed.
+
+---
+
+### 14.7 Database Connection (Production Override)
+
+Default connection string in `appsettings.json`:
+```json
+"ConnectionStrings": {
+  "DefaultConnection": "Host=localhost;Database=pixbridge;Username=pixbridge;Password=pixbridge123;"
+}
+```
+
+To override without editing the EXE (recommended):
+```json
+// Place appsettings.Production.json next to EventPhoto.Api.exe
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Database=pixbridge;Username=pixbridge;Password=YOUR_STRONG_PASSWORD;"
+  },
+  "JwtSettings": {
+    "Secret": "YOUR-STRONG-32-CHAR-SECRET-HERE!!"
+  }
+}
+```
+
+Or via environment variables (Windows Service):
+```
+ASPNETCORE_ENVIRONMENT=Production
+ConnectionStrings__DefaultConnection=Host=localhost;...
+JwtSettings__Secret=YOUR_SECRET
+```
+
+---
+
+### 14.8 First-Run Sequence (What Happens on First Boot After Install)
+
+```
+PixBridgeApi.exe starts
+  → Kestrel binds to 0.0.0.0:80
+  → AppDbContext.MigrateAsync() → applies InitialCreate migration (creates 5 tables)
+  → AppDbContextSeeder.SeedAsync() → inserts admin user + 8 system settings (idempotent)
+  → Middleware pipeline ready
+  → SignalR hub /hubs/photo available
+
+PixBridgeWorker.exe starts
+  → FileWatcherService.StartAsync() → queries active events, starts FSW on each folder
+  → ThumbnailProcessorService.StartAsync() → begins 5s polling loop
+```
+
+EF migrations run automatically — **no manual `dotnet ef database update` needed**.
+
+---
+
+### 14.9 Post-Deploy Checklist
+
+- [ ] PostgreSQL installed and `psql` in PATH
+- [ ] Installer ran as Administrator
+- [ ] DB + user created (`pixbridge` / `pixbridge123`)
+- [ ] Both services show **Running** in `services.msc`
+- [ ] `http://192.168.10.10/admin` opens in browser
+- [ ] Login with `admin` / `Admin@1234!` succeeds
+- [ ] **Change admin password immediately**
+- [ ] Set `appsettings.Production.json` with strong DB password + JWT secret
+- [ ] Port 80 inbound firewall rule added
+- [ ] Static IP `192.168.10.10` configured on Wi-Fi adapter
+- [ ] Guest device can reach `http://192.168.10.10` over Wi-Fi
+- [ ] Create test event, upload a photo, confirm thumbnail appears in gallery
+- [ ] QR code scans and loads correct event gallery on guest device
 
 ## 15. Future Enhancements Guide (how to add features)
 ### 15.1 Adding a New API Feature (step-by-step pattern)
