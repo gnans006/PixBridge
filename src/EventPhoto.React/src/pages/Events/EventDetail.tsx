@@ -1,0 +1,150 @@
+import { useQuery } from '@tanstack/react-query';
+import { CalendarDays, FolderOpen, Images, QrCode, UserRound } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
+import { eventsApi } from '../../api/events';
+import { photosApi } from '../../api/photos';
+import { statisticsApi } from '../../api/statistics';
+import { Badge } from '../../components/UI/Badge';
+import { Button } from '../../components/UI/Button';
+import { Card } from '../../components/UI/Card';
+import { Spinner } from '../../components/UI/Spinner';
+import { formatDate, formatDateTime } from '../../utils/format';
+
+export default function EventDetail() {
+  const { eventId } = useParams<{ eventId: string }>();
+
+  const { data: eventData, isLoading: isEventLoading } = useQuery({
+    queryKey: ['event', eventId],
+    queryFn: async () => {
+      const response = await eventsApi.getById(eventId!);
+      return response.data;
+    },
+    enabled: Boolean(eventId),
+  });
+
+  const { data: statsData, isLoading: isStatsLoading } = useQuery({
+    queryKey: ['event-stats', eventId],
+    queryFn: async () => {
+      const response = await statisticsApi.getEventStats(eventId!);
+      return response.data;
+    },
+    enabled: Boolean(eventId),
+  });
+
+  const { data: photosData, isLoading: isPhotosLoading } = useQuery({
+    queryKey: ['event-photos-preview', eventId],
+    queryFn: async () => {
+      const response = await photosApi.getByEvent(eventId!, 1, 8);
+      return response.data;
+    },
+    enabled: Boolean(eventId),
+  });
+
+  if (isEventLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!eventData) {
+    return <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Event not found.</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900">{eventData.name}</h1>
+            <Badge label={eventData.isActive ? 'Active' : 'Inactive'} color={eventData.isActive ? 'green' : 'red'} />
+            <Badge label={eventData.eventType} color="blue" />
+          </div>
+          <p className="max-w-3xl text-sm text-gray-500">{eventData.description || 'No description provided.'}</p>
+        </div>
+        <div className="flex gap-2">
+          <Link to={`/gallery/${eventData.id}`} target="_blank">
+            <Button>Open Gallery</Button>
+          </Link>
+          <a href={eventsApi.getQrCodeUrl(eventData.id)} target="_blank" rel="noreferrer">
+            <Button variant="secondary">
+              <QrCode className="h-4 w-4" />
+              QR Code
+            </Button>
+          </a>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="p-5 lg:col-span-2">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Event Details</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <InfoRow icon={CalendarDays} label="Event date" value={formatDate(eventData.eventDate)} />
+            <InfoRow icon={UserRound} label="Client" value={eventData.clientName ?? 'Not specified'} />
+            <InfoRow icon={FolderOpen} label="Watch folder" value={eventData.watchFolder} />
+            <InfoRow icon={Images} label="Photos" value={`${eventData.photoCount} photos`} />
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Statistics</h2>
+          {isStatsLoading ? (
+            <Spinner size="sm" />
+          ) : (
+            <div className="space-y-3 text-sm">
+              <StatRow label="Total downloads" value={statsData?.totalDownloads ?? 0} />
+              <StatRow label="Storage" value={statsData?.totalSizeHuman ?? eventData.totalSize} />
+              <StatRow label="Pending thumbs" value={statsData?.thumbnailsPending ?? 0} />
+              <StatRow label="Failed thumbs" value={statsData?.thumbnailsFailed ?? 0} />
+              <StatRow label="Last photo" value={statsData?.lastPhotoAt ? formatDateTime(statsData.lastPhotoAt) : 'N/A'} />
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <Card className="p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Latest Photos</h2>
+          <Link to={`/gallery/${eventData.id}`} className="text-sm font-medium text-primary-600 hover:text-primary-700">
+            View full gallery
+          </Link>
+        </div>
+        {isPhotosLoading ? (
+          <Spinner size="sm" />
+        ) : photosData?.items.length ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+            {photosData.items.map((photo) => (
+              <div key={photo.id} className="overflow-hidden rounded-xl bg-gray-100">
+                <img src={photosApi.getThumbnailUrl(photo.id)} alt={photo.fileName} className="aspect-square h-full w-full object-cover" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No photos captured yet.</p>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value }: { icon: typeof CalendarDays; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+      <div className="mb-2 flex items-center gap-2 text-gray-500">
+        <Icon className="h-4 w-4" />
+        <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
+      </div>
+      <p className="break-all text-sm font-medium text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function StatRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+      <span className="text-gray-500">{label}</span>
+      <span className="font-medium text-gray-900">{value}</span>
+    </div>
+  );
+}
