@@ -516,7 +516,204 @@ Or for production-like testing on port 80, run the published EXE instead.
 
 ---
 
-## 1. Project Overview
+### 0.7 Database Connection Guide
+
+#### Connection Details
+
+| Field | Value |
+|---|---|
+| **Host** | `localhost` |
+| **Port** | `5432` |
+| **Database** | `pixbridge` |
+| **Username** | `pixbridge` |
+| **Password** | `pixbridge123` |
+| **Connection String** | `Host=localhost;Port=5432;Database=pixbridge;Username=pixbridge;Password=pixbridge123;` |
+
+> The connection string is pre-configured in `src\EventPhoto.Api\appsettings.json` and `src\EventPhoto.Worker\appsettings.json`. No changes needed for local dev.
+
+---
+
+#### Option 1 — psql (Command Line)
+
+```powershell
+psql -h localhost -U pixbridge -d pixbridge
+# Enter password when prompted: pixbridge123
+```
+
+Essential psql commands:
+```sql
+\dt                          -- list all tables
+\d "Users"                   -- describe a table's columns + types
+\d "Events"
+\d "Photos"
+
+-- View seeded data after first API run
+SELECT "Id", "Username", "Email", "Role" FROM "Users";
+SELECT "Key", "Value" FROM "SystemSettings";
+SELECT "Id", "Name", "Status" FROM "Events";
+SELECT "Id", "FileName", "Status" FROM "Photos";
+
+-- Check migration was applied
+SELECT * FROM "__EFMigrationsHistory";
+
+-- Count records
+SELECT COUNT(*) FROM "Photos";
+
+\q                           -- quit psql
+```
+
+Connect as superuser (for admin tasks):
+```powershell
+psql -h localhost -U postgres
+# Then switch to pixbridge DB:
+\c pixbridge
+```
+
+---
+
+#### Option 2 — pgAdmin 4 (Visual GUI — ships with PostgreSQL)
+
+1. Open **pgAdmin 4** from Start Menu
+2. Set a master password on first launch (any password — just for pgAdmin)
+3. Left panel → **Servers** → right-click → **Register → Server**
+
+| Tab | Field | Value |
+|---|---|---|
+| General | Name | `PixBridge Dev` |
+| Connection | Host name/address | `localhost` |
+| Connection | Port | `5432` |
+| Connection | Maintenance DB | `pixbridge` |
+| Connection | Username | `pixbridge` |
+| Connection | Password | `pixbridge123` |
+| Connection | Save password | ✅ Yes |
+
+4. Click **Save**
+5. Expand: **PixBridge Dev → Databases → pixbridge → Schemas → public → Tables**
+
+To run a query:
+- Right-click **pixbridge** → **Query Tool**
+- Type SQL → press **F5** to execute
+
+---
+
+#### Option 3 — VS Code PostgreSQL Extension
+
+1. Open VS Code → left sidebar → click the **elephant icon** (PostgreSQL)
+2. Click **+** (Add Connection)
+3. Enter each prompt:
+```
+Server name:  localhost
+Database:     pixbridge
+User:         pixbridge
+Password:     pixbridge123
+Port:         5432
+SSL:          disable / Standard connection (no SSL)
+Display name: PixBridge Dev
+```
+4. Click **Connect** → tables appear in the sidebar
+5. Right-click any table → **Select Top 1000** to browse data inline
+
+---
+
+#### Option 4 — DBeaver (Free Universal DB Client — recommended for power users)
+
+1. Download from https://dbeaver.io/download/ → Community Edition
+2. Open DBeaver → **Database → New Database Connection**
+3. Select **PostgreSQL** → Next
+4. Fill:
+
+| Field | Value |
+|---|---|
+| Host | `localhost` |
+| Port | `5432` |
+| Database | `pixbridge` |
+| Username | `pixbridge` |
+| Password | `pixbridge123` |
+
+5. Click **Test Connection** → should show "Connected"
+6. Click **Finish**
+
+DBeaver advantage: visual ER diagram → right-click schema → **View Diagram** → see all 5 tables and relationships.
+
+---
+
+#### Verify First Run — What Should Be in the DB
+
+After running `dotnet run --project src\EventPhoto.Api` for the first time:
+
+```sql
+-- 1. Migration applied
+SELECT "MigrationId" FROM "__EFMigrationsHistory";
+-- Expected: 20260630174634_InitialCreate
+
+-- 2. Admin user seeded
+SELECT "Username", "Email", "Role", "IsActive" FROM "Users";
+-- Expected: admin | admin@pixbridge.local | Admin | true
+
+-- 3. System settings seeded (8 rows)
+SELECT "Key", "Value" FROM "SystemSettings" ORDER BY "Key";
+-- Expected keys:
+--   AllowGuestDownloads     | true
+--   EventPhotoBasePath      | C:\PixBridgePhotos
+--   GalleryPageSize         | 20
+--   MaxFileSizeMB           | 50
+--   SupportedExtensions     | .jpg,.jpeg,.png,.gif,.bmp,.webp
+--   ThumbnailHeight         | 300
+--   ThumbnailQuality        | 80
+--   ThumbnailWidth          | 400
+
+-- 4. All 5 tables exist
+\dt
+-- Expected: Events, Photos, Users, DownloadLogs, SystemSettings
+```
+
+---
+
+#### Useful Admin Queries
+
+```sql
+-- See all active events with photo counts
+SELECT e."Name", e."Status", COUNT(p."Id") AS "PhotoCount"
+FROM "Events" e
+LEFT JOIN "Photos" p ON p."EventId" = e."Id"
+GROUP BY e."Id", e."Name", e."Status";
+
+-- Find photos pending thumbnail generation
+SELECT "Id", "FileName", "Status"
+FROM "Photos"
+WHERE "Status" = 0   -- 0 = Pending
+ORDER BY "UploadedAt" DESC;
+
+-- Download statistics per event
+SELECT e."Name", COUNT(d."Id") AS "Downloads"
+FROM "DownloadLogs" d
+JOIN "Photos" p ON d."PhotoId" = p."Id"
+JOIN "Events" e ON p."EventId" = e."Id"
+GROUP BY e."Name"
+ORDER BY "Downloads" DESC;
+
+-- Reset admin password (BCrypt hash for 'Admin@1234!')
+UPDATE "Users"
+SET "PasswordHash" = '$2a$11$PLACEHOLDER_HASH'
+WHERE "Username" = 'admin';
+-- Note: generate a real BCrypt hash — do not use this placeholder
+```
+
+---
+
+#### Troubleshooting Connection Issues
+
+| Error | Cause | Fix |
+|---|---|---|
+| `psql: command not found` | PostgreSQL bin not in PATH | Add `C:\Program Files\PostgreSQL\15\bin` to System PATH |
+| `Connection refused (port 5432)` | PostgreSQL service stopped | `Start-Service postgresql-x64-15` |
+| `password authentication failed for user "pixbridge"` | Wrong password or user doesn't exist | Re-run `.\scripts\setup-postgresql.ps1` |
+| `database "pixbridge" does not exist` | DB not created | Run `psql -U postgres -c "CREATE DATABASE pixbridge OWNER pixbridge;"` |
+| pgAdmin shows no tables | Connected to wrong DB | Ensure connected to `pixbridge` not `postgres` |
+| API starts but 500 on all requests | Migration not applied | Check API terminal logs for EF migration errors |
+| `role "pixbridge" does not exist` | User not created | `psql -U postgres -c "CREATE USER pixbridge WITH PASSWORD 'pixbridge123';"` |
+
+---
 **Project:** PixBridge  
 **Purpose:** Fully offline, LAN-based Event Photo Sharing Platform for photography studios  
 **Repo:** https://github.com/gnans006/PixBridge  
