@@ -42,7 +42,10 @@ export default function EventForm() {
       toast.success('Event created successfully!');
       navigate('/admin/events');
     },
-    onError: () => toast.error('Failed to create event.'),
+    onError: (error: unknown) => {
+      const apiError = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(apiError ?? 'Failed to create event.');
+    },
   });
 
   const onSubmit = (data: FormData) => mutation.mutate(data);

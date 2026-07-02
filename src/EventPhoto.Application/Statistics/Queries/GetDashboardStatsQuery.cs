@@ -10,15 +10,18 @@ public sealed record GetDashboardStatsQuery : IRequest<Result<DashboardStatsResp
 
 /// <summary>Handles <see cref="GetDashboardStatsQuery"/>.</summary>
 public sealed class GetDashboardStatsQueryHandler(
-    IEventRepository eventRepository)
+    IEventRepository eventRepository,
+    IDownloadLogRepository downloadLogRepository)
     : IRequestHandler<GetDashboardStatsQuery, Result<DashboardStatsResponse>>
 {
     /// <inheritdoc />
     public async Task<Result<DashboardStatsResponse>> Handle(GetDashboardStatsQuery request, CancellationToken cancellationToken)
     {
-        var events = await eventRepository.GetAllActiveAsync(cancellationToken);
-        var totalPhotos = events.Sum(e => e.PhotoCount);
-        var totalSizeBytes = events.Sum(e => e.TotalSizeBytes);
+        var allEvents = await eventRepository.GetAllAsync(cancellationToken);
+        var activeEvents = allEvents.Where(e => e.IsActive).ToList();
+        var totalPhotos = allEvents.Sum(e => e.PhotoCount);
+        var totalSizeBytes = allEvents.Sum(e => e.TotalSizeBytes);
+        var totalDownloads = await downloadLogRepository.GetTotalCountAsync(cancellationToken);
         var sizeHuman = totalSizeBytes switch
         {
             < 1024 => $"{totalSizeBytes} B",
@@ -28,10 +31,10 @@ public sealed class GetDashboardStatsQueryHandler(
         };
 
         return Result.Success(new DashboardStatsResponse(
-            events.Count,
-            events.Count(e => e.IsActive),
+            allEvents.Count,
+            activeEvents.Count,
             totalPhotos,
-            0,
+            totalDownloads,
             totalSizeBytes,
             sizeHuman));
     }

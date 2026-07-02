@@ -6,17 +6,19 @@ using MediatR;
 
 namespace EventPhoto.Application.Events.Queries;
 
-/// <summary>Query to retrieve all active events.</summary>
-public sealed record GetEventsQuery : IRequest<Result<List<EventResponse>>>;
+/// <summary>Query to retrieve events. When <see cref="IncludeInactive"/> is true, all non-deleted events are returned; otherwise only active events.</summary>
+public sealed record GetEventsQuery(bool IncludeInactive = false) : IRequest<Result<List<EventResponse>>>;
 
-/// <summary>Handles fetching all active events.</summary>
+/// <summary>Handles fetching events.</summary>
 public sealed class GetEventsQueryHandler(IEventRepository eventRepository, IMapper mapper)
     : IRequestHandler<GetEventsQuery, Result<List<EventResponse>>>
 {
     /// <inheritdoc />
     public async Task<Result<List<EventResponse>>> Handle(GetEventsQuery request, CancellationToken cancellationToken)
     {
-        var events = await eventRepository.GetAllActiveAsync(cancellationToken);
+        var events = request.IncludeInactive
+            ? await eventRepository.GetAllAsync(cancellationToken)
+            : await eventRepository.GetAllActiveAsync(cancellationToken);
         return Result.Success(mapper.Map<List<EventResponse>>(events));
     }
 }

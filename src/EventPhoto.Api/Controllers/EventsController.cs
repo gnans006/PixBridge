@@ -44,7 +44,8 @@ public sealed class EventsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<EventResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetEventsQuery(), cancellationToken);
+        var includeInactive = User.Identity?.IsAuthenticated == true;
+        var result = await _mediator.Send(new GetEventsQuery(includeInactive), cancellationToken);
         return Ok(ApiResponse<List<EventResponse>>.Ok(result.Value));
     }
 

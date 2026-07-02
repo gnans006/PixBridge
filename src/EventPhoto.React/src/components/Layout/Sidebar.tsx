@@ -12,7 +12,7 @@ const links = [
 
 export function Sidebar() {
   return (
-    <aside className="flex min-h-screen w-56 flex-col bg-gray-900">
+    <aside className="flex h-full w-56 flex-col overflow-y-auto bg-gray-900">
       <div className="flex-1 py-6">
         <nav className="space-y-1 px-3">
           {links.map(({ to, label, icon: Icon, end }) => (

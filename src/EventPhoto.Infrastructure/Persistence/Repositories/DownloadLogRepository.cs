@@ -15,6 +15,10 @@ public sealed class DownloadLogRepository(AppDbContext context) : IDownloadLogRe
         => await context.DownloadLogs.AddAsync(log, cancellationToken);
 
     /// <inheritdoc />
+    public Task<int> GetTotalCountAsync(CancellationToken cancellationToken = default)
+        => context.DownloadLogs.CountAsync(cancellationToken);
+
+    /// <inheritdoc />
     public Task<int> GetDownloadCountByEventAsync(
         Guid eventId,
         CancellationToken cancellationToken = default)

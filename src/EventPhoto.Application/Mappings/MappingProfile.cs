@@ -12,22 +12,71 @@ public sealed class MappingProfile : Profile
     /// <summary>Initializes a new instance of <see cref="MappingProfile"/>.</summary>
     public MappingProfile()
     {
+        // AutoMapper 16.x requires explicit ConstructUsing for positional records
+        // (records with no parameterless constructor). ForAllMembers(Ignore) stops
+        // AutoMapper from attempting property-level mapping after construction.
+
         CreateMap<Event, EventResponse>()
-            .ForMember(d => d.EventType, o => o.MapFrom(s => s.EventType.ToString()))
-            .ForMember(d => d.TotalSize, o => o.MapFrom(s => FormatBytes(s.TotalSizeBytes)));
+            .ConstructUsing(s => new EventResponse(
+                s.Id,
+                s.Name,
+                s.Description,
+                s.EventType.ToString(),
+                s.EventDate,
+                s.VenueName,
+                s.ClientName,
+                s.WatchFolder,
+                s.QrCodeUrl,
+                s.IsActive,
+                s.PhotoCount,
+                FormatBytes(s.TotalSizeBytes),
+                s.CreatedAt))
+            .ForAllMembers(opt => opt.Ignore());
 
         CreateMap<Event, EventSummaryResponse>()
-            .ForMember(d => d.EventType, o => o.MapFrom(s => s.EventType.ToString()));
+            .ConstructUsing(s => new EventSummaryResponse(
+                s.Id,
+                s.Name,
+                s.EventType.ToString(),
+                s.EventDate,
+                s.ClientName,
+                s.IsActive,
+                s.PhotoCount))
+            .ForAllMembers(opt => opt.Ignore());
 
         CreateMap<Photo, PhotoResponse>()
-            .ForMember(d => d.ThumbnailUrl, o => o.MapFrom(s => $"/api/photos/{s.Id}/thumbnail"))
-            .ForMember(d => d.OriginalUrl, o => o.MapFrom(s => $"/api/photos/{s.Id}/download"))
-            .ForMember(d => d.ThumbnailStatus, o => o.MapFrom(s => s.ThumbnailStatus.ToString()));
+            .ConstructUsing(s => new PhotoResponse(
+                s.Id,
+                s.EventId,
+                s.FileName,
+                $"/api/photos/{s.Id}/thumbnail",
+                $"/api/photos/{s.Id}/download",
+                s.FileSizeBytes,
+                s.Width,
+                s.Height,
+                s.TakenAt,
+                s.CapturedAt,
+                s.DownloadCount,
+                s.ThumbnailStatus.ToString()))
+            .ForAllMembers(opt => opt.Ignore());
 
         CreateMap<Photo, PhotoSummaryResponse>()
-            .ForMember(d => d.ThumbnailStatus, o => o.MapFrom(s => s.ThumbnailStatus.ToString()));
+            .ConstructUsing(s => new PhotoSummaryResponse(
+                s.Id,
+                s.FileName,
+                s.ThumbnailPath,
+                s.MimeType,
+                s.CapturedAt,
+                s.ThumbnailStatus.ToString()))
+            .ForAllMembers(opt => opt.Ignore());
 
-        CreateMap<SystemSetting, SystemSettingResponse>();
+        CreateMap<SystemSetting, SystemSettingResponse>()
+            .ConstructUsing(s => new SystemSettingResponse(
+                s.Id,
+                s.Key,
+                s.Value,
+                s.Description))
+            .ForAllMembers(opt => opt.Ignore());
     }
 
     private static string FormatBytes(long bytes) => bytes switch

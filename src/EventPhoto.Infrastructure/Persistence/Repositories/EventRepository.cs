@@ -23,6 +23,13 @@ public sealed class EventRepository(AppDbContext context) : IEventRepository
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
+    public Task<List<Event>> GetAllAsync(CancellationToken cancellationToken = default)
+        => context.Events
+            .Where(e => !e.IsDeleted)
+            .OrderByDescending(e => e.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
     public Task<Event?> GetWithPhotosAsync(Guid id, CancellationToken cancellationToken = default)
         => context.Events
             .Include(e => e.Photos)

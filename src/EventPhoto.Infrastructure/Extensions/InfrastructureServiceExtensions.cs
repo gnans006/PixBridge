@@ -40,6 +40,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IThumbnailService, ThumbnailService>();
         services.AddScoped<IQrCodeService, QrCodeService>();
         services.AddScoped<IFileStorageService, FileStorageService>();
+        services.AddTransient<IFileService, FileService>();
 
         return services;
     }

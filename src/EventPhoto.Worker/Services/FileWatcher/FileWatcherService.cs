@@ -79,6 +79,21 @@ public sealed class FileWatcherService : BackgroundService
 
             _watchers.Add(watcher);
             _logger.LogInformation("Watching folder {Path} for event {EventId}.", eventEntity.WatchFolder, eventId);
+
+            // Scan files that already exist in the folder so they are not missed
+            // on first start or after a restart. IngestPhotoCommand deduplicates by path.
+            var preExisting = Directory.GetFiles(eventEntity.WatchFolder)
+                .Where(f => WatchedExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                .ToList();
+
+            if (preExisting.Count > 0)
+            {
+                _logger.LogInformation("Scanning {Count} pre-existing file(s) in {Path}.", preExisting.Count, eventEntity.WatchFolder);
+                foreach (var file in preExisting)
+                {
+                    QueueFile(file, eventId);
+                }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, FolderOpen, Images, QrCode, UserRound } from 'lucide-react';
+import { CalendarDays, Download, FolderOpen, Images, QrCode, UserRound, X } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { eventsApi } from '../../api/events';
 import { photosApi } from '../../api/photos';
@@ -12,6 +13,7 @@ import { formatDate, formatDateTime } from '../../utils/format';
 
 export default function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
+  const [showQrModal, setShowQrModal] = useState(false);
 
   const { data: eventData, isLoading: isEventLoading } = useQuery({
     queryKey: ['event', eventId],
@@ -53,6 +55,7 @@ export default function EventDetail() {
   }
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -67,12 +70,10 @@ export default function EventDetail() {
           <Link to={`/gallery/${eventData.id}`} target="_blank">
             <Button>Open Gallery</Button>
           </Link>
-          <a href={eventsApi.getQrCodeUrl(eventData.id)} target="_blank" rel="noreferrer">
-            <Button variant="secondary">
-              <QrCode className="h-4 w-4" />
-              QR Code
-            </Button>
-          </a>
+          <Button variant="secondary" onClick={() => setShowQrModal(true)}>
+            <QrCode className="h-4 w-4" />
+            QR Code
+          </Button>
         </div>
       </div>
 
@@ -125,6 +126,74 @@ export default function EventDetail() {
         )}
       </Card>
     </div>
+
+    {/* QR Code Modal */}
+    {showQrModal ? (
+      <div
+        role="presentation"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+        onClick={() => setShowQrModal(false)}
+      >
+        <div
+          role="dialog"
+          aria-modal
+          className="relative w-full max-w-sm rounded-2xl bg-white shadow-2xl"
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => setShowQrModal(false)}
+            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+          >
+            <X className="h-4 w-4" />
+          </button>
+
+          {/* Coloured header */}
+          <div className="rounded-t-2xl bg-gradient-to-br from-teal-600 to-teal-800 px-6 py-5 text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-teal-200">Event Gallery</p>
+            <h2 className="mt-1 text-lg font-bold text-white">{eventData.name}</h2>
+            {eventData.venueName ? (
+              <p className="mt-0.5 text-sm text-teal-200">{eventData.venueName}</p>
+            ) : null}
+          </div>
+
+          {/* QR image */}
+          <div className="flex justify-center px-6 py-5">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+              <img
+                src={eventsApi.getQrCodeUrl(eventData.id)}
+                alt="QR Code"
+                className="h-52 w-52 object-contain"
+              />
+            </div>
+          </div>
+
+          <p className="mb-4 text-center text-xs text-gray-500">
+            Scan with phone camera to open the gallery
+          </p>
+
+          <div className="flex gap-2 rounded-b-2xl border-t border-gray-100 px-6 py-4">
+            <a
+              href={eventsApi.getQrCodeUrl(eventData.id)}
+              download={`qr-${eventData.name}.png`}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700"
+            >
+              <Download className="h-4 w-4" />
+              Download
+            </a>
+            <Link
+              to={`/gallery/${eventData.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Open Gallery
+            </Link>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }
 

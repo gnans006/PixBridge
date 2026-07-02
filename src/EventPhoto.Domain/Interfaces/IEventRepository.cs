@@ -23,6 +23,13 @@ public interface IEventRepository
     Task<List<Event>> GetAllActiveAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets all non-deleted events (active and inactive).
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The list of all non-deleted events.</returns>
+    Task<List<Event>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets an event with its photos loaded.
     /// </summary>
     /// <param name="id">The event identifier.</param>

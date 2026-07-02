@@ -15,6 +15,13 @@ public interface IDownloadLogRepository
     Task AddAsync(DownloadLog log, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the total download count across all events.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The total download count.</returns>
+    Task<int> GetTotalCountAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets the total download count for an event.
     /// </summary>
     /// <param name="eventId">The event identifier.</param>

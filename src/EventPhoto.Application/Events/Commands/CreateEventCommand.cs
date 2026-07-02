@@ -58,10 +58,7 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
         var thumbnailFolder = Path.Combine(request.WatchFolder, ".thumbnails");
         var qrFolder = Path.Combine(request.WatchFolder, ".qrcodes");
 
-        _fileStorageService.EnsureDirectoryExists(request.WatchFolder);
-        _fileStorageService.EnsureDirectoryExists(thumbnailFolder);
-        _fileStorageService.EnsureDirectoryExists(qrFolder);
-
+        // Create entity first so we have the ID available for paths/QR URL.
         var eventEntity = Domain.Entities.Event.Create(
             request.Name,
             eventType,
@@ -73,15 +70,26 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
             request.VenueName,
             request.ClientName);
 
-        await _eventRepository.AddAsync(eventEntity, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
         var galleryUrl = $"{serverUrl}/gallery/{eventEntity.Id}";
         var qrPath = Path.Combine(qrFolder, $"qr-{eventEntity.Id}.png");
-        await _qrCodeService.GenerateAsync(galleryUrl, qrPath, cancellationToken);
+
+        // Initialise directories and generate QR code BEFORE persisting to the database.
+        // This ensures no orphaned DB record is created if file-system operations fail.
+        try
+        {
+            _fileStorageService.EnsureDirectoryExists(request.WatchFolder);
+            _fileStorageService.EnsureDirectoryExists(thumbnailFolder);
+            _fileStorageService.EnsureDirectoryExists(qrFolder);
+            await _qrCodeService.GenerateAsync(galleryUrl, qrPath, eventEntity.Name, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure<EventResponse>($"Failed to initialise event folders: {ex.Message}");
+        }
+
         eventEntity.SetQrCode(qrPath, galleryUrl);
 
-        await _eventRepository.UpdateAsync(eventEntity, cancellationToken);
+        await _eventRepository.AddAsync(eventEntity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(_mapper.Map<EventResponse>(eventEntity));
