@@ -197,7 +197,30 @@ public sealed class EventsController : ControllerBase
             return NotFound();
         }
 
+        Response.Headers.Append("Cache-Control", "no-store, no-cache, must-revalidate");
+        Response.Headers.Append("Pragma", "no-cache");
+
         var stream = new FileStream(eventEntity.QrCodePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
         return File(stream, "image/png");
+    }
+
+    /// <summary>
+    /// Regenerates the QR code for an event using the current server URL.
+    /// </summary>
+    /// <param name="id">The event identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>No content on success.</returns>
+    [HttpPost("{id:guid}/qrcode/refresh")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RefreshQrCode(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new RefreshQrCodeCommand(id), cancellationToken);
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Fail(result.Error));
+        }
+
+        return NoContent();
     }
 }

@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, Download, FolderOpen, Images, QrCode, UserRound, X } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CalendarDays, Download, FolderOpen, Images, QrCode, RefreshCw, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { Link, useParams } from 'react-router-dom';
 import { eventsApi } from '../../api/events';
 import { photosApi } from '../../api/photos';
@@ -13,7 +14,19 @@ import { formatDate, formatDateTime } from '../../utils/format';
 
 export default function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
+  const queryClient = useQueryClient();
   const [showQrModal, setShowQrModal] = useState(false);
+  const [qrBust, setQrBust] = useState(() => Date.now());
+
+  const refreshQrMutation = useMutation({
+    mutationFn: () => eventsApi.refreshQr(eventId!),
+    onSuccess: () => {
+      setQrBust(Date.now());
+      void queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+      toast.success('QR code refreshed.');
+    },
+    onError: () => toast.error('Failed to refresh QR code.'),
+  });
 
   const { data: eventData, isLoading: isEventLoading } = useQuery({
     queryKey: ['event', eventId],
@@ -161,7 +174,7 @@ export default function EventDetail() {
           <div className="flex justify-center px-6 py-5">
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
               <img
-                src={eventsApi.getQrCodeUrl(eventData.id)}
+                src={eventsApi.getQrCodeUrl(eventData.id, qrBust)}
                 alt="QR Code"
                 className="h-52 w-52 object-contain"
               />
@@ -173,8 +186,18 @@ export default function EventDetail() {
           </p>
 
           <div className="flex gap-2 rounded-b-2xl border-t border-gray-100 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => refreshQrMutation.mutate()}
+              disabled={refreshQrMutation.isPending}
+              className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+              title="Regenerate QR with current server IP"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshQrMutation.isPending ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
             <a
-              href={eventsApi.getQrCodeUrl(eventData.id)}
+              href={eventsApi.getQrCodeUrl(eventData.id, qrBust)}
               download={`qr-${eventData.name}.png`}
               className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700"
             >

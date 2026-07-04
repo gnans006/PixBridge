@@ -19,7 +19,7 @@ export default function EventList() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isFetching, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['events'],
     queryFn: async () => {
       const response = await eventsApi.getAll();
@@ -62,6 +62,21 @@ export default function EventList() {
     onError: () => toast.error('Failed to delete event.'),
   });
 
+  const [refreshingQrId, setRefreshingQrId] = useState<string | null>(null);
+
+  const refreshQrMutation = useMutation({
+    mutationFn: (id: string) => eventsApi.refreshQr(id),
+    onMutate: (id) => setRefreshingQrId(id),
+    onSuccess: () => {
+      setRefreshingQrId(null);
+      toast.success('QR code refreshed.');
+    },
+    onError: () => {
+      setRefreshingQrId(null);
+      toast.error('Failed to refresh QR code.');
+    },
+  });
+
   const toggleMutation = useMutation({
     mutationFn: ({ id, activate }: { id: string; activate: boolean }) => eventsApi.toggleActive(id, activate),
     onSuccess: () => {
@@ -86,16 +101,6 @@ export default function EventList() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Events</h1>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            title="Refresh photo counts and sizes"
-            onClick={() => { void refetch(); void queryClient.invalidateQueries({ queryKey: ['events'] }); }}
-            disabled={isFetching}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
           <Link to="/admin/events/new">
             <Button>
               <Plus className="h-4 w-4" />
@@ -162,9 +167,15 @@ export default function EventList() {
                 <Link to={`/gallery/${eventItem.id}`} target="_blank" title="Open gallery">
                   <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
                 </Link>
-                <a href={eventsApi.getQrCodeUrl(eventItem.id)} target="_blank" rel="noreferrer" title="Download QR code">
+                <a href={eventsApi.getQrCodeUrl(eventItem.id)} target="_blank" rel="noreferrer" title="View QR code">
                   <Button variant="ghost" size="sm"><QrCode className="h-4 w-4" /></Button>
                 </a>
+                <Button variant="ghost" size="sm"
+                  title="Refresh QR code with current IP"
+                  disabled={refreshingQrId === eventItem.id}
+                  onClick={() => refreshQrMutation.mutate(eventItem.id)}>
+                  <RefreshCw className={`h-4 w-4 ${refreshingQrId === eventItem.id ? 'animate-spin' : ''}`} />
+                </Button>
                 <Button variant="ghost" size="sm"
                   title={eventItem.isActive ? 'Deactivate event' : 'Activate event'}
                   onClick={() => toggleMutation.mutate({ id: eventItem.id, activate: !eventItem.isActive })}>

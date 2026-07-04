@@ -28,7 +28,12 @@ export const eventsApi = {
     });
     return response.data;
   },
-  getQrCodeUrl(id: string) {
-    return buildApiUrl(`/events/${id}/qrcode`);
+  getQrCodeUrl(id: string, bust?: number) {
+    const url = buildApiUrl(`/events/${id}/qrcode`);
+    return bust ? `${url}?t=${bust}` : url;
+  },
+  async refreshQr(id: string) {
+    const response = await apiClient.post<void>(`/events/${id}/qrcode/refresh`);
+    return response.data;
   },
 };
