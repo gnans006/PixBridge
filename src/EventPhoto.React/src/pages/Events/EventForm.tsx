@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ChevronLeft } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { eventsApi } from '../../api/events';
 import { Button } from '../../components/UI/Button';
@@ -78,6 +79,13 @@ export default function EventForm() {
 
   return (
     <div className="max-w-2xl space-y-6">
+      <Link
+        to="/admin/events"
+        className="inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back to Events
+      </Link>
       <h1 className="text-2xl font-bold text-gray-900">New Event</h1>
       <Card className="p-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

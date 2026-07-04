@@ -97,8 +97,11 @@ using (var scope = app.Services.CreateScope())
             if (setting != null)
             {
                 var uri = new Uri(setting.Value);
-                var newBaseUrl = $"{uri.Scheme}://{lanIp}:{uri.Port}";
-                var oldBaseUrl = $"{uri.Scheme}://{uri.Host}:{uri.Port}";
+                // When the URL was stored without an explicit port (defaulting to 80),
+                // treat it as port 5000 — the API's actual listening port.
+                var effectivePort = (uri.Port == 80 && !setting.Value.Contains(":80")) ? 5000 : uri.Port;
+                var newBaseUrl = $"{uri.Scheme}://{lanIp}:{effectivePort}";
+                var oldBaseUrl = $"{uri.Scheme}://{uri.Host}:{effectivePort}";
 
                 if (newBaseUrl != oldBaseUrl)
                 {

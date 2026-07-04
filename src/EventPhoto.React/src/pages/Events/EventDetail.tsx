@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Download, FolderOpen, Images, QrCode, RefreshCw, UserRound, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, Download, FolderOpen, Images, QrCode, RefreshCw, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Link, useParams } from 'react-router-dom';
@@ -70,6 +70,15 @@ export default function EventDetail() {
   return (
     <>
     <div className="space-y-6">
+      {/* Back navigation */}
+      <Link
+        to="/admin/events"
+        className="inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back to Events
+      </Link>
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-2">

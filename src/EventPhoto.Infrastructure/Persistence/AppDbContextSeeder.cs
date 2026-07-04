@@ -40,7 +40,7 @@ public static class AppDbContextSeeder
         var defaults = new[]
         {
             SystemSetting.Create("app.name", "PixBridge", "Application display name"),
-            SystemSetting.Create("app.serverUrl", "http://192.168.10.10", "LAN URL guests use to connect"),
+            SystemSetting.Create("app.serverUrl", "http://192.168.10.10:5000", "LAN URL guests use to connect"),
             SystemSetting.Create("gallery.pageSize", "50", "Photos per page in gallery"),
             SystemSetting.Create("thumbnail.width", "400", "Thumbnail max width in pixels"),
             SystemSetting.Create("thumbnail.height", "400", "Thumbnail max height in pixels"),

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CheckSquare, ChevronLeft, ChevronRight, Download, Square, Wifi, X, ZoomIn } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { eventsApi } from '../api/events';
 import { photosApi } from '../api/photos';
 import { Spinner } from '../components/UI/Spinner';
@@ -11,6 +11,7 @@ import { formatDateTime } from '../utils/format';
 
 export default function Gallery() {
   const { eventId } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -151,6 +152,14 @@ export default function Gallery() {
       <div className="sticky top-0 z-30 border-b border-gray-800 bg-gray-950/95 px-3 py-3 backdrop-blur-sm sm:px-6 sm:py-4">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4">
           <div className="min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="mb-0.5 inline-flex items-center gap-1 text-xs text-gray-400 transition-colors hover:text-white"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Back
+            </button>
             <h1 className="truncate text-base font-bold text-white sm:text-xl">{eventData?.name ?? 'Gallery'}</h1>
             {eventData ? (
               <p className="truncate text-xs text-gray-400 sm:text-sm">{eventData.photoCount} photos · {eventData.totalSize}</p>
