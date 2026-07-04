@@ -101,15 +101,8 @@ export default function Gallery() {
   const clearSelection = useCallback(() => setSelected(new Set()), []);
   const exitSelectMode = useCallback(() => { setIsSelectMode(false); setSelected(new Set()); }, []);
   const downloadSelected = useCallback(() => {
-    Array.from(selected).forEach((id, i) => {
-      setTimeout(() => {
-        const a = document.createElement('a');
-        a.href = photosApi.getDownloadUrl(id);
-        a.download = '';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }, i * 300);
+    Array.from(selected).forEach((id) => {
+      window.open(photosApi.getDownloadUrl(id), '_blank');
     });
     exitSelectMode();
   }, [selected, exitSelectMode]);
@@ -352,11 +345,12 @@ export default function Gallery() {
                   {formatDateTime(lightboxPhoto.capturedAt)} · {lightboxIndex + 1} / {photos.length}
                 </p>
               </div>
-              <a href={photosApi.getDownloadUrl(lightboxPhoto.id)} download={lightboxPhoto.fileName}
-                onClick={e => e.stopPropagation()}
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); window.open(photosApi.getDownloadUrl(lightboxPhoto.id), '_blank'); }}
                 className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-700 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
                 <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden sm:inline">Download</span>
-              </a>
+              </button>
             </div>
           </div>
 
