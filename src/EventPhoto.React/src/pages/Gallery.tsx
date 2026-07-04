@@ -198,6 +198,11 @@ export default function Gallery() {
             </div>
             <p className="text-xl font-medium text-gray-400">No photos yet</p>
             <p className="mt-2 text-sm text-gray-600">Photos will appear here automatically as the photographer uploads them.</p>
+            {eventData?.watchFolder ? (
+              <p className="mt-3 rounded-lg bg-gray-800 px-4 py-2 font-mono text-xs text-gray-400">
+                Drop photos into: {eventData.watchFolder}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
