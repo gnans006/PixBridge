@@ -18,7 +18,12 @@ public static class JwtExtensions
     /// <returns>The same service collection for chaining.</returns>
     public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
-        var secret = configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret is missing.");
+        var secret = configuration["Jwt:Secret"];
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            throw new InvalidOperationException(
+                "Jwt:Secret is missing or empty. Set it via the 'Jwt__Secret' environment variable or appsettings.Development.json.");
+        }
         var issuer = configuration["Jwt:Issuer"] ?? "PixBridge";
         var audience = configuration["Jwt:Audience"] ?? "PixBridgeClients";
 

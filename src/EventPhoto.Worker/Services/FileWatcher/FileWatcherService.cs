@@ -14,6 +14,7 @@ namespace EventPhoto.Worker.Services.FileWatcher;
 public sealed class FileWatcherService : BackgroundService
 {
     private static readonly string[] WatchedExtensions = [".jpg", ".jpeg", ".png", ".cr2", ".nef", ".arw", ".dng", ".tiff"];
+    private static readonly SemaphoreSlim _ingestThrottle = new(4, 4);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<FileWatcherService> _logger;
@@ -126,6 +127,9 @@ public sealed class FileWatcherService : BackgroundService
 
     private async Task ProcessNewFileAsync(string filePath, Guid eventId)
     {
+        await _ingestThrottle.WaitAsync();
+        try
+        {
         await Task.Delay(500);
 
         var fileReady = false;
@@ -177,6 +181,11 @@ public sealed class FileWatcherService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to register photo {FilePath} for event {EventId}.", filePath, eventId);
+        }
+        }
+        finally
+        {
+            _ingestThrottle.Release();
         }
     }
 

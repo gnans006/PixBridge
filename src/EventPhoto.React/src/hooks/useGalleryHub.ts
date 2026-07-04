@@ -12,12 +12,23 @@ export interface NewPhotoEvent {
 
 const HUB_URL = import.meta.env.VITE_HUB_BASE ?? '/hubs/photos';
 
-export function useGalleryHub(eventId: string | null, onNewPhoto: (photo: NewPhotoEvent) => void) {
+export interface DeletedPhotoEvent {
+  photoId: string;
+  eventId: string;
+}
+
+export function useGalleryHub(
+  eventId: string | null,
+  onNewPhoto: (photo: NewPhotoEvent) => void,
+  onPhotoDeleted?: (event: DeletedPhotoEvent) => void,
+) {
   const hubRef = useRef<signalR.HubConnection | null>(null);
   const onNewPhotoRef = useRef(onNewPhoto);
+  const onPhotoDeletedRef = useRef(onPhotoDeleted);
   const [isConnected, setIsConnected] = useState(false);
 
   onNewPhotoRef.current = onNewPhoto;
+  onPhotoDeletedRef.current = onPhotoDeleted;
 
   const connect = useCallback(async () => {
     if (!eventId || hubRef.current) {
@@ -33,6 +44,7 @@ export function useGalleryHub(eventId: string | null, onNewPhoto: (photo: NewPho
       .build();
 
     connection.on('photo:new', (data: NewPhotoEvent) => onNewPhotoRef.current(data));
+    connection.on('photo:deleted', (data: DeletedPhotoEvent) => onPhotoDeletedRef.current?.(data));
     connection.onclose(() => setIsConnected(false));
     connection.onreconnected(() => setIsConnected(true));
 

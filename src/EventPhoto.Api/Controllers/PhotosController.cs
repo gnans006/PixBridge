@@ -150,7 +150,7 @@ public sealed class PhotosController : ControllerBase
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var stream = new FileStream(photo.OriginalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
-        return File(stream, photo.MimeType, photo.FileName);
+        return File(stream, photo.MimeType, photo.FileName, enableRangeProcessing: true);
     }
 
     /// <summary>

@@ -15,7 +15,7 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
         // Design-time connection string — used only by EF CLI tools (migrations).
         // Change before running 'dotnet ef database update' if your credentials differ.
         const string designTimeConnection =
-            "Host=localhost;Database=pixbridge_dev;Username=postgres;Password=postgres;";
+            "Host=localhost;Database=pixbridge_dev;Username=postgres;Password=Gnanavel@2026;";
 
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
         optionsBuilder.UseNpgsql(

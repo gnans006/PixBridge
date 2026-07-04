@@ -23,6 +23,7 @@ public sealed record GetPhotosByEventQuery(
 /// Handles the <see cref="GetPhotosByEventQuery"/>.
 /// </summary>
 public sealed class GetPhotosByEventQueryHandler(
+    IEventRepository eventRepository,
     IPhotoRepository photoRepository,
     IMapper mapper)
     : IRequestHandler<GetPhotosByEventQuery, Result<PagedResult<PhotoResponse>>>
@@ -32,13 +33,21 @@ public sealed class GetPhotosByEventQueryHandler(
         GetPhotosByEventQuery request,
         CancellationToken cancellationToken)
     {
+        var eventEntity = await eventRepository.GetByIdAsync(request.EventId, cancellationToken);
+        if (eventEntity is null)
+        {
+            return Result.Failure<PagedResult<PhotoResponse>>("Event not found.");
+        }
+
         var photos = await photoRepository.GetByEventIdAsync(
             request.EventId,
             request.Page,
             request.PageSize,
             cancellationToken);
-        var totalCount = await photoRepository.GetTotalCountByEventAsync(request.EventId, cancellationToken);
+
         var mapped = mapper.Map<List<PhotoResponse>>(photos);
-        return Result.Success(new PagedResult<PhotoResponse>(mapped, totalCount, request.Page, request.PageSize));
+
+        // Use the cached PhotoCount from the event aggregate instead of a separate COUNT(*) query.
+        return Result.Success(new PagedResult<PhotoResponse>(mapped, eventEntity.PhotoCount, request.Page, request.PageSize));
     }
 }

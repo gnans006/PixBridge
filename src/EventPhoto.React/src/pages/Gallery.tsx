@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CheckSquare, ChevronLeft, ChevronRight, Download, Square, Wifi, X, ZoomIn } from 'lucide-react';
 import { useParams } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { eventsApi } from '../api/events';
 import { photosApi } from '../api/photos';
 import { Spinner } from '../components/UI/Spinner';
 import { useGalleryHub } from '../hooks/useGalleryHub';
-import type { NewPhotoEvent } from '../hooks/useGalleryHub';
+import type { DeletedPhotoEvent, NewPhotoEvent } from '../hooks/useGalleryHub';
 import { formatDateTime } from '../utils/format';
 
 export default function Gallery() {
@@ -25,6 +25,7 @@ export default function Gallery() {
       return response.data;
     },
     enabled: Boolean(eventId),
+    refetchInterval: 15_000,
   });
 
   const { data: photosData, isLoading } = useQuery({
@@ -38,8 +39,10 @@ export default function Gallery() {
 
   const onNewPhoto = useCallback(
     (_photo: NewPhotoEvent) => {
-      void queryClient.invalidateQueries({ queryKey: ['photos', eventId, 1] });
+      void queryClient.invalidateQueries({ queryKey: ['photos', eventId, page] });
       void queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+      void queryClient.invalidateQueries({ queryKey: ['events'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       if (page !== 1) {
         setPage(1);
       }
@@ -47,7 +50,17 @@ export default function Gallery() {
     [eventId, page, queryClient],
   );
 
-  const { isConnected } = useGalleryHub(eventId ?? null, onNewPhoto);
+  const onPhotoDeleted = useCallback(
+    (_event: DeletedPhotoEvent) => {
+      void queryClient.invalidateQueries({ queryKey: ['photos', eventId, page] });
+      void queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+      void queryClient.invalidateQueries({ queryKey: ['events'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    },
+    [eventId, page, queryClient],
+  );
+
+  const { isConnected } = useGalleryHub(eventId ?? null, onNewPhoto, onPhotoDeleted);
 
   const photos = useMemo(() => photosData?.items ?? [], [photosData]);
   const lightboxPhoto = lightboxOpen && photos.length > lightboxIndex ? photos[lightboxIndex] : null;
@@ -101,32 +114,71 @@ export default function Gallery() {
   }, [selected, exitSelectMode]);
   const allSelected = photos.length > 0 && selected.size === photos.length;
 
+  // Long press (mobile) — enter select mode and select the pressed photo
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
+
+  // Swipe support for lightbox
+  const swipeTouchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = useCallback((id: string) => {
+    didLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      setIsSelectMode(true);
+      setSelected(new Set([id]));
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, 500);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Sticky header */}
-      <div className="sticky top-0 z-30 border-b border-gray-800 bg-gray-950/95 px-6 py-4 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-white">{eventData?.name ?? 'Gallery'}</h1>
+      <div className="sticky top-0 z-30 border-b border-gray-800 bg-gray-950/95 px-3 py-3 backdrop-blur-sm sm:px-6 sm:py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-base font-bold text-white sm:text-xl">{eventData?.name ?? 'Gallery'}</h1>
             {eventData ? (
-              <p className="text-sm text-gray-400">{eventData.photoCount} photos · {eventData.totalSize}</p>
+              <p className="truncate text-xs text-gray-400 sm:text-sm">{eventData.photoCount} photos · {eventData.totalSize}</p>
             ) : null}
           </div>
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center gap-2 text-sm ${isConnected ? 'text-green-400' : 'text-gray-500'}`}>
-              <Wifi className="h-4 w-4" />
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <div className={`flex items-center gap-1 text-xs sm:gap-2 sm:text-sm ${isConnected ? 'text-green-400' : 'text-gray-500'}`}>
+              <Wifi className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">{isConnected ? 'Live' : 'Connecting…'}</span>
             </div>
             {photos.length > 0 ? (
               isSelectMode ? (
-                <button type="button" onClick={exitSelectMode}
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-gray-500 hover:text-white">
-                  <X className="h-4 w-4" /> Cancel
-                </button>
+                <>
+                  <button type="button" onClick={allSelected ? clearSelection : selectAll}
+                    className="flex items-center gap-1 rounded-lg bg-primary-600 px-2 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-700 sm:gap-1.5 sm:px-3 sm:text-sm">
+                    {allSelected
+                      ? <><Square className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden xs:inline sm:inline"> Deselect all</span></>
+                      : <><CheckSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden xs:inline sm:inline"> Select all</span></>}
+                  </button>
+                  <button type="button" onClick={exitSelectMode}
+                    className="flex items-center gap-1 rounded-lg border border-gray-600 px-2 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-500 hover:text-white sm:gap-1.5 sm:px-3 sm:text-sm">
+                    <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden sm:inline"> Cancel</span>
+                  </button>
+                </>
               ) : (
                 <button type="button" onClick={() => setIsSelectMode(true)}
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-gray-500 hover:text-white">
-                  <CheckSquare className="h-4 w-4" /> Select
+                  className="flex items-center gap-1 rounded-lg border border-gray-700 px-2 py-1.5 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-white sm:gap-1.5 sm:px-3 sm:text-sm">
+                  <CheckSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden sm:inline"> Select</span>
                 </button>
               )
             ) : null}
@@ -155,9 +207,13 @@ export default function Gallery() {
               const isChosen = selected.has(photo.id);
               return (
                 <button key={photo.id} type="button"
-                  onClick={() => (isSelectMode ? toggleSelect(photo.id) : openLightbox(photo.id))}
+                  onClick={() => { if (didLongPress.current) { didLongPress.current = false; return; } isSelectMode ? toggleSelect(photo.id) : openLightbox(photo.id); }}
+                  onTouchStart={() => handleTouchStart(photo.id)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchMove}
+                  onContextMenu={e => e.preventDefault()}
                   className={[
-                    'group relative aspect-square overflow-hidden rounded-lg bg-gray-800 transition-all',
+                    'group relative aspect-square overflow-hidden rounded-lg bg-gray-800 transition-all select-none',  
                     isSelectMode && isChosen ? 'scale-[0.96] ring-2 ring-primary-500 ring-offset-2 ring-offset-gray-900' : '',
                     isSelectMode && !isChosen ? 'opacity-70 hover:opacity-100' : '',
                     !isSelectMode ? 'hover:brightness-110' : '',
@@ -202,28 +258,41 @@ export default function Gallery() {
       {/* Selection toolbar — fixed bottom */}
       {isSelectMode ? (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-700 bg-gray-950/95 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
-            <div className="flex items-center gap-4 text-sm">
-              <span className="font-medium text-white">
+          <div className="mx-auto max-w-7xl px-3 py-2 sm:px-6 sm:py-3">
+            {/* Row 1 — count + select all */}
+            <div className="flex items-center justify-between gap-2 sm:hidden">
+              <span className="text-sm font-medium text-white">
                 {selected.size} {selected.size === 1 ? 'photo' : 'photos'} selected
               </span>
               <button type="button" onClick={allSelected ? clearSelection : selectAll}
-                className="flex items-center gap-1 text-primary-400 transition-colors hover:text-primary-300">
-                {allSelected
-                  ? <><Square className="h-4 w-4" /> Deselect all</>
-                  : <><CheckSquare className="h-4 w-4" /> Select all</>}
+                className="flex items-center gap-1 text-sm text-primary-500 transition-colors hover:text-primary-100">
+                {allSelected ? <><Square className="h-4 w-4" /> Deselect all</> : <><CheckSquare className="h-4 w-4" /> Select all</>}
               </button>
             </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={exitSelectMode}
-                className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white">
-                Cancel
-              </button>
-              <button type="button" onClick={downloadSelected} disabled={selected.size === 0}
-                className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-40">
-                <Download className="h-4 w-4" />
-                Download ({selected.size})
-              </button>
+            {/* Row 2 (mobile) / single row (desktop) */}
+            <div className="mt-2 flex items-center justify-between gap-2 sm:mt-0">
+              {/* Desktop-only left side */}
+              <div className="hidden items-center gap-4 text-sm sm:flex">
+                <span className="font-medium text-white">
+                  {selected.size} {selected.size === 1 ? 'photo' : 'photos'} selected
+                </span>
+                <button type="button" onClick={allSelected ? clearSelection : selectAll}
+                  className="flex items-center gap-1 text-primary-500 transition-colors hover:text-primary-100">
+                  {allSelected ? <><Square className="h-4 w-4" /> Deselect all</> : <><CheckSquare className="h-4 w-4" /> Select all</>}
+                </button>
+              </div>
+              {/* Actions — always visible */}
+              <div className="flex w-full gap-2 sm:w-auto">
+                <button type="button" onClick={exitSelectMode}
+                  className="flex-1 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 transition-colors hover:text-white sm:flex-none sm:px-4">
+                  Cancel
+                </button>
+                <button type="button" onClick={downloadSelected} disabled={selected.size === 0}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none sm:px-4">
+                  <Download className="h-4 w-4" />
+                  Download ({selected.size})
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -231,43 +300,55 @@ export default function Gallery() {
 
       {/* Lightbox */}
       {lightboxPhoto ? (
-        <div role="presentation" className="fixed inset-0 z-50 flex items-center bg-black/95" onClick={closeLightbox}>
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center bg-black/95"
+          onClick={closeLightbox}
+          onTouchStart={e => { swipeTouchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={e => {
+            if (swipeTouchStartX.current === null) return;
+            const dx = e.changedTouches[0].clientX - swipeTouchStartX.current;
+            if (Math.abs(dx) > 50) { dx < 0 ? goNext() : goPrev(); }
+            swipeTouchStartX.current = null;
+          }}
+        >
+          {/* Close button */}
+          <button type="button" onClick={closeLightbox}
+            className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition-colors hover:bg-black/90 sm:right-4 sm:top-4">
+            <X className="h-4 w-4" />
+          </button>
+
           {photos.length > 1 ? (
             <button type="button" onClick={e => { e.stopPropagation(); goPrev(); }}
-              className="absolute left-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/90">
+              className="absolute left-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/90 sm:left-3">
               <ChevronLeft className="h-5 w-5" />
             </button>
           ) : null}
 
-          <div role="presentation" className="mx-14 flex w-full flex-col items-center gap-4" onClick={e => e.stopPropagation()}>
+          <div role="presentation" className="mx-4 flex w-full flex-col items-center gap-3 sm:mx-14 sm:gap-4" onClick={e => e.stopPropagation()}>
             <img
               src={lightboxPhoto.originalUrl || photosApi.getDownloadUrl(lightboxPhoto.id)}
               alt={lightboxPhoto.fileName}
-              className="max-h-[78vh] max-w-full rounded-xl object-contain shadow-2xl"
+              className="max-h-[75vh] max-w-full rounded-lg object-contain shadow-2xl sm:rounded-xl"
             />
-            <div className="flex w-full max-w-2xl items-center justify-between rounded-xl bg-gray-900/80 px-4 py-3 backdrop-blur-sm">
-              <div>
-                <p className="text-sm font-medium text-white">{lightboxPhoto.fileName}</p>
+            <div className="flex w-full max-w-2xl items-center justify-between gap-2 rounded-xl bg-gray-900/80 px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-3">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-white sm:text-sm">{lightboxPhoto.fileName}</p>
                 <p className="text-xs text-gray-400">
                   {formatDateTime(lightboxPhoto.capturedAt)} · {lightboxIndex + 1} / {photos.length}
                 </p>
               </div>
               <a href={photosApi.getDownloadUrl(lightboxPhoto.id)} download={lightboxPhoto.fileName}
                 onClick={e => e.stopPropagation()}
-                className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700">
-                <Download className="h-4 w-4" /> Download
+                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-700 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
+                <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden sm:inline">Download</span>
               </a>
             </div>
           </div>
 
-          <button type="button" onClick={closeLightbox}
-            className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/90">
-            <X className="h-4 w-4" />
-          </button>
-
           {photos.length > 1 ? (
             <button type="button" onClick={e => { e.stopPropagation(); goNext(); }}
-              className="absolute right-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/90">
+              className="absolute right-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/90 sm:right-3">
               <ChevronRight className="h-5 w-5" />
             </button>
           ) : null}

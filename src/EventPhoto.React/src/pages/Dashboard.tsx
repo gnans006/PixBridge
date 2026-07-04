@@ -28,7 +28,7 @@ export default function Dashboard() {
       const response = await statisticsApi.getDashboard();
       return response.data;
     },
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
 
   if (isLoading) {

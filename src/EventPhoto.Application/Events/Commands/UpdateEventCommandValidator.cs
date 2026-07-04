@@ -2,14 +2,18 @@ using FluentValidation;
 
 namespace EventPhoto.Application.Events.Commands;
 
-/// <summary>Validates <see cref="CreateEventCommand"/>.</summary>
-public sealed class CreateEventCommandValidator : AbstractValidator<CreateEventCommand>
+/// <summary>Validates <see cref="UpdateEventCommand"/>.</summary>
+public sealed class UpdateEventCommandValidator : AbstractValidator<UpdateEventCommand>
 {
-    /// <summary>Initializes validation rules.</summary>
     private static readonly string[] ValidEventTypes = ["Wedding", "Reception", "Birthday", "Corporate", "Outdoor", "Other"];
 
-    public CreateEventCommandValidator()
+    /// <summary>Initializes validation rules.</summary>
+    public UpdateEventCommandValidator()
     {
+        RuleFor(x => x.EventId)
+            .NotEmpty()
+            .WithMessage("EventId is required.");
+
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Event name is required.")
             .MinimumLength(2).WithMessage("Event name must be at least 2 characters.")
@@ -27,12 +31,6 @@ public sealed class CreateEventCommandValidator : AbstractValidator<CreateEventC
             .Must(d => d <= DateOnly.FromDateTime(DateTime.UtcNow.AddYears(5)))
             .WithMessage("Event date cannot be more than 5 years in the future.");
 
-        RuleFor(x => x.WatchFolder)
-            .NotEmpty().WithMessage("Watch folder path is required.")
-            .MinimumLength(3).WithMessage("Watch folder path is too short.")
-            .MaximumLength(512).WithMessage("Watch folder path must not exceed 512 characters.")
-            .Must(p => !p.Contains("..")).WithMessage("Watch folder path must not contain path traversal sequences.");
-
         RuleFor(x => x.Description)
             .MaximumLength(2000).WithMessage("Description must not exceed 2000 characters.")
             .When(x => x.Description is not null);
@@ -46,8 +44,5 @@ public sealed class CreateEventCommandValidator : AbstractValidator<CreateEventC
             .MinimumLength(2).WithMessage("Client name must be at least 2 characters.")
             .MaximumLength(200).WithMessage("Client name must not exceed 200 characters.")
             .When(x => !string.IsNullOrWhiteSpace(x.ClientName));
-
-        RuleFor(x => x.CreatedBy)
-            .NotEmpty().WithMessage("CreatedBy is required.");
     }
 }

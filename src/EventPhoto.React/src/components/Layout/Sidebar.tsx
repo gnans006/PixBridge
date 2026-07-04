@@ -10,9 +10,19 @@ const links = [
   { to: '/admin/settings', label: 'Settings', icon: Settings, end: false },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  open?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
   return (
-    <aside className="flex h-full w-56 flex-col overflow-y-auto bg-gray-900">
+    <aside className={[
+      'z-30 flex h-full w-56 flex-col overflow-y-auto bg-gray-900 transition-transform duration-200',
+      // On mobile: slide in/out; on md+: always visible
+      'absolute md:relative',
+      open ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+    ].join(' ')}>
       <div className="flex-1 py-6">
         <nav className="space-y-1 px-3">
           {links.map(({ to, label, icon: Icon, end }) => (
@@ -20,6 +30,7 @@ export function Sidebar() {
               key={to}
               to={to}
               end={end}
+              onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   isActive ? 'bg-primary-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'

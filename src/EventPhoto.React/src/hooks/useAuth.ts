@@ -17,11 +17,21 @@ export function useAuth() {
         authStore.setAuth(response.data);
         return true;
       }
-
-      setError(response.error ?? 'Login failed.');
+      // Backend returned a structured failure (wrong credentials, inactive account, etc.)
+      setError(response.error ?? 'Incorrect username or password. Please try again.');
       return false;
-    } catch {
-      setError('An unexpected error occurred.');
+    } catch (err: unknown) {
+      // Distinguish network/server errors from auth errors
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 401) {
+        setError('Incorrect username or password. Please try again.');
+      } else if (status === 429) {
+        setError('Too many login attempts. Please wait a moment and try again.');
+      } else if (status === 0 || status === undefined) {
+        setError('Cannot reach the server. Check your network connection.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
       return false;
     } finally {
       setIsLoading(false);
@@ -33,9 +43,12 @@ export function useAuth() {
     window.location.assign('/login');
   }, []);
 
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     login,
     logout,
+    clearError,
     isLoading,
     error,
     isAuthenticated: authStore.isAuthenticated(),

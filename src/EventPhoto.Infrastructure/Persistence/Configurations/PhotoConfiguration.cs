@@ -82,7 +82,10 @@ public sealed class PhotoConfiguration : IEntityTypeConfiguration<Photo>
             .HasColumnName("updated_at")
             .IsRequired();
 
-        builder.HasIndex(p => p.EventId);
+        builder.HasIndex(p => p.EventId);  // FK navigation
+        builder.HasIndex(p => new { p.EventId, p.IsDeleted, p.CapturedAt })
+            .IsDescending(false, false, true)
+            .HasDatabaseName("IX_photos_event_paged");  // covers ORDER BY captured_at DESC
         builder.HasIndex(p => p.OriginalPath).IsUnique();
         builder.HasIndex(p => new { p.ThumbnailStatus, p.IsDeleted });
     }

@@ -35,6 +35,23 @@ export const authStore = {
     localStorage.removeItem(USER_KEY);
   },
   isAuthenticated(): boolean {
-    return Boolean(localStorage.getItem(TOKEN_KEY));
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return false;
+    try {
+      // Decode payload (second segment) without a library — just check exp claim
+      const payload = JSON.parse(atob(token.split('.')[1])) as { exp?: number };
+      if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now()) {
+        // Token has expired — clean up immediately
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        return false;
+      }
+      return true;
+    } catch {
+      // Malformed token
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      return false;
+    }
   },
 };

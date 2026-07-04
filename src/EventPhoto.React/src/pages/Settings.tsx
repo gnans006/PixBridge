@@ -7,9 +7,34 @@ import { Card } from '../components/UI/Card';
 import { Input } from '../components/UI/Input';
 import { Spinner } from '../components/UI/Spinner';
 
+// Per-key validation rules
+function validateSetting(key: string, value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed === '') return 'Value is required.';
+  if (trimmed.length > 2000) return 'Value must not exceed 2000 characters.';
+
+  if (key === 'download.rateLimit') {
+    const n = Number(trimmed);
+    if (!Number.isInteger(n) || n < 1 || n > 1000) return 'Must be a whole number between 1 and 1000.';
+  }
+
+  if (key === 'app.serverUrl') {
+    try {
+      const url = new URL(trimmed);
+      if (!['http:', 'https:'].includes(url.protocol)) return 'Must be an http:// or https:// URL.';
+    } catch {
+      return 'Must be a valid URL (e.g. http://192.168.1.5:5173).';
+    }
+  }
+
+  return null;
+}
+
 export default function Settings() {
   const queryClient = useQueryClient();
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
   const { data, isLoading } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
@@ -26,6 +51,17 @@ export default function Settings() {
     },
     onError: () => toast.error('Failed to save.'),
   });
+
+  const handleSave = (key: string, currentValue: string) => {
+    const value = edits[key] ?? currentValue;
+    const error = validateSetting(key, value);
+    if (error) {
+      setValidationErrors(prev => ({ ...prev, [key]: error }));
+      return;
+    }
+    setValidationErrors(prev => { const next = { ...prev }; delete next[key]; return next; });
+    mutation.mutate({ key, value: value.trim() });
+  };
 
   if (isLoading) {
     return (
@@ -45,14 +81,22 @@ export default function Settings() {
               <Input
                 label={setting.key}
                 defaultValue={setting.value}
-                onChange={(event) => setEdits((current) => ({ ...current, [setting.key]: event.target.value }))}
+                error={validationErrors[setting.key]}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setEdits(current => ({ ...current, [setting.key]: val }));
+                  // Clear error on change
+                  if (validationErrors[setting.key]) {
+                    setValidationErrors(prev => { const next = { ...prev }; delete next[setting.key]; return next; });
+                  }
+                }}
               />
               {setting.description ? <p className="mt-1 text-xs text-gray-400">{setting.description}</p> : null}
             </div>
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => mutation.mutate({ key: setting.key, value: edits[setting.key] ?? setting.value })}
+              onClick={() => handleSave(setting.key, setting.value)}
               isLoading={mutation.isPending}
             >
               Save
