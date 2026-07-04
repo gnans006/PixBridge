@@ -52,7 +52,7 @@ public sealed class ThumbnailProcessorService : BackgroundService
         var maxWidth = int.TryParse(await settingRepository.GetValueAsync("thumbnail.width", cancellationToken), out var widthValue) ? widthValue : 400;
         var maxHeight = int.TryParse(await settingRepository.GetValueAsync("thumbnail.height", cancellationToken), out var heightValue) ? heightValue : 400;
         var quality = int.TryParse(await settingRepository.GetValueAsync("thumbnail.quality", cancellationToken), out var qualityValue) ? qualityValue : 85;
-        var serverUrl = await settingRepository.GetValueAsync("app.serverUrl", cancellationToken) ?? "http://192.168.10.10";
+        var serverUrl = await settingRepository.GetValueAsync("app.serverUrl", cancellationToken) ?? "http://localhost:5000";
 
         var pendingPhotos = await photoRepository.GetPendingThumbnailsAsync(BatchSize, cancellationToken);
         if (pendingPhotos.Count == 0)

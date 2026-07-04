@@ -82,7 +82,7 @@ CREATE TABLE "SystemSettings" (
 
 INSERT INTO "SystemSettings" ("Id", "Key", "Value", "Description") VALUES
     (gen_random_uuid(), 'app.name', 'PixBridge', 'Application display name'),
-    (gen_random_uuid(), 'app.serverUrl', 'http://192.168.10.10', 'LAN URL guests use to connect'),
+    (gen_random_uuid(), 'app.serverUrl', 'http://192.168.10.10:5000', 'LAN URL guests use to connect'),
     (gen_random_uuid(), 'gallery.pageSize', '50', 'Photos per page in gallery'),
     (gen_random_uuid(), 'thumbnail.width', '400', 'Thumbnail max width in pixels'),
     (gen_random_uuid(), 'thumbnail.height', '400', 'Thumbnail max height in pixels'),

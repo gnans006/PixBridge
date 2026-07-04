@@ -8,14 +8,15 @@
    - Download: https://www.postgresql.org/download/windows/
    - Add PostgreSQL `bin` folder to the system PATH (for example, `C:\Program Files\PostgreSQL\15\bin`)
 
-2. Set laptop **static IP**: `192.168.10.10`
-   - Network Settings → Wi-Fi Adapter → IPv4 → Manual
-   - IP: 192.168.10.10, Subnet: 255.255.255.0, Gateway: 192.168.10.1
+2. Ensure the laptop Wi-Fi profile is set to **Private**:
+   - Windows Settings → Network & Internet → Wi-Fi → click the connected network name → set **Network profile** to **Private**
 
-3. Allow port 80 through **Windows Firewall**:
+3. Allow port **5000** through **Windows Firewall** (run as Administrator):
    ```powershell
-   New-NetFirewallRule -DisplayName "PixBridge HTTP" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+   New-NetFirewallRule -DisplayName "PixBridge API" -Direction Inbound -Protocol TCP -LocalPort 5000 -Action Allow -Profile Private
    ```
+
+> **No static IP required.** PixBridge auto-detects the LAN IP on every startup, updates the `app.serverUrl` database setting, and regenerates all QR codes.
 
 ### Step 2: Build Release
 
@@ -48,27 +49,27 @@ powershell -ExecutionPolicy Bypass -File C:\PixBridge\scripts\install-service.ps
 
 ```powershell
 Get-Service PixBridgeApi, PixBridgeWorker
-Invoke-WebRequest http://localhost/api/health
-Start-Process "http://localhost/admin"
+Invoke-WebRequest http://localhost:5000/api/health
+Start-Process "http://localhost:5000/admin"
 ```
 
 ### Step 5: First Login
 
-1. Open `http://192.168.10.10/admin`
+1. Open `http://localhost:5000/admin`
 2. Login with `admin` / `Admin@1234!`
 3. Change the password immediately
 4. Create your first event
 
-## Wi-Fi Router Setup
+## Wi-Fi Setup for Guests
 
-1. Connect the laptop to the router via Ethernet or Wi-Fi
-2. Set the laptop IP to **192.168.10.10** (static)
-3. Connect the router to the event Wi-Fi network (no internet needed)
+1. Connect the laptop to the event Wi-Fi router (no internet required)
+2. Ensure the Wi-Fi profile is set to **Private** (see Step 1)
+3. Start PixBridge — the LAN IP is auto-detected; all QR codes are updated automatically
 4. Print or display the event QR code for guests
 
 Guests:
 1. Connect to the event Wi-Fi
-2. Scan the QR code or browse to `http://192.168.10.10`
+2. Scan the QR code — it links to `http://<laptop-LAN-IP>:5000/gallery/<event-id>`
 3. Browse and download photos
 
 ## Building the Installer

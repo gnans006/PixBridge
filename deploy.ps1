@@ -308,7 +308,7 @@ Write-Host "  📋 Next steps for client machine:"                              
 Write-Host "     1. Install PostgreSQL 15+  (https://www.postgresql.org/download/windows/)" -ForegroundColor Gray
 Write-Host "     2. Run  PixBridge-Setup-$Version.exe  as Administrator"             -ForegroundColor Gray
 Write-Host "     3. Click Next → Next → Finish"                                      -ForegroundColor Gray
-Write-Host "     4. Open browser → http://192.168.10.10/admin"                       -ForegroundColor Gray
+Write-Host "     4. Open browser → http://localhost:5000/admin"                      -ForegroundColor Gray
 Write-Host "     5. Login: admin / Admin@1234!"                                      -ForegroundColor Gray
 Write-Host ""
 Write-Host "  ⚠  SECURITY reminders before going live:"                              -ForegroundColor Yellow

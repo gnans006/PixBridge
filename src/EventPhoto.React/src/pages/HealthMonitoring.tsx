@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, XCircle, RefreshCw, Server, Database, HardDrive, Cpu } from 'lucide-react';
 import { apiClient } from '../api/client';
+import { settingsApi } from '../api/settings';
 import { Card } from '../components/UI/Card';
 import { Badge } from '../components/UI/Badge';
 import { Spinner } from '../components/UI/Spinner';
@@ -62,6 +63,46 @@ function MetricCard({ icon: Icon, label, value, sub, color = 'blue' }: {
         </div>
       </div>
     </Card>
+  );
+}
+
+function NetworkConfig() {
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await settingsApi.getAll();
+      return response.data ?? [];
+    },
+  });
+
+  const serverUrl = settings?.find(s => s.key === 'app.serverUrl')?.value ?? '—';
+
+  let lanIp = '—';
+  let port = '—';
+  try {
+    const u = new URL(serverUrl);
+    lanIp = u.hostname;
+    port = `:${u.port || (u.protocol === 'https:' ? '443' : '80')} (${u.protocol.replace(':', '').toUpperCase()})`;
+  } catch { /* ignore */ }
+
+  const items = [
+    { label: 'Server LAN IP', value: lanIp },
+    { label: 'API Port', value: port },
+    { label: 'Guest Gallery URL', value: serverUrl },
+    { label: 'Admin Panel', value: serverUrl ? `${serverUrl}/admin` : '—' },
+    { label: 'SignalR Hub', value: '/hubs/photos' },
+    { label: 'Network Type', value: 'LAN only (WiFi)' },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+      {items.map(item => (
+        <div key={item.label} className="rounded-lg bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{item.label}</p>
+          <p className="font-mono text-gray-900 mt-1 break-all">{item.value}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -161,7 +202,7 @@ export default function HealthMonitoring() {
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard icon={Server} label="API Server" value={data?.server ?? '—'} sub="Kestrel on :80" color="blue" />
+        <MetricCard icon={Server} label="API Server" value={data?.server ?? '—'} sub="Kestrel on :5000" color="blue" />
         <MetricCard icon={Database} label="Database" value="PostgreSQL" sub="Local instance" color="green" />
         <MetricCard icon={Cpu} label="Runtime" value=".NET 8" sub="Self-contained" color="purple" />
         <MetricCard icon={HardDrive} label="Storage" value="Local Disk" sub="Photo + thumbnails" color="orange" />
@@ -170,26 +211,12 @@ export default function HealthMonitoring() {
       {/* Network info */}
       <Card className="p-5">
         <h2 className="text-base font-semibold text-gray-900 mb-4">Network Configuration</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-          {[
-            { label: 'Server LAN IP', value: '192.168.10.10' },
-            { label: 'API Port', value: ':80 (HTTP)' },
-            { label: 'Guest Gallery URL', value: 'http://192.168.10.10' },
-            { label: 'Admin Panel', value: 'http://192.168.10.10/admin' },
-            { label: 'SignalR Hub', value: '/hubs/photos' },
-            { label: 'Network Type', value: 'LAN only (Offline)' },
-          ].map(item => (
-            <div key={item.label} className="rounded-lg bg-gray-50 px-4 py-3">
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{item.label}</p>
-              <p className="font-mono text-gray-900 mt-1">{item.value}</p>
-            </div>
-          ))}
-        </div>
+        <NetworkConfig />
       </Card>
 
       {isError && (
         <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-          <strong>Cannot reach the API server.</strong> Check that the PixBridgeApi service is running and port 80 is accessible.
+          <strong>Cannot reach the API server.</strong> Check that the PixBridgeApi service is running and port 5000 is accessible.
         </div>
       )}
     </div>

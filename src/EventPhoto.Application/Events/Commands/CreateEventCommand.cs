@@ -54,7 +54,7 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
             return Result.Failure<EventResponse>($"Invalid event type: {request.EventType}");
         }
 
-        var serverUrl = await _settingRepository.GetValueAsync("app.serverUrl", cancellationToken) ?? "http://192.168.10.10";
+        var serverUrl = await _settingRepository.GetValueAsync("app.serverUrl", cancellationToken) ?? "http://localhost:5000";
         var thumbnailFolder = Path.Combine(request.WatchFolder, ".thumbnails");
         var qrFolder = Path.Combine(request.WatchFolder, ".qrcodes");
 

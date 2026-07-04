@@ -22,7 +22,7 @@ const schema = z.object({
     .min(1, 'Event name is required')
     .min(2, 'Event name must be at least 2 characters')
     .max(200, 'Event name must not exceed 200 characters'),
-  eventType: z.enum(eventTypes, { errorMap: () => ({ message: 'Please select a valid event type' }) }),
+  eventType: z.enum(eventTypes).refine(v => eventTypes.includes(v as typeof eventTypes[number]), 'Please select a valid event type'),
   eventDate: z
     .string()
     .min(1, 'Event date is required')

@@ -42,7 +42,7 @@
 | Windows 10/11 x64 | Build 1809+ | ✅ Must | Windows Services are used for auto-start |
 | .NET 8 Runtime | 8.0+ | ❌ Not needed | Bundled inside `EventPhoto.Api.exe` (self-contained publish) |
 | Node.js / npm | any | ❌ Not needed | React is pre-built into `wwwroot/` at compile time |
-| IIS / Nginx | any | ❌ Not needed | Kestrel serves directly on port 80 |
+| IIS / Nginx | any | ❌ Not needed | Kestrel serves directly on port 5000 |
 | Visual C++ Runtime | any | ❌ Not needed | Included in self-contained .NET publish |
 
 **→ Install PostgreSQL 15 → run `PixBridge-Setup-1.0.0.exe` → done.**
@@ -103,18 +103,15 @@ code --install-extension humao.rest-client
 ### 0.4 Port Map
 
 | Port | Used By | Direction | Notes |
-|---|---|---|---|
+|---|---|---|---------|
 | `5432` | PostgreSQL | Internal | API + Worker connect to this |
-| `80` | PixBridge API (production) | Inbound from LAN | Guests + admins access on this port |
-| `5000` | PixBridge API (dev mode) | Localhost | Used when running `dotnet run` locally |
+| `5000` | PixBridge API (production + dev) | Inbound from LAN | Guests + admins access on this port |
 | `5173` | Vite dev server (React) | Localhost | Hot-reload frontend in development only |
 
 Firewall rule needed for production:
 ```powershell
 # Run as Administrator
-netsh advfirewall firewall add rule `
-    name="PixBridge HTTP" `
-    dir=in action=allow protocol=TCP localport=80
+New-NetFirewallRule -DisplayName "PixBridge API" -Direction Inbound -Protocol TCP -LocalPort 5000 -Action Allow -Profile Private
 ```
 
 ---
@@ -400,8 +397,6 @@ Expected output on first run:
 ```
 > ⚠️ If port 5000 is in use: `$env:ASPNETCORE_URLS="http://localhost:5001"` then update `vite.config.ts` proxy target accordingly.
 
-> ⚠️ Port 80 requires Administrator on Windows. In dev, the API defaults to **port 5000** (set in `launchSettings` / environment). Port 80 is production-only.
-
 ---
 
 **Terminal 2 — Worker Service**
@@ -482,7 +477,7 @@ On another device (phone/tablet) connected to the same Wi-Fi:
 ```
 http://192.168.1.105:5173    ← Vite dev server (if accessible)
 ```
-Or for production-like testing on port 80, run the published EXE instead.
+Or for production-like testing (port 5000), run the published EXE instead.
 
 ---
 
@@ -496,7 +491,7 @@ Or for production-like testing on port 80, run the published EXE instead.
 | `password authentication failed` | Wrong DB credentials | Check `appsettings.json` matches what you created in Step 4 |
 | API starts but returns 500 | Migration not applied | Check Terminal 1 logs — look for EF migration errors |
 | `EADDRINUSE` on port 5173 | Another Vite instance running | Kill it: `npx kill-port 5173` |
-| `dotnet run` port 80 access denied | Port 80 needs admin or URL ACL | In dev, use port 5000 (default). For port 80: run terminal as Administrator |
+| `dotnet run` port access denied | Port needs admin or URL ACL | In dev, use port 5000 (default). If running published EXE: run terminal as Administrator |
 | Photos not detected by Worker | Watch folder path mismatch | Confirm folder in DB matches actual folder on disk |
 | Thumbnails never generate | ImageSharp write permission denied | Run Worker as Administrator or grant write permissions to `publish\` folder |
 | `dotnet-ef not found` | EF CLI tools not installed | `dotnet tool install --global dotnet-ef` |
@@ -824,10 +819,10 @@ Rules:
 15. Guest gallery receives live updates via `PhotoHub`
 16. Downloads hit `/api/photos/{id}/download`, increment counters, and create `DownloadLog`
 ### 3.4 Network Topology
-- Host laptop static IP: `192.168.10.10`
-- API port: `80`
-- Kestrel bind: `http://0.0.0.0:80`
-- Guest entry URL: `http://192.168.10.10`
+- Host laptop IP: auto-detected LAN IP (stored in `app.serverUrl` setting)
+- API port: `5000`
+- Kestrel bind: `http://0.0.0.0:5000`
+- Guest entry URL: `http://<LAN-IP>:5000` (from QR code)
 - All traffic stays inside LAN
 - Windows Service names: `PixBridgeApi`, `PixBridgeWorker`
 
@@ -1189,7 +1184,7 @@ Seeded settings:
 | Key | Value |
 |---|---|
 | `app.name` | `PixBridge` |
-| `app.serverUrl` | `http://192.168.10.10` |
+| `app.serverUrl` | `http://192.168.10.10:5000` | auto-updated on startup to current LAN IP |
 | `gallery.pageSize` | `50` |
 | `thumbnail.width` | `400` |
 | `thumbnail.height` | `400` |
@@ -1453,7 +1448,7 @@ Soft-delete columns:
 | Key | Default Value | Description |
 |---|---|---|
 | `app.name` | `PixBridge` | Application display name |
-| `app.serverUrl` | `http://192.168.10.10` | LAN URL guests use |
+| `app.serverUrl` | `http://192.168.10.10:5000` | LAN URL guests use (auto-updated on startup) |
 | `gallery.pageSize` | `50` | Photos per page |
 | `thumbnail.width` | `400` | Max thumbnail width px |
 | `thumbnail.height` | `400` | Max thumbnail height px |
@@ -1473,7 +1468,7 @@ dotnet ef database update --project src/EventPhoto.Infrastructure --startup-proj
   "ConnectionStrings": { "DefaultConnection": "Host=localhost;Database=pixbridge;Username=pixbridge;Password=pixbridge123;" },
   "Jwt": { "Secret": "PixBridge-Super-Secret-Key-2024-MinLength-32-Chars!", "Issuer": "PixBridge", "Audience": "PixBridgeClients", "ExpiryHours": 8 },
   "Serilog": { "MinimumLevel": { "Default": "Information", "Override": { "Microsoft": "Warning", "System": "Warning" } }, "WriteTo": [{"Name":"Console"},{"Name":"File","Args":{"path":"logs/pixbridge-.log","rollingInterval":"Day","retainedFileCountLimit":14}}] },
-  "Kestrel": { "Endpoints": { "Http": { "Url": "http://0.0.0.0:80" } } }
+  "Kestrel": { "Endpoints": { "Http": { "Url": "http://0.0.0.0:5000" } } }
 }
 ```
 ### 12.2 appsettings.Development.json
@@ -1580,7 +1575,7 @@ Developer machine                          Client machine (photographer's laptop
 Source code                                1. Install PostgreSQL 15+ (once)
     ↓                                      2. Double-click PixBridge-Setup-1.0.0.exe
 .\deploy.ps1  (runs once, ~3-5 min)        3. Click Next → Next → Finish
-    ↓                                      4. Browser opens → http://192.168.10.10/admin
+    ↓                                      4. Browser opens → http://localhost:5000/admin
 publish\installer\                         5. Login: admin / Admin@1234!
   PixBridge-Setup-1.0.0.exe  ────────────→ Done — services auto-start on every reboot
 ```
@@ -1588,7 +1583,7 @@ publish\installer\                         5. Login: admin / Admin@1234!
 **What the client machine runs (post-install):**
 ```
 Windows Services (auto-start on boot, no console window, no manual launch)
-  PixBridgeApi     → port 80  — React UI + REST API + SignalR realtime hub
+  PixBridgeApi     → port 5000 — React UI + REST API + SignalR realtime hub
   PixBridgeWorker              — FileWatcher + ThumbnailProcessor background jobs
 PostgreSQL 15+    → port 5432 — persistent photo/event metadata store
 ```
@@ -1682,7 +1677,7 @@ When the client double-clicks `PixBridge-Setup-1.0.0.exe`:
 | **File copy** | Copies scripts + docs to install dir |
 | **DB setup** | Runs `setup-postgresql.ps1` → creates `pixbridge` DB + `pixbridge` user |
 | **Service install** | Runs `install-service.ps1` → registers + starts `PixBridgeApi` + `PixBridgeWorker` as Windows Services with `start= auto` |
-| **Finish** | Opens `http://192.168.10.10/admin` in default browser |
+| **Finish** | Opens `http://localhost:5000/admin` in default browser |
 
 On **uninstall** (via Windows Programs & Features):
 - Stops + removes both Windows Services
@@ -1698,7 +1693,7 @@ The client machine (photographer's laptop) needs **only**:
 |---|---|
 | Windows 10 1809+ or Windows 11 | 64-bit required |
 | PostgreSQL 15+ | Must be installed **before** running the PixBridge installer. `psql` must be in PATH. |
-| Port 80 available | No IIS or other web server on port 80 |
+| Port 5000 available | No other service bound to port 5000 |
 | .NET Runtime | **NOT needed** — bundled inside the EXE via self-contained publish |
 | Node.js | **NOT needed** — React is pre-built into `wwwroot` |
 
@@ -1730,26 +1725,27 @@ Get-Content "C:\Program Files\PixBridge\api\logs\pixbridge-.log" -Tail 50
 
 ---
 
-### 14.6 Network Configuration (Static IP + Firewall)
+### 14.6 Network Configuration (Firewall)
 
-For guests to reach the server via QR code:
+For guests to reach the server via QR code, the Windows Firewall must allow inbound connections on port 5000. The LAN IP is **auto-detected** on every API startup — no static IP configuration needed.
 
 ```powershell
-# 1. Set static IP on the laptop's Wi-Fi adapter
-# Control Panel → Network → Adapter Properties → IPv4
-# IP: 192.168.10.10 | Mask: 255.255.255.0 | Gateway: 192.168.10.1
+# Run as Administrator
 
-# 2. Open port 80 in Windows Firewall (run as Admin)
-netsh advfirewall firewall add rule `
-    name="PixBridge HTTP" `
-    dir=in action=allow protocol=TCP localport=80
+# 1. Set Wi-Fi profile to Private (required for inbound rules to apply)
+# Windows Settings → Network & Internet → Wi-Fi → click network name → Private
 
-# 3. Enable Mobile Hotspot (optional — laptop becomes Wi-Fi access point)
+# 2. Open port 5000 in Windows Firewall
+New-NetFirewallRule -DisplayName "PixBridge API" `
+    -Direction Inbound -Protocol TCP -LocalPort 5000 `
+    -Action Allow -Profile Private
+
+# 3. (Optional) Enable Mobile Hotspot — laptop becomes Wi-Fi access point
 # Settings → Network → Mobile Hotspot → On
-# Guests scan QR code → join hotspot → open http://192.168.10.10
+# Guests scan QR code → join hotspot → open http://<laptop-LAN-IP>:5000
 ```
 
-> The API is pre-configured to listen on `http://0.0.0.0:80` via Kestrel. No IIS needed.
+> The API listens on `http://0.0.0.0:5000` via Kestrel. No IIS needed.
 
 ---
 
@@ -1809,13 +1805,13 @@ EF migrations run automatically — **no manual `dotnet ef database update` need
 - [ ] Installer ran as Administrator
 - [ ] DB + user created (`pixbridge` / `pixbridge123`)
 - [ ] Both services show **Running** in `services.msc`
-- [ ] `http://192.168.10.10/admin` opens in browser
+- [ ] `http://localhost:5000/admin` opens in browser
 - [ ] Login with `admin` / `Admin@1234!` succeeds
 - [ ] **Change admin password immediately**
 - [ ] Set `appsettings.Production.json` with strong DB password + JWT secret
-- [ ] Port 80 inbound firewall rule added
-- [ ] Static IP `192.168.10.10` configured on Wi-Fi adapter
-- [ ] Guest device can reach `http://192.168.10.10` over Wi-Fi
+- [ ] Port 5000 inbound firewall rule added (Wi-Fi profile set to **Private**)
+- [ ] LAN IP auto-detected — check `app.serverUrl` in Admin → Settings
+- [ ] Guest device can reach `http://<LAN-IP>:5000` over Wi-Fi
 - [ ] Create test event, upload a photo, confirm thumbnail appears in gallery
 - [ ] QR code scans and loads correct event gallery on guest device
 

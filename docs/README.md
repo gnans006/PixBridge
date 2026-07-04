@@ -15,7 +15,7 @@ PixBridge is a fully offline, LAN-based event photo sharing platform for photogr
 ### Production Install
 1. Run the PixBridge installer (`PixBridge-Setup-1.0.0.exe`)
 2. Follow the wizard — it will create the database and install services automatically
-3. Access the admin panel at **http://localhost/admin** or **http://192.168.10.10/admin**
+3. Access the admin panel at **http://localhost:5000/admin**
 4. Default credentials: `admin` / `Admin@1234!` ← **change on first login**
 
 ### Development Setup
@@ -52,7 +52,7 @@ npm run dev
   │  PixBridge                          │
   │  ┌───────────┐  ┌────────────────┐  │
   │  │ API       │  │ Worker         │  │
-  │  │ :80       │  │ FileWatcher    │  │
+  │  │ :5000     │  │ FileWatcher    │  │
   │  │ React UI  │  │ ThumbnailGen   │  │
   │  │ SignalR   │  └────────────────┘  │
   │  └───────────┘                      │
@@ -62,10 +62,10 @@ npm run dev
   │  └─────────────┘  └──────────────┘  │
   └─────────────────────────────────────┘
        │
-       │  Wi-Fi Router (192.168.10.0/24)
+       │  Wi-Fi (same network)
        │
   [Guest Devices]
-  Opens: http://192.168.10.10
+  Opens: http://<LAN-IP>:5000
   Scans QR Code → Gallery
 ```
 
@@ -75,12 +75,16 @@ npm run dev
 
 | Component | IP / Port |
 |-----------|-----------|
-| PixBridge Server | 192.168.10.10 |
-| API / Gallery | http://192.168.10.10 (port 80) |
-| SignalR Hub | http://192.168.10.10/hubs/photos |
-| Admin Panel | http://192.168.10.10/admin |
+| PixBridge Server | Auto-detected LAN IP |
+| API / Gallery | `http://<LAN-IP>:5000` (port 5000) |
+| SignalR Hub | `http://<LAN-IP>:5000/hubs/photos` |
+| Admin Panel | `http://<LAN-IP>:5000/admin` |
 
-**Laptop:** Set static IP `192.168.10.10` on the Wi-Fi adapter connected to the event router.
+**The LAN IP is auto-detected** on every API startup — no static IP required. The `app.serverUrl` setting in the database is updated automatically and all QR codes are regenerated. To override manually: Admin → Settings → `app.serverUrl`.
+
+**WiFi profile must be set to Private** on the laptop for Windows Firewall to allow inbound connections from phone:
+- Windows Settings → Network & Internet → Wi-Fi → click network name → **Private**
+- Run once as Administrator: `netsh advfirewall firewall add rule name="PixBridge API" dir=in action=allow protocol=TCP localport=5000 profile=private`
 
 ---
 
@@ -100,10 +104,14 @@ npm run dev
 |---------|------|
 | Dashboard | /admin |
 | Create Event | /admin/events/new |
-| Event List | /admin/events |
+| Event List | /admin/events (search + pagination) |
+| Event Detail | /admin/events/:id |
 | Statistics | /admin/statistics |
+| Logs | /admin/logs |
+| Health Monitor | /admin/health |
 | Settings | /admin/settings |
 | QR Code | GET /api/events/{id}/qrcode |
+| Refresh QR | POST /api/events/{id}/qrcode/refresh |
 
 ---
 
@@ -132,23 +140,25 @@ Edit `appsettings.json` in the API install folder:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=pixbridge;Username=pixbridge;Password=pixbridge123;"
+    "DefaultConnection": "Host=localhost;Database=pixbridge;Username=postgres;Password=<your-password>;"
   },
   "Jwt": {
-    "Secret": "YOUR-SECRET-KEY-MIN-32-CHARS",
+    "Secret": "",
     "ExpiryHours": 8
   },
   "Kestrel": {
     "Endpoints": {
       "Http": {
-        "Url": "http://0.0.0.0:80"
+        "Url": "http://0.0.0.0:5000"
       }
     }
   }
 }
 ```
 
-System settings can also be changed from the Admin → Settings panel.
+> `Jwt.Secret` must be set via the `Jwt__Secret` environment variable in production (minimum 32 characters). The app will refuse to start if it is empty.
+
+System settings (including `app.serverUrl`) can also be changed from the Admin → Settings panel.
 
 ---
 
@@ -192,9 +202,11 @@ C:\PixBridge\
 |-------|----------|
 | Photos not appearing | Check the watch folder path in Event settings. Ensure the Worker service is running. |
 | Thumbnails pending | Check `worker\logs\` for thumbnail processing errors. |
-| Can't access from phone | Ensure the laptop has IP 192.168.10.10 and Windows Firewall allows port 80. |
+| Can't access from phone | Ensure WiFi profile is **Private** (not Public). Open port 5000 in Windows Firewall as Administrator. |
+| QR code has wrong IP | Admin → Events → click ↺ Refresh QR. Or update `app.serverUrl` in Settings first. |
 | Database connection error | Check PostgreSQL is running and the connection string in `appsettings.json`. |
 | Admin login failed | Verify the seeded admin account exists and review API logs. |
+| Mobile browser cache | The `/api/events/{id}/qrcode` endpoint sends `Cache-Control: no-store` — hard-refresh the page on mobile. |
 
 ---
 

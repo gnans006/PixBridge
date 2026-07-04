@@ -80,5 +80,5 @@ Install-Service `
 Write-Host "PixBridgeWorker service installed and started." -ForegroundColor Green
 
 Write-Host "`nPixBridge services installed successfully!" -ForegroundColor Green
-Write-Host "Access the admin panel at: http://192.168.10.10/admin"
+Write-Host "Access the admin panel at: http://localhost:5000/admin"
 Write-Host "Default credentials: admin / Admin@1234!"

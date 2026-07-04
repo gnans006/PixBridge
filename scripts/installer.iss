@@ -4,7 +4,7 @@
 #define MyAppName "PixBridge"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "PixBridge Studio"
-#define MyAppURL "http://192.168.10.10"
+#define MyAppURL "http://localhost:5000"
 #define MyAppExeName "EventPhoto.Api.exe"
 #define MyWorkerExeName "EventPhoto.Worker.exe"
 
