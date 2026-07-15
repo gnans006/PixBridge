@@ -46,6 +46,12 @@ const schema = z.object({
     .refine(v => !v || v.length >= 2, 'Client name must be at least 2 characters')
     .refine(v => !v || v.length <= 200, 'Client name must not exceed 200 characters')
     .optional(),
+  galleryRecentCount: z
+    .number({ invalid_type_error: 'Must be a number' })
+    .int('Must be a whole number')
+    .min(1, 'Must be at least 1')
+    .max(1000, 'Must not exceed 1000')
+    .optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -75,7 +81,10 @@ export default function EventForm() {
     },
   });
 
-  const onSubmit = (data: FormData) => mutation.mutate(data);
+  const onSubmit = (data: FormData) => mutation.mutate({
+    ...data,
+    galleryRecentCount: data.galleryRecentCount ?? undefined,
+  });
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -122,6 +131,20 @@ export default function EventForm() {
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             {errors.description ? <p className="mt-1 text-xs text-red-600">{errors.description.message}</p> : null}
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Gallery Recent Image Count</label>
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              placeholder="e.g. 20 — leave blank to show all photos"
+              {...register('galleryRecentCount', { valueAsNumber: true })}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            {errors.galleryRecentCount
+              ? <p className="mt-1 text-xs text-red-600">{errors.galleryRecentCount.message}</p>
+              : <p className="mt-1 text-xs text-gray-500">Limits the gallery to the N most recently captured photos. Leave blank to show all.</p>}
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="submit" isLoading={mutation.isPending}>

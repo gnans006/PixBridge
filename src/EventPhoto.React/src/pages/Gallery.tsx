@@ -29,10 +29,15 @@ export default function Gallery() {
     refetchInterval: 15_000,
   });
 
+  // When galleryRecentCount is configured, always show page 1 with that page size so the
+  // server enforces the limit (photos are ordered by captured_at DESC).
+  const effectivePageSize = eventData?.galleryRecentCount ?? 50;
+  const isRecentCountMode = Boolean(eventData?.galleryRecentCount);
+
   const { data: photosData, isLoading } = useQuery({
-    queryKey: ['photos', eventId, page],
+    queryKey: ['photos', eventId, page, effectivePageSize],
     queryFn: async () => {
-      const response = await photosApi.getByEvent(eventId!, page, 50);
+      const response = await photosApi.getByEvent(eventId!, isRecentCountMode ? 1 : page, effectivePageSize);
       return response.data;
     },
     enabled: Boolean(eventId),
@@ -40,7 +45,7 @@ export default function Gallery() {
 
   const onNewPhoto = useCallback(
     (_photo: NewPhotoEvent) => {
-      void queryClient.invalidateQueries({ queryKey: ['photos', eventId, page] });
+      void queryClient.invalidateQueries({ queryKey: ['photos', eventId] });
       void queryClient.invalidateQueries({ queryKey: ['event', eventId] });
       void queryClient.invalidateQueries({ queryKey: ['events'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
@@ -53,12 +58,12 @@ export default function Gallery() {
 
   const onPhotoDeleted = useCallback(
     (_event: DeletedPhotoEvent) => {
-      void queryClient.invalidateQueries({ queryKey: ['photos', eventId, page] });
+      void queryClient.invalidateQueries({ queryKey: ['photos', eventId] });
       void queryClient.invalidateQueries({ queryKey: ['event', eventId] });
       void queryClient.invalidateQueries({ queryKey: ['events'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     },
-    [eventId, page, queryClient],
+    [eventId, queryClient],
   );
 
   const { isConnected } = useGalleryHub(eventId ?? null, onNewPhoto, onPhotoDeleted);
@@ -189,6 +194,12 @@ export default function Gallery() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-6">
+        {isRecentCountMode && photos.length > 0 ? (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-700/50 bg-amber-900/30 px-4 py-2 text-sm text-amber-300">
+            <span>Showing the {eventData!.galleryRecentCount} most recent photo{eventData!.galleryRecentCount === 1 ? '' : 's'}.</span>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <div className="flex justify-center py-20"><Spinner size="lg" /></div>
         ) : null}
@@ -245,7 +256,7 @@ export default function Gallery() {
           </div>
         ) : null}
 
-        {photosData && photosData.totalPages > 1 ? (
+        {photosData && photosData.totalPages > 1 && !isRecentCountMode ? (
           <div className="mt-8 flex justify-center gap-2">
             <button type="button" disabled={!photosData.hasPreviousPage} onClick={() => setPage(p => p - 1)}
               className="flex items-center gap-1 rounded-lg bg-gray-700 px-4 py-2 text-sm text-white transition-colors hover:bg-gray-600 disabled:opacity-40">

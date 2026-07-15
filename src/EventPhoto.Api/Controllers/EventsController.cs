@@ -96,7 +96,8 @@ public sealed class EventsController : ControllerBase
                 request.Description,
                 request.VenueName,
                 request.ClientName,
-                userId),
+                userId,
+                request.GalleryRecentCount),
             cancellationToken);
 
         if (result.IsFailure)
@@ -127,7 +128,8 @@ public sealed class EventsController : ControllerBase
                 request.EventDate,
                 request.Description,
                 request.VenueName,
-                request.ClientName),
+                request.ClientName,
+                request.GalleryRecentCount),
             cancellationToken);
 
         if (result.IsFailure)

@@ -7,4 +7,5 @@ public sealed record UpdateEventRequest(
     DateOnly EventDate,
     string? Description,
     string? VenueName,
-    string? ClientName);
+    string? ClientName,
+    int? GalleryRecentCount);

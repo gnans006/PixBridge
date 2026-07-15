@@ -30,6 +30,7 @@ export interface EventResponse {
   photoCount: number;
   totalSize: string;
   createdAt: string;
+  galleryRecentCount?: number;
 }
 
 export interface CreateEventRequest {
@@ -40,6 +41,7 @@ export interface CreateEventRequest {
   description?: string;
   venueName?: string;
   clientName?: string;
+  galleryRecentCount?: number;
 }
 
 export interface PhotoResponse {

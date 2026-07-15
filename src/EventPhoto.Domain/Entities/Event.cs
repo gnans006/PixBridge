@@ -77,6 +77,12 @@ public sealed class Event : AggregateRoot
     public bool IsDeleted { get; private set; }
 
     /// <summary>
+    /// Gets the maximum number of most-recent photos shown in the public gallery.
+    /// When <c>null</c> all photos are displayed.
+    /// </summary>
+    public int? GalleryRecentCount { get; private set; }
+
+    /// <summary>
     /// Gets the cached photo count.
     /// </summary>
     public int PhotoCount { get; private set; }
@@ -108,6 +114,7 @@ public sealed class Event : AggregateRoot
     /// <param name="description">The optional description.</param>
     /// <param name="venueName">The optional venue name.</param>
     /// <param name="clientName">The optional client name.</param>
+    /// <param name="galleryRecentCount">The optional maximum number of recent photos to show in the gallery.</param>
     /// <returns>A new <see cref="Event"/> instance.</returns>
     public static Event Create(
         string name,
@@ -118,7 +125,8 @@ public sealed class Event : AggregateRoot
         Guid createdBy,
         string? description = null,
         string? venueName = null,
-        string? clientName = null)
+        string? clientName = null,
+        int? galleryRecentCount = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -140,6 +148,11 @@ public sealed class Event : AggregateRoot
             throw new DomainException("Thumbnail folder path is required.");
         }
 
+        if (galleryRecentCount.HasValue && galleryRecentCount.Value < 1)
+        {
+            throw new DomainException("Gallery recent count must be at least 1 when specified.");
+        }
+
         var eventEntity = new Event
         {
             Name = name.Trim(),
@@ -150,7 +163,8 @@ public sealed class Event : AggregateRoot
             CreatedBy = createdBy,
             Description = description?.Trim(),
             VenueName = venueName?.Trim(),
-            ClientName = clientName?.Trim()
+            ClientName = clientName?.Trim(),
+            GalleryRecentCount = galleryRecentCount
         };
 
         eventEntity.RaiseDomainEvent(new EventCreatedEvent(eventEntity.Id, eventEntity.Name));
@@ -264,17 +278,24 @@ public sealed class Event : AggregateRoot
     /// <param name="description">The updated description.</param>
     /// <param name="venueName">The updated venue name.</param>
     /// <param name="clientName">The updated client name.</param>
+    /// <param name="galleryRecentCount">The updated maximum number of recent photos shown in the gallery.</param>
     public void Update(
         string name,
         EventType eventType,
         DateOnly eventDate,
         string? description,
         string? venueName,
-        string? clientName)
+        string? clientName,
+        int? galleryRecentCount)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new DomainException("Event name is required.");
+        }
+
+        if (galleryRecentCount.HasValue && galleryRecentCount.Value < 1)
+        {
+            throw new DomainException("Gallery recent count must be at least 1 when specified.");
         }
 
         Name = name.Trim();
@@ -283,6 +304,7 @@ public sealed class Event : AggregateRoot
         Description = description?.Trim();
         VenueName = venueName?.Trim();
         ClientName = clientName?.Trim();
+        GalleryRecentCount = galleryRecentCount;
         Touch();
     }
 }

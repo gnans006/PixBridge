@@ -75,6 +75,9 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
             .HasColumnName("photo_count")
             .IsRequired();
 
+        builder.Property(e => e.GalleryRecentCount)
+            .HasColumnName("gallery_recent_count");
+
         builder.Property(e => e.TotalSizeBytes)
             .HasColumnName("total_size_bytes")
             .IsRequired();

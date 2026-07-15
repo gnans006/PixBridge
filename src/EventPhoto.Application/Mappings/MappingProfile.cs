@@ -30,7 +30,8 @@ public sealed class MappingProfile : Profile
                 s.IsActive,
                 s.PhotoCount,
                 FormatBytes(s.TotalSizeBytes),
-                s.CreatedAt))
+                s.CreatedAt,
+                s.GalleryRecentCount))
             .ForAllMembers(opt => opt.Ignore());
 
         CreateMap<Event, EventSummaryResponse>()

@@ -44,5 +44,9 @@ public sealed class UpdateEventCommandValidator : AbstractValidator<UpdateEventC
             .MinimumLength(2).WithMessage("Client name must be at least 2 characters.")
             .MaximumLength(200).WithMessage("Client name must not exceed 200 characters.")
             .When(x => !string.IsNullOrWhiteSpace(x.ClientName));
+
+        RuleFor(x => x.GalleryRecentCount)
+            .InclusiveBetween(1, 1000).WithMessage("Gallery recent count must be between 1 and 1000.")
+            .When(x => x.GalleryRecentCount.HasValue);
     }
 }

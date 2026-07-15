@@ -8,4 +8,5 @@ public sealed record CreateEventRequest(
     string WatchFolder,
     string? Description,
     string? VenueName,
-    string? ClientName);
+    string? ClientName,
+    int? GalleryRecentCount);

@@ -14,4 +14,5 @@ public sealed record EventResponse(
     bool IsActive,
     int PhotoCount,
     string TotalSize,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int? GalleryRecentCount);

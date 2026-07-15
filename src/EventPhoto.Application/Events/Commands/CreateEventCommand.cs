@@ -17,7 +17,8 @@ public sealed record CreateEventCommand(
     string? Description,
     string? VenueName,
     string? ClientName,
-    Guid CreatedBy) : IRequest<Result<EventResponse>>;
+    Guid CreatedBy,
+    int? GalleryRecentCount) : IRequest<Result<EventResponse>>;
 
 /// <summary>Handles event creation, watch folder setup, QR code generation, and directory initialization.</summary>
 public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Result<EventResponse>>
@@ -68,7 +69,8 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
             request.CreatedBy,
             request.Description,
             request.VenueName,
-            request.ClientName);
+            request.ClientName,
+            request.GalleryRecentCount);
 
         var galleryUrl = $"{serverUrl}/gallery/{eventEntity.Id}";
         var qrPath = Path.Combine(qrFolder, $"qr-{eventEntity.Id}.png");

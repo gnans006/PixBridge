@@ -47,6 +47,10 @@ public sealed class CreateEventCommandValidator : AbstractValidator<CreateEventC
             .MaximumLength(200).WithMessage("Client name must not exceed 200 characters.")
             .When(x => !string.IsNullOrWhiteSpace(x.ClientName));
 
+        RuleFor(x => x.GalleryRecentCount)
+            .InclusiveBetween(1, 1000).WithMessage("Gallery recent count must be between 1 and 1000.")
+            .When(x => x.GalleryRecentCount.HasValue);
+
         RuleFor(x => x.CreatedBy)
             .NotEmpty().WithMessage("CreatedBy is required.");
     }
