@@ -3,46 +3,53 @@ using Microsoft.AspNetCore.SignalR;
 namespace EventPhoto.Api.Hubs;
 
 /// <summary>
-/// SignalR hub for real-time photo notifications to gallery clients.
-/// Clients join groups named after event identifiers to receive targeted updates.
+/// SignalR hub for real-time photo and face-search notifications.
+///
+/// Group naming:
+///   event-{eventId}          → broadcast new photos to all gallery viewers
+///   face-session-{token}     → private channel per guest face-search session
 /// </summary>
 public sealed class PhotoHub : Hub
 {
     /// <summary>
-    /// Joins the caller to the event group specified by the <c>eventId</c> query parameter when present.
+    /// Joins the caller to the event group (photo updates) and,
+    /// when a <c>sessionToken</c> query param is supplied, to their
+    /// private face-search session group.
     /// </summary>
-    /// <returns>A task that completes when connection initialization finishes.</returns>
     public override async Task OnConnectedAsync()
     {
-        var eventId = Context.GetHttpContext()?.Request.Query["eventId"].ToString();
+        var httpCtx = Context.GetHttpContext();
+
+        var eventId = httpCtx?.Request.Query["eventId"].ToString();
         if (!string.IsNullOrWhiteSpace(eventId))
-        {
             await Groups.AddToGroupAsync(Context.ConnectionId, GetEventGroupName(eventId));
-        }
+
+        var sessionToken = httpCtx?.Request.Query["sessionToken"].ToString();
+        if (!string.IsNullOrWhiteSpace(sessionToken))
+            await Groups.AddToGroupAsync(Context.ConnectionId, GetSessionGroupName(sessionToken));
 
         await base.OnConnectedAsync();
     }
 
-    /// <summary>
-    /// Adds the current connection to the specified event group.
-    /// </summary>
-    /// <param name="eventId">The event identifier.</param>
-    /// <returns>A task that completes when the group membership is updated.</returns>
+    /// <summary>Adds the caller to an event broadcast group.</summary>
     public Task JoinEvent(string eventId) =>
         Groups.AddToGroupAsync(Context.ConnectionId, GetEventGroupName(eventId));
 
-    /// <summary>
-    /// Removes the current connection from the specified event group.
-    /// </summary>
-    /// <param name="eventId">The event identifier.</param>
-    /// <returns>A task that completes when the group membership is updated.</returns>
+    /// <summary>Removes the caller from an event broadcast group.</summary>
     public Task LeaveEvent(string eventId) =>
         Groups.RemoveFromGroupAsync(Context.ConnectionId, GetEventGroupName(eventId));
 
-    /// <summary>
-    /// Builds the SignalR group name for an event.
-    /// </summary>
-    /// <param name="eventId">The event identifier.</param>
-    /// <returns>The normalized group name.</returns>
+    /// <summary>Adds the caller to their private face-search session group.</summary>
+    public Task JoinFaceSession(string sessionToken) =>
+        Groups.AddToGroupAsync(Context.ConnectionId, GetSessionGroupName(sessionToken));
+
+    /// <summary>Removes the caller from their face-search session group.</summary>
+    public Task LeaveFaceSession(string sessionToken) =>
+        Groups.RemoveFromGroupAsync(Context.ConnectionId, GetSessionGroupName(sessionToken));
+
+    /// <summary>Builds the SignalR group name for a photo-gallery event.</summary>
     public static string GetEventGroupName(string eventId) => $"event-{eventId}";
+
+    /// <summary>Builds the SignalR group name for a guest face-search session.</summary>
+    public static string GetSessionGroupName(string sessionToken) => $"face-session-{sessionToken}";
 }

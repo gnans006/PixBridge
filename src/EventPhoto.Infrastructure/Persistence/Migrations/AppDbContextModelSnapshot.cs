@@ -75,6 +75,14 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<bool>("AllowFaceSearch")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_face_search");
+
+                    b.Property<bool>("AllowGalleryBrowsing")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_gallery_browsing");
+
                     b.Property<string>("ClientName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
@@ -93,6 +101,10 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("description");
 
+                    b.Property<bool>("EnableFaceRecognition")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enable_face_recognition");
+
                     b.Property<DateOnly>("EventDate")
                         .HasColumnType("date")
                         .HasColumnName("event_date");
@@ -100,6 +112,10 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                     b.Property<int>("EventType")
                         .HasColumnType("integer")
                         .HasColumnName("event_type");
+
+                    b.Property<float>("FaceMatchThreshold")
+                        .HasColumnType("real")
+                        .HasColumnName("face_match_threshold");
 
                     b.Property<int?>("GalleryRecentCount")
                         .HasColumnType("integer")
@@ -132,6 +148,10 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)")
                         .HasColumnName("qr_code_url");
+
+                    b.Property<bool>("RestrictDownloadsToMatchedPhotos")
+                        .HasColumnType("boolean")
+                        .HasColumnName("restrict_downloads_to_matched_photos");
 
                     b.Property<string>("ThumbnailFolder")
                         .IsRequired()
@@ -188,6 +208,14 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")
                         .HasColumnName("event_id");
+
+                    b.Property<int>("FaceIndexRetryCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("face_index_retry_count");
+
+                    b.Property<int>("FaceIndexStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("face_index_status");
 
                     b.Property<string>("FileName")
                         .IsRequired()
@@ -247,6 +275,10 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OriginalPath")
                         .IsUnique();
+
+                    b.HasIndex("FaceIndexStatus", "IsDeleted")
+                        .HasDatabaseName("IX_photos_face_index_status")
+                        .HasFilter("face_index_status = 1");
 
                     b.HasIndex("ThumbnailStatus", "IsDeleted");
 

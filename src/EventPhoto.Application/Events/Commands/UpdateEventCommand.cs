@@ -8,7 +8,20 @@ using MediatR;
 namespace EventPhoto.Application.Events.Commands;
 
 /// <summary>Command to update an existing event's details.</summary>
-public sealed record UpdateEventCommand(Guid EventId, string Name, string EventType, DateOnly EventDate, string? Description, string? VenueName, string? ClientName, int? GalleryRecentCount) : IRequest<Result<EventResponse>>;
+public sealed record UpdateEventCommand(
+    Guid EventId,
+    string Name,
+    string EventType,
+    DateOnly EventDate,
+    string? Description,
+    string? VenueName,
+    string? ClientName,
+    int? GalleryRecentCount,
+    bool EnableFaceRecognition = false,
+    bool AllowGalleryBrowsing = true,
+    bool AllowFaceSearch = false,
+    bool RestrictDownloadsToMatchedPhotos = false,
+    float FaceMatchThreshold = 0.75f) : IRequest<Result<EventResponse>>;
 
 /// <summary>Handles updating an event's metadata.</summary>
 public sealed class UpdateEventCommandHandler : IRequestHandler<UpdateEventCommand, Result<EventResponse>>
@@ -39,7 +52,14 @@ public sealed class UpdateEventCommandHandler : IRequestHandler<UpdateEventComma
             return Result.Failure<EventResponse>($"Invalid event type: {request.EventType}");
         }
 
-        eventEntity.Update(request.Name, eventType, request.EventDate, request.Description, request.VenueName, request.ClientName, request.GalleryRecentCount);
+        eventEntity.Update(
+            request.Name, eventType, request.EventDate,
+            request.Description, request.VenueName, request.ClientName,
+            request.GalleryRecentCount,
+            request.EnableFaceRecognition, request.AllowGalleryBrowsing,
+            request.AllowFaceSearch, request.RestrictDownloadsToMatchedPhotos,
+            request.FaceMatchThreshold);
+
         await _eventRepository.UpdateAsync(eventEntity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

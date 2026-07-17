@@ -9,4 +9,10 @@ public sealed record CreateEventRequest(
     string? Description,
     string? VenueName,
     string? ClientName,
-    int? GalleryRecentCount);
+    int? GalleryRecentCount,
+    // Face Recognition
+    bool EnableFaceRecognition = false,
+    bool AllowGalleryBrowsing = true,
+    bool AllowFaceSearch = false,
+    bool RestrictDownloadsToMatchedPhotos = false,
+    float FaceMatchThreshold = 0.75f);

@@ -78,6 +78,27 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.Property(e => e.GalleryRecentCount)
             .HasColumnName("gallery_recent_count");
 
+        // ── Face Recognition ─────────────────────────────────────────────────
+        builder.Property(e => e.EnableFaceRecognition)
+            .HasColumnName("enable_face_recognition")
+            .IsRequired();
+
+        builder.Property(e => e.AllowGalleryBrowsing)
+            .HasColumnName("allow_gallery_browsing")
+            .IsRequired();
+
+        builder.Property(e => e.AllowFaceSearch)
+            .HasColumnName("allow_face_search")
+            .IsRequired();
+
+        builder.Property(e => e.RestrictDownloadsToMatchedPhotos)
+            .HasColumnName("restrict_downloads_to_matched_photos")
+            .IsRequired();
+
+        builder.Property(e => e.FaceMatchThreshold)
+            .HasColumnName("face_match_threshold")
+            .IsRequired();
+
         builder.Property(e => e.TotalSizeBytes)
             .HasColumnName("total_size_bytes")
             .IsRequired();

@@ -8,6 +8,9 @@ import EventDetail from './pages/Events/EventDetail';
 import EventForm from './pages/Events/EventForm';
 import EventList from './pages/Events/EventList';
 import Gallery from './pages/Gallery';
+import FaceSearchPage from './pages/FaceSearchPage';
+import SearchProgressPage from './pages/SearchProgressPage';
+import MyPhotosGalleryPage from './pages/MyPhotosGalleryPage';
 import Login from './pages/Login';
 import Settings from './pages/Settings';
 import Statistics from './pages/Statistics';
@@ -31,7 +34,14 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route element={<GuestLayout />}>
+            {/* Standard gallery browse */}
             <Route path="/gallery/:eventId" element={<Gallery />} />
+            {/* Face search landing — smart redirect based on gallery mode */}
+            <Route path="/gallery/:eventId/find" element={<FaceSearchPage />} />
+            {/* Face search in progress */}
+            <Route path="/gallery/:eventId/search/:sessionToken" element={<SearchProgressPage />} />
+            {/* Personal matched gallery */}
+            <Route path="/gallery/:eventId/results/:sessionToken" element={<MyPhotosGalleryPage />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />

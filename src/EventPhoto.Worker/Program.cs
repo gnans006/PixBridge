@@ -23,6 +23,7 @@ builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddWorkerServices();
 builder.Services.AddSingleton<IPhotoNotificationService, NoOpPhotoNotificationService>();
+builder.Services.AddSingleton<IFaceNotificationService, NoOpFaceNotificationService>();
 
 var host = builder.Build();
 await host.RunAsync();

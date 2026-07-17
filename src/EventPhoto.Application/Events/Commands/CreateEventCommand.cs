@@ -18,7 +18,12 @@ public sealed record CreateEventCommand(
     string? VenueName,
     string? ClientName,
     Guid CreatedBy,
-    int? GalleryRecentCount) : IRequest<Result<EventResponse>>;
+    int? GalleryRecentCount,
+    bool EnableFaceRecognition = false,
+    bool AllowGalleryBrowsing = true,
+    bool AllowFaceSearch = false,
+    bool RestrictDownloadsToMatchedPhotos = false,
+    float FaceMatchThreshold = 0.75f) : IRequest<Result<EventResponse>>;
 
 /// <summary>Handles event creation, watch folder setup, QR code generation, and directory initialization.</summary>
 public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Result<EventResponse>>
@@ -70,7 +75,12 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
             request.Description,
             request.VenueName,
             request.ClientName,
-            request.GalleryRecentCount);
+            request.GalleryRecentCount,
+            request.EnableFaceRecognition,
+            request.AllowGalleryBrowsing,
+            request.AllowFaceSearch,
+            request.RestrictDownloadsToMatchedPhotos,
+            request.FaceMatchThreshold);
 
         var galleryUrl = $"{serverUrl}/gallery/{eventEntity.Id}";
         var qrPath = Path.Combine(qrFolder, $"qr-{eventEntity.Id}.png");

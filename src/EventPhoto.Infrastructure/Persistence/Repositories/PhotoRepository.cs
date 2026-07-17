@@ -63,4 +63,25 @@ public sealed class PhotoRepository(AppDbContext context) : IPhotoRepository
         CancellationToken cancellationToken = default)
         => context.Photos
             .AnyAsync(p => p.OriginalPath == originalPath && !p.IsDeleted, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<List<Photo>> GetByIdsAsync(
+        IEnumerable<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = ids.ToList();
+        return context.Photos
+            .Where(p => idList.Contains(p.Id) && !p.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<List<Photo>> GetPendingFaceIndexAsync(
+        int batchSize,
+        CancellationToken cancellationToken = default)
+        => context.Photos
+            .Where(p => p.FaceIndexStatus == Domain.Enums.FaceIndexStatus.Pending && !p.IsDeleted)
+            .OrderBy(p => p.CapturedAt)
+            .Take(batchSize)
+            .ToListAsync(cancellationToken);
 }

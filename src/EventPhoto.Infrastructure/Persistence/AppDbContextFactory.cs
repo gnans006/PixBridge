@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Pgvector.EntityFrameworkCore;
 
 namespace EventPhoto.Infrastructure.Persistence;
 
@@ -20,7 +21,11 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
         optionsBuilder.UseNpgsql(
             designTimeConnection,
-            npgsql => npgsql.MigrationsAssembly(typeof(AppDbContextFactory).Assembly.GetName().Name));
+            npgsql =>
+            {
+                npgsql.MigrationsAssembly(typeof(AppDbContextFactory).Assembly.GetName().Name);
+                npgsql.UseVector();
+            });
 
         return new AppDbContext(optionsBuilder.Options);
     }

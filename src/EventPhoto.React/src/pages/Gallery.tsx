@@ -183,10 +183,22 @@ export default function Gallery() {
                   </button>
                 </>
               ) : (
-                <button type="button" onClick={() => setIsSelectMode(true)}
-                  className="flex items-center gap-1 rounded-lg border border-gray-700 px-2 py-1.5 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-white sm:gap-1.5 sm:px-3 sm:text-sm">
-                  <CheckSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden sm:inline"> Select</span>
-                </button>
+                <>
+                  {/* Find My Photos — shown when face search is enabled */}
+                  {eventData?.allowFaceSearch && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/gallery/${eventId}/find`)}
+                      className="flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-700 sm:gap-1.5 sm:px-3 sm:text-sm"
+                    >
+                      🔍 <span className="hidden sm:inline">Find My Photos</span>
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setIsSelectMode(true)}
+                    className="flex items-center gap-1 rounded-lg border border-gray-700 px-2 py-1.5 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-white sm:gap-1.5 sm:px-3 sm:text-sm">
+                    <CheckSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden sm:inline"> Select</span>
+                  </button>
+                </>
               )
             ) : null}
           </div>

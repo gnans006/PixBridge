@@ -33,6 +33,7 @@ builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IPhotoNotificationService, PhotoNotificationService>();
+builder.Services.AddScoped<IFaceNotificationService, FaceNotificationService>();
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();

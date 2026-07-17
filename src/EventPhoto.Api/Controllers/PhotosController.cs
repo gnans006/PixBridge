@@ -4,7 +4,6 @@ using EventPhoto.Application.Photos.Commands;
 using EventPhoto.Application.Photos.Queries;
 using EventPhoto.Contracts.Common;
 using EventPhoto.Contracts.Responses.Photos;
-using EventPhoto.Domain.Entities;
 using EventPhoto.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -15,6 +14,7 @@ namespace EventPhoto.Api.Controllers;
 
 /// <summary>
 /// Provides gallery browsing, thumbnail serving, downloads, and administrative photo operations.
+/// Download access is enforced when <c>RestrictDownloadsToMatchedPhotos</c> is enabled on the event.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -23,44 +23,31 @@ public sealed class PhotosController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IPhotoRepository _photoRepository;
-    private readonly IDownloadLogRepository _downloadLogRepository;
+    private readonly IEventRepository _eventRepository;
+    private readonly IPhotoMatchRepository _photoMatchRepository;
+    private readonly IGuestFaceSessionRepository _sessionRepository;
     private readonly IPhotoNotificationService _photoNotificationService;
-    private readonly IUnitOfWork _unitOfWork;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PhotosController"/> class.
-    /// </summary>
-    /// <param name="mediator">The mediator instance.</param>
-    /// <param name="photoRepository">The photo repository.</param>
-    /// <param name="downloadLogRepository">The download log repository.</param>
-    /// <param name="photoNotificationService">The photo notification service.</param>
-    /// <param name="unitOfWork">The unit of work.</param>
+    /// <summary>Initializes a new instance of the <see cref="PhotosController"/> class.</summary>
     public PhotosController(
         IMediator mediator,
         IPhotoRepository photoRepository,
-        IDownloadLogRepository downloadLogRepository,
-        IPhotoNotificationService photoNotificationService,
-        IUnitOfWork unitOfWork)
+        IEventRepository eventRepository,
+        IPhotoMatchRepository photoMatchRepository,
+        IGuestFaceSessionRepository sessionRepository,
+        IPhotoNotificationService photoNotificationService)
     {
         _mediator = mediator;
         _photoRepository = photoRepository;
-        _downloadLogRepository = downloadLogRepository;
+        _eventRepository = eventRepository;
+        _photoMatchRepository = photoMatchRepository;
+        _sessionRepository = sessionRepository;
         _photoNotificationService = photoNotificationService;
-        _unitOfWork = unitOfWork;
     }
 
-    /// <summary>
-    /// Returns a paginated list of photos for an event gallery.
-    /// </summary>
-    /// <param name="eventId">The event identifier.</param>
-    /// <param name="page">The requested page number.</param>
-    /// <param name="pageSize">The requested page size.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The paginated gallery payload.</returns>
+    /// <summary>Returns a paged list of photos for an event.</summary>
     [HttpGet("event/{eventId:guid}")]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<PhotoResponse>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<PagedResult<PhotoResponse>>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetByEvent(
         Guid eventId,
         [FromQuery] int page = 1,
@@ -68,97 +55,92 @@ public sealed class PhotosController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var result = await _mediator.Send(new GetPhotosByEventQuery(eventId, page, pageSize), cancellationToken);
-        if (result.IsFailure)
-        {
-            return BadRequest(ApiResponse<PagedResult<PhotoResponse>>.Fail(result.Error));
-        }
-
-        return Ok(ApiResponse<PagedResult<PhotoResponse>>.Ok(result.Value));
+        return result.IsSuccess
+            ? Ok(ApiResponse<PagedResult<PhotoResponse>>.Ok(result.Value))
+            : NotFound(ApiResponse.Fail(result.Error));
     }
 
-    /// <summary>
-    /// Returns metadata for a single photo.
-    /// </summary>
-    /// <param name="id">The photo identifier.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The matching photo metadata.</returns>
+    /// <summary>Returns metadata for a single photo.</summary>
     [HttpGet("{id:guid}")]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<PhotoResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<PhotoResponse>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetPhotoByIdQuery(id), cancellationToken);
-        if (result.IsFailure)
-        {
-            return NotFound(ApiResponse<PhotoResponse>.Fail(result.Error));
-        }
-
-        return Ok(ApiResponse<PhotoResponse>.Ok(result.Value));
+        return result.IsSuccess
+            ? Ok(ApiResponse<PhotoResponse>.Ok(result.Value))
+            : NotFound(ApiResponse.Fail(result.Error));
     }
 
-    /// <summary>
-    /// Serves the generated thumbnail for a photo.
-    /// </summary>
-    /// <param name="id">The photo identifier.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The thumbnail image.</returns>
+    /// <summary>Returns the thumbnail image for a photo.</summary>
     [HttpGet("{id:guid}/thumbnail")]
-    [AllowAnonymous]
-    [ResponseCache(Duration = 3600)]
-    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetThumbnail(Guid id, CancellationToken cancellationToken)
     {
         var photo = await _photoRepository.GetByIdAsync(id, cancellationToken);
-        if (photo is null || string.IsNullOrWhiteSpace(photo.ThumbnailPath) || !System.IO.File.Exists(photo.ThumbnailPath))
-        {
-            return NotFound();
-        }
+        if (photo is null)
+            return NotFound(ApiResponse.Fail($"Photo '{id}' was not found."));
 
-        var stream = new FileStream(photo.ThumbnailPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
-        return File(stream, "image/jpeg");
+        if (!System.IO.File.Exists(photo.ThumbnailPath))
+            return NotFound(ApiResponse.Fail("Thumbnail not yet available."));
+
+        var bytes = await System.IO.File.ReadAllBytesAsync(photo.ThumbnailPath, cancellationToken);
+        return File(bytes, photo.MimeType ?? "image/jpeg");
     }
 
     /// <summary>
-    /// Downloads the original full-resolution photo and records the download event.
+    /// Downloads the full-resolution photo.
+    /// When <c>RestrictDownloadsToMatchedPhotos=true</c>, a valid <c>sessionToken</c>
+    /// query parameter is required and the photo must appear in the session's matched results.
     /// </summary>
-    /// <param name="id">The photo identifier.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The original photo file.</returns>
     [HttpGet("{id:guid}/download")]
-    [AllowAnonymous]
     [EnableRateLimiting("downloads")]
-    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<IActionResult> Download(Guid id, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Download(
+        Guid id,
+        [FromQuery] string? sessionToken,
+        CancellationToken cancellationToken)
     {
         var photo = await _photoRepository.GetByIdAsync(id, cancellationToken);
-        if (photo is null || !System.IO.File.Exists(photo.OriginalPath))
+        if (photo is null)
+            return NotFound(ApiResponse.Fail($"Photo '{id}' was not found."));
+
+        // Enforce face-search download restriction when configured on the event.
+        var eventEntity = await _eventRepository.GetByIdAsync(photo.EventId, cancellationToken);
+        if (eventEntity is not null && eventEntity.RestrictDownloadsToMatchedPhotos)
         {
-            return NotFound();
+            if (string.IsNullOrWhiteSpace(sessionToken))
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    ApiResponse.Fail("A session token is required to download photos for this event."));
+
+            var session = await _sessionRepository.GetByTokenAsync(sessionToken, cancellationToken);
+            if (session is null || session.IsExpired)
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    ApiResponse.Fail("Session not found or has expired."));
+
+            var isMatched = await _photoMatchRepository.IsPhotoMatchedInSessionAsync(session.Id, id, cancellationToken);
+            if (!isMatched)
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    ApiResponse.Fail("You can only download photos you appear in."));
         }
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
         var userAgent = Request.Headers.UserAgent.ToString();
-        var downloadLog = DownloadLog.Create(photo.Id, photo.EventId, ipAddress, userAgent);
 
-        await _downloadLogRepository.AddAsync(downloadLog, cancellationToken);
-        photo.RecordDownload();
-        await _photoRepository.UpdateAsync(photo, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        var result = await _mediator.Send(
+            new DownloadPhotoQuery(id, ipAddress, userAgent),
+            cancellationToken);
 
-        var stream = new FileStream(photo.OriginalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
-        return File(stream, photo.MimeType, photo.FileName, enableRangeProcessing: true);
+        if (result.IsFailure)
+            return NotFound(ApiResponse.Fail(result.Error));
+
+        return File(result.Value.Data, result.Value.MimeType, result.Value.FileName);
     }
 
-    /// <summary>
-    /// Soft-deletes a photo and broadcasts the deletion event.
-    /// </summary>
-    /// <param name="id">The photo identifier.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>An empty success envelope.</returns>
+    /// <summary>Deletes a photo and its associated files.</summary>
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
@@ -167,15 +149,11 @@ public sealed class PhotosController : ControllerBase
     {
         var existingPhoto = await _photoRepository.GetByIdAsync(id, cancellationToken);
         if (existingPhoto is null)
-        {
             return NotFound(ApiResponse.Fail($"Photo '{id}' was not found."));
-        }
 
         var result = await _mediator.Send(new DeletePhotoCommand(id), cancellationToken);
         if (result.IsFailure)
-        {
             return NotFound(ApiResponse.Fail(result.Error));
-        }
 
         await _photoNotificationService.NotifyPhotoDeletedAsync(existingPhoto.EventId, existingPhoto.Id, cancellationToken);
         return Ok(ApiResponse.Ok());

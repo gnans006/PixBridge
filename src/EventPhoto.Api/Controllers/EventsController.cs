@@ -97,7 +97,12 @@ public sealed class EventsController : ControllerBase
                 request.VenueName,
                 request.ClientName,
                 userId,
-                request.GalleryRecentCount),
+                request.GalleryRecentCount,
+                request.EnableFaceRecognition,
+                request.AllowGalleryBrowsing,
+                request.AllowFaceSearch,
+                request.RestrictDownloadsToMatchedPhotos,
+                request.FaceMatchThreshold),
             cancellationToken);
 
         if (result.IsFailure)
@@ -129,7 +134,12 @@ public sealed class EventsController : ControllerBase
                 request.Description,
                 request.VenueName,
                 request.ClientName,
-                request.GalleryRecentCount),
+                request.GalleryRecentCount,
+                request.EnableFaceRecognition,
+                request.AllowGalleryBrowsing,
+                request.AllowFaceSearch,
+                request.RestrictDownloadsToMatchedPhotos,
+                request.FaceMatchThreshold),
             cancellationToken);
 
         if (result.IsFailure)

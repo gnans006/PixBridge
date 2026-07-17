@@ -1,3 +1,4 @@
+using EventPhoto.Application.FaceSearch.Commands;
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Interfaces;
 using MediatR;
@@ -27,6 +28,8 @@ public sealed record IngestPhotoCommand(
 
 /// <summary>
 /// Handles the <see cref="IngestPhotoCommand"/>.
+/// After persisting the photo, queues it for face indexing if the event has
+/// <c>EnableFaceRecognition=true</c> — face indexing never blocks this handler.
 /// </summary>
 public sealed class IngestPhotoCommandHandler(
     IEventRepository eventRepository,
@@ -68,6 +71,13 @@ public sealed class IngestPhotoCommandHandler(
             request.MimeType,
             request.TakenAt);
 
+        // Queue for face indexing immediately if recognition is enabled for this event.
+        // The FaceIndexingService will pick it up asynchronously — gallery visibility is NOT blocked.
+        if (eventEntity.EnableFaceRecognition)
+        {
+            photo.QueueForFaceIndexing();
+        }
+
         eventEntity.IncrementPhotoCount(request.FileSizeBytes);
 
         await photoRepository.AddAsync(photo, cancellationToken);
@@ -77,3 +87,4 @@ public sealed class IngestPhotoCommandHandler(
         return Result.Success(photo.Id);
     }
 }
+

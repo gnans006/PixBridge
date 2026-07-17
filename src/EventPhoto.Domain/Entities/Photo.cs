@@ -80,8 +80,20 @@ public sealed class Photo : AggregateRoot
     public ThumbnailStatus ThumbnailStatus { get; private set; } = ThumbnailStatus.Pending;
 
     /// <summary>
-    /// Gets the navigation property to the parent event.
+    /// Gets the face-indexing status for this photo.
+    /// Set to <see cref="FaceIndexStatus.NotRequired"/> when the parent event has
+    /// <c>EnableFaceRecognition=false</c>; otherwise starts as <see cref="FaceIndexStatus.Pending"/>
+    /// and transitions through the indexing lifecycle.
     /// </summary>
+    public FaceIndexStatus FaceIndexStatus { get; private set; } = FaceIndexStatus.NotRequired;
+
+    /// <summary>
+    /// Gets the number of retry attempts made by the FaceIndexingService.
+    /// Reset to 0 on successful completion.
+    /// </summary>
+    public int FaceIndexRetryCount { get; private set; }
+
+    /// <summary>Gets the navigation property to the parent event.</summary>
     public Event? Event { get; private set; }
 
     /// <summary>
@@ -212,5 +224,66 @@ public sealed class Photo : AggregateRoot
         IsDeleted = true;
         Touch();
         RaiseDomainEvent(new PhotoDeletedEvent(Id, EventId));
+    }
+
+    // ── Face indexing lifecycle ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Marks the photo as requiring face indexing (<see cref="FaceIndexStatus.Pending"/>).
+    /// Called by <see cref="Application.Photos.Commands.IngestPhotoCommandHandler"/>
+    /// when the parent event has <c>EnableFaceRecognition=true</c>.
+    /// </summary>
+    public void QueueForFaceIndexing()
+    {
+        FaceIndexStatus = FaceIndexStatus.Pending;
+        FaceIndexRetryCount = 0;
+        Touch();
+    }
+
+    /// <summary>
+    /// Transitions the face-index status to <see cref="FaceIndexStatus.Processing"/>.
+    /// Called by <see cref="Worker.Services.FaceIndexingService"/> when a batch job starts.
+    /// </summary>
+    public void MarkFaceIndexProcessing()
+    {
+        FaceIndexStatus = FaceIndexStatus.Processing;
+        Touch();
+    }
+
+    /// <summary>
+    /// Marks face indexing as successfully completed for this photo.
+    /// </summary>
+    /// <param name="faceCount">Number of faces detected and stored.</param>
+    public void MarkFaceIndexCompleted(int faceCount)
+    {
+        FaceIndexStatus = FaceIndexStatus.Completed;
+        FaceIndexRetryCount = 0;
+        Touch();
+        RaiseDomainEvent(new FaceIndexCompletedEvent(Id, EventId, faceCount));
+    }
+
+    /// <summary>
+    /// Marks face indexing as failed. Increments the retry counter.
+    /// When retries are exhausted the status becomes <see cref="FaceIndexStatus.Failed"/>;
+    /// otherwise it reverts to <see cref="FaceIndexStatus.Pending"/> for the next worker cycle.
+    /// </summary>
+    /// <param name="maxRetries">Maximum allowed retries before permanently failing.</param>
+    public void MarkFaceIndexFailed(int maxRetries = 3)
+    {
+        FaceIndexRetryCount++;
+        FaceIndexStatus = FaceIndexRetryCount >= maxRetries
+            ? FaceIndexStatus.Failed
+            : FaceIndexStatus.Pending;
+        Touch();
+    }
+
+    /// <summary>
+    /// Marks face indexing as not required because the parent event's
+    /// <c>EnableFaceRecognition</c> flag is <c>false</c>.
+    /// </summary>
+    public void SetFaceIndexNotRequired()
+    {
+        FaceIndexStatus = FaceIndexStatus.NotRequired;
+        Touch();
     }
 }

@@ -47,12 +47,24 @@ const schema = z.object({
     .refine(v => !v || v.length <= 200, 'Client name must not exceed 200 characters')
     .optional(),
   galleryRecentCount: z
-    .number({ invalid_type_error: 'Must be a number' })
+    .number()
     .int('Must be a whole number')
     .min(1, 'Must be at least 1')
     .max(1000, 'Must not exceed 1000')
     .optional(),
-});
+  // Face Recognition — no .default() here; defaults are set in useForm defaultValues
+  enableFaceRecognition: z.boolean(),
+  allowGalleryBrowsing: z.boolean(),
+  allowFaceSearch: z.boolean(),
+  restrictDownloadsToMatchedPhotos: z.boolean(),
+  faceMatchThreshold: z.number().min(0).max(1),
+}).refine(
+  d => d.allowGalleryBrowsing || d.allowFaceSearch,
+  { message: 'At least one of Allow Gallery Browsing or Allow Face Search must be enabled.', path: ['allowGalleryBrowsing'] },
+).refine(
+  d => !d.allowFaceSearch || d.enableFaceRecognition,
+  { message: 'Allow Face Search requires Enable Face Recognition to be turned on.', path: ['allowFaceSearch'] },
+);
 
 type FormData = z.infer<typeof schema>;
 
@@ -62,11 +74,21 @@ export default function EventForm() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { eventType: 'Wedding' },
+    defaultValues: {
+      eventType: 'Wedding',
+      enableFaceRecognition: false,
+      allowGalleryBrowsing: true,
+      allowFaceSearch: false,
+      restrictDownloadsToMatchedPhotos: false,
+      faceMatchThreshold: 0.75,
+    },
   });
+
+  const enableFaceRecognition = watch('enableFaceRecognition');
 
   const mutation = useMutation({
     mutationFn: eventsApi.create,
@@ -84,6 +106,11 @@ export default function EventForm() {
   const onSubmit = (data: FormData) => mutation.mutate({
     ...data,
     galleryRecentCount: data.galleryRecentCount ?? undefined,
+    enableFaceRecognition: data.enableFaceRecognition,
+    allowGalleryBrowsing: data.allowGalleryBrowsing,
+    allowFaceSearch: data.allowFaceSearch,
+    restrictDownloadsToMatchedPhotos: data.restrictDownloadsToMatchedPhotos,
+    faceMatchThreshold: data.faceMatchThreshold,
   });
 
   return (
@@ -146,6 +173,61 @@ export default function EventForm() {
               ? <p className="mt-1 text-xs text-red-600">{errors.galleryRecentCount.message}</p>
               : <p className="mt-1 text-xs text-gray-500">Limits the gallery to the N most recently captured photos. Leave blank to show all.</p>}
           </div>
+          {/* ── Face Recognition ─────────────────────────────────────── */}
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-indigo-800">🔍 Face Recognition</h3>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" {...register('enableFaceRecognition')} className="h-4 w-4 rounded text-indigo-600" />
+              <span className="text-sm text-gray-700">Enable Face Recognition</span>
+            </label>
+
+            {enableFaceRecognition && (
+              <div className="pl-4 space-y-2 border-l-2 border-indigo-200">
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Gallery Access</p>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" {...register('allowGalleryBrowsing')} className="h-4 w-4 rounded text-indigo-600" />
+                  <span className="text-sm text-gray-700">Allow Gallery Browsing</span>
+                </label>
+                {errors.allowGalleryBrowsing && (
+                  <p className="text-xs text-red-500">{errors.allowGalleryBrowsing.message}</p>
+                )}
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" {...register('allowFaceSearch')} className="h-4 w-4 rounded text-indigo-600" />
+                  <span className="text-sm text-gray-700">Allow Face Search (selfie upload)</span>
+                </label>
+                {errors.allowFaceSearch && (
+                  <p className="text-xs text-red-500">{errors.allowFaceSearch.message}</p>
+                )}
+
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide pt-1">Downloads</p>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" {...register('restrictDownloadsToMatchedPhotos')} className="h-4 w-4 rounded text-indigo-600" />
+                  <span className="text-sm text-gray-700">Restrict Downloads to Matched Photos</span>
+                </label>
+
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide pt-1">Match Threshold</p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={0.99}
+                    step={0.01}
+                    {...register('faceMatchThreshold', { valueAsNumber: true })}
+                    className="flex-1 accent-indigo-600"
+                  />
+                  <span className="w-12 text-sm text-center font-mono text-indigo-700">
+                    {(watch('faceMatchThreshold') ?? 0.75).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  Higher = stricter matching. Recommended: 0.75 – 0.85
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3 pt-2">
             <Button type="submit" isLoading={mutation.isPending}>
               Create Event

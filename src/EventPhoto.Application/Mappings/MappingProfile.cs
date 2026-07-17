@@ -31,7 +31,12 @@ public sealed class MappingProfile : Profile
                 s.PhotoCount,
                 FormatBytes(s.TotalSizeBytes),
                 s.CreatedAt,
-                s.GalleryRecentCount))
+                s.GalleryRecentCount,
+                s.EnableFaceRecognition,
+                s.AllowGalleryBrowsing,
+                s.AllowFaceSearch,
+                s.RestrictDownloadsToMatchedPhotos,
+                s.FaceMatchThreshold))
             .ForAllMembers(opt => opt.Ignore());
 
         CreateMap<Event, EventSummaryResponse>()

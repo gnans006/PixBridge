@@ -31,6 +31,11 @@ export interface EventResponse {
   totalSize: string;
   createdAt: string;
   galleryRecentCount?: number;
+  enableFaceRecognition: boolean;
+  allowGalleryBrowsing: boolean;
+  allowFaceSearch: boolean;
+  restrictDownloadsToMatchedPhotos: boolean;
+  faceMatchThreshold: number;
 }
 
 export interface CreateEventRequest {
@@ -42,6 +47,11 @@ export interface CreateEventRequest {
   venueName?: string;
   clientName?: string;
   galleryRecentCount?: number;
+  enableFaceRecognition?: boolean;
+  allowGalleryBrowsing?: boolean;
+  allowFaceSearch?: boolean;
+  restrictDownloadsToMatchedPhotos?: boolean;
+  faceMatchThreshold?: number;
 }
 
 export interface PhotoResponse {

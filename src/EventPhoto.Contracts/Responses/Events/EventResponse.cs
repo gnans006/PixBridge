@@ -15,4 +15,10 @@ public sealed record EventResponse(
     int PhotoCount,
     string TotalSize,
     DateTimeOffset CreatedAt,
-    int? GalleryRecentCount);
+    int? GalleryRecentCount,
+    // Face Recognition settings
+    bool EnableFaceRecognition,
+    bool AllowGalleryBrowsing,
+    bool AllowFaceSearch,
+    bool RestrictDownloadsToMatchedPhotos,
+    float FaceMatchThreshold);

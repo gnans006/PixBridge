@@ -5,6 +5,11 @@ using EventPhoto.Domain.Exceptions;
 
 namespace EventPhoto.Domain.Entities;
 
+// Gallery-mode derivation:
+//   AllowGalleryBrowsing=true,  AllowFaceSearch=false → GalleryOnly
+//   AllowGalleryBrowsing=false, AllowFaceSearch=true  → FaceSearchOnly
+//   AllowGalleryBrowsing=true,  AllowFaceSearch=true  → Hybrid
+
 /// <summary>
 /// Represents a photography event such as a wedding, birthday, or corporate event.
 /// </summary>
@@ -97,6 +102,39 @@ public sealed class Event : AggregateRoot
     /// </summary>
     public Guid CreatedBy { get; private set; }
 
+    // ── Face Recognition settings ─────────────────────────────────────────────
+
+    /// <summary>
+    /// When <c>true</c>, the background FaceIndexingService will process photos
+    /// for this event and face search is available.
+    /// </summary>
+    public bool EnableFaceRecognition { get; private set; }
+
+    /// <summary>
+    /// When <c>true</c>, guests may browse the full photo gallery without uploading a selfie.
+    /// At least one of <see cref="AllowGalleryBrowsing"/> or <see cref="AllowFaceSearch"/> must be <c>true</c>.
+    /// </summary>
+    public bool AllowGalleryBrowsing { get; private set; } = true;
+
+    /// <summary>
+    /// When <c>true</c>, guests may use the selfie-based face-search feature.
+    /// Requires <see cref="EnableFaceRecognition"/> to be <c>true</c>.
+    /// </summary>
+    public bool AllowFaceSearch { get; private set; }
+
+    /// <summary>
+    /// When <c>true</c>, guests who used face search may only download photos
+    /// that were returned as matches for their selfie.
+    /// </summary>
+    public bool RestrictDownloadsToMatchedPhotos { get; private set; }
+
+    /// <summary>
+    /// Cosine-similarity threshold used during face matching (0.0–1.0).
+    /// Photos with a similarity score at or above this value are returned as matches.
+    /// Defaults to <c>0.75</c>.
+    /// </summary>
+    public float FaceMatchThreshold { get; private set; } = 0.75f;
+
     /// <summary>
     /// Gets the photos associated with this event.
     /// </summary>
@@ -115,6 +153,11 @@ public sealed class Event : AggregateRoot
     /// <param name="venueName">The optional venue name.</param>
     /// <param name="clientName">The optional client name.</param>
     /// <param name="galleryRecentCount">The optional maximum number of recent photos to show in the gallery.</param>
+    /// <param name="enableFaceRecognition">Whether to enable face recognition for this event.</param>
+    /// <param name="allowGalleryBrowsing">Whether guests may browse the full gallery.</param>
+    /// <param name="allowFaceSearch">Whether guests may use selfie-based face search.</param>
+    /// <param name="restrictDownloadsToMatchedPhotos">Whether downloads are restricted to matched photos.</param>
+    /// <param name="faceMatchThreshold">Cosine similarity threshold for face matching (0.0–1.0).</param>
     /// <returns>A new <see cref="Event"/> instance.</returns>
     public static Event Create(
         string name,
@@ -126,7 +169,12 @@ public sealed class Event : AggregateRoot
         string? description = null,
         string? venueName = null,
         string? clientName = null,
-        int? galleryRecentCount = null)
+        int? galleryRecentCount = null,
+        bool enableFaceRecognition = false,
+        bool allowGalleryBrowsing = true,
+        bool allowFaceSearch = false,
+        bool restrictDownloadsToMatchedPhotos = false,
+        float faceMatchThreshold = 0.75f)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -153,6 +201,21 @@ public sealed class Event : AggregateRoot
             throw new DomainException("Gallery recent count must be at least 1 when specified.");
         }
 
+        if (!allowGalleryBrowsing && !allowFaceSearch)
+        {
+            throw new DomainException("At least one of AllowGalleryBrowsing or AllowFaceSearch must be enabled.");
+        }
+
+        if (faceMatchThreshold is < 0.0f or > 1.0f)
+        {
+            throw new DomainException("FaceMatchThreshold must be between 0.0 and 1.0.");
+        }
+
+        if (allowFaceSearch && !enableFaceRecognition)
+        {
+            throw new DomainException("AllowFaceSearch requires EnableFaceRecognition to be true.");
+        }
+
         var eventEntity = new Event
         {
             Name = name.Trim(),
@@ -164,7 +227,12 @@ public sealed class Event : AggregateRoot
             Description = description?.Trim(),
             VenueName = venueName?.Trim(),
             ClientName = clientName?.Trim(),
-            GalleryRecentCount = galleryRecentCount
+            GalleryRecentCount = galleryRecentCount,
+            EnableFaceRecognition = enableFaceRecognition,
+            AllowGalleryBrowsing = allowGalleryBrowsing,
+            AllowFaceSearch = allowFaceSearch,
+            RestrictDownloadsToMatchedPhotos = restrictDownloadsToMatchedPhotos,
+            FaceMatchThreshold = faceMatchThreshold
         };
 
         eventEntity.RaiseDomainEvent(new EventCreatedEvent(eventEntity.Id, eventEntity.Name));
@@ -279,6 +347,11 @@ public sealed class Event : AggregateRoot
     /// <param name="venueName">The updated venue name.</param>
     /// <param name="clientName">The updated client name.</param>
     /// <param name="galleryRecentCount">The updated maximum number of recent photos shown in the gallery.</param>
+    /// <param name="enableFaceRecognition">Whether face recognition is enabled.</param>
+    /// <param name="allowGalleryBrowsing">Whether gallery browsing is allowed.</param>
+    /// <param name="allowFaceSearch">Whether face search is allowed.</param>
+    /// <param name="restrictDownloadsToMatchedPhotos">Whether downloads are restricted to matched photos.</param>
+    /// <param name="faceMatchThreshold">Cosine similarity threshold (0.0–1.0).</param>
     public void Update(
         string name,
         EventType eventType,
@@ -286,7 +359,12 @@ public sealed class Event : AggregateRoot
         string? description,
         string? venueName,
         string? clientName,
-        int? galleryRecentCount)
+        int? galleryRecentCount,
+        bool enableFaceRecognition = false,
+        bool allowGalleryBrowsing = true,
+        bool allowFaceSearch = false,
+        bool restrictDownloadsToMatchedPhotos = false,
+        float faceMatchThreshold = 0.75f)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -298,6 +376,21 @@ public sealed class Event : AggregateRoot
             throw new DomainException("Gallery recent count must be at least 1 when specified.");
         }
 
+        if (!allowGalleryBrowsing && !allowFaceSearch)
+        {
+            throw new DomainException("At least one of AllowGalleryBrowsing or AllowFaceSearch must be enabled.");
+        }
+
+        if (faceMatchThreshold is < 0.0f or > 1.0f)
+        {
+            throw new DomainException("FaceMatchThreshold must be between 0.0 and 1.0.");
+        }
+
+        if (allowFaceSearch && !enableFaceRecognition)
+        {
+            throw new DomainException("AllowFaceSearch requires EnableFaceRecognition to be true.");
+        }
+
         Name = name.Trim();
         EventType = eventType;
         EventDate = eventDate;
@@ -305,6 +398,11 @@ public sealed class Event : AggregateRoot
         VenueName = venueName?.Trim();
         ClientName = clientName?.Trim();
         GalleryRecentCount = galleryRecentCount;
+        EnableFaceRecognition = enableFaceRecognition;
+        AllowGalleryBrowsing = allowGalleryBrowsing;
+        AllowFaceSearch = allowFaceSearch;
+        RestrictDownloadsToMatchedPhotos = restrictDownloadsToMatchedPhotos;
+        FaceMatchThreshold = faceMatchThreshold;
         Touch();
     }
 }

@@ -74,6 +74,15 @@ public sealed class PhotoConfiguration : IEntityTypeConfiguration<Photo>
             .HasColumnName("thumbnail_status")
             .IsRequired();
 
+        // ── Face Recognition ─────────────────────────────────────────────────
+        builder.Property(p => p.FaceIndexStatus)
+            .HasColumnName("face_index_status")
+            .IsRequired();
+
+        builder.Property(p => p.FaceIndexRetryCount)
+            .HasColumnName("face_index_retry_count")
+            .IsRequired();
+
         builder.Property(p => p.CreatedAt)
             .HasColumnName("created_at")
             .IsRequired();
@@ -88,5 +97,8 @@ public sealed class PhotoConfiguration : IEntityTypeConfiguration<Photo>
             .HasDatabaseName("IX_photos_event_paged");  // covers ORDER BY captured_at DESC
         builder.HasIndex(p => p.OriginalPath).IsUnique();
         builder.HasIndex(p => new { p.ThumbnailStatus, p.IsDeleted });
+        builder.HasIndex(p => new { p.FaceIndexStatus, p.IsDeleted })
+            .HasDatabaseName("IX_photos_face_index_status")
+            .HasFilter("face_index_status = 1");  // Pending = 1
     }
 }

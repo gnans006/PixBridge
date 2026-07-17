@@ -1,3 +1,4 @@
+using EventPhoto.Worker.Services.FaceIndexing;
 using EventPhoto.Worker.Services.FileWatcher;
 using EventPhoto.Worker.Services.ThumbnailProcessor;
 
@@ -17,6 +18,7 @@ public static class WorkerServiceExtensions
     {
         services.AddHostedService<FileWatcherService>();
         services.AddHostedService<ThumbnailProcessorService>();
+        services.AddHostedService<FaceIndexingService>();
         return services;
     }
 }

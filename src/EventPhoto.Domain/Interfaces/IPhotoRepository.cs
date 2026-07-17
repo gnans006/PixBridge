@@ -62,4 +62,15 @@ public interface IPhotoRepository
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> when a photo exists for the path; otherwise <see langword="false"/>.</returns>
     Task<bool> ExistsByPathAsync(string originalPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns photos by a list of identifiers (used to hydrate face-search results).
+    /// </summary>
+    Task<List<Photo>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns a batch of photos whose <c>FaceIndexStatus</c> is <c>Pending</c>.
+    /// Used by <see cref="Worker.Services.FaceIndexing.FaceIndexingService"/>.
+    /// </summary>
+    Task<List<Photo>> GetPendingFaceIndexAsync(int batchSize, CancellationToken cancellationToken = default);
 }
