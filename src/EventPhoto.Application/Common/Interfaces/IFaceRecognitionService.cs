@@ -14,6 +14,8 @@ public sealed record IndexPhotoResult(
 
 public sealed record EmbeddingResult(float[] Embedding);
 
+public sealed record FaceSearchPrecheckResult(bool IsValid, string? Message = null);
+
 /// <summary>
 /// Contract for the local Python InsightFace service.
 /// Implemented in Infrastructure by <c>FaceRecognitionService</c> (HttpClient-based).
@@ -27,6 +29,12 @@ public interface IFaceRecognitionService
     /// <param name="imagePath">Absolute path to the original photo on disk.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task<IndexPhotoResult> IndexPhotoAsync(string imagePath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Performs a lightweight local validation on the uploaded selfie so invalid or low-quality images
+    /// do not need to be sent to the Python face-recognition service.
+    /// </summary>
+    Task<FaceSearchPrecheckResult> PrecheckSelfieAsync(byte[] selfieBytes, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Generates a 512-dimensional ArcFace embedding from a selfie image byte array.

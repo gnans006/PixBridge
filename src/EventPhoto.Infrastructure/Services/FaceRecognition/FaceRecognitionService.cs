@@ -29,6 +29,19 @@ public sealed class FaceRecognitionService(
 
     private HttpClient Client => httpClientFactory.CreateClient("FaceRecognition");
 
+    private static bool IsLikelyImage(byte[] bytes)
+    {
+        if (bytes is null || bytes.Length < 16)
+            return false;
+
+        var header = bytes.Take(16).ToArray();
+        return header.Length >= 8 && (
+            (header[0] == 0xFF && header[1] == 0xD8) ||
+            (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) ||
+            (header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46) ||
+            (header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46));
+    }
+
     /// <inheritdoc />
     public async Task<IndexPhotoResult> IndexPhotoAsync(
         string imagePath,
@@ -50,6 +63,21 @@ public sealed class FaceRecognitionService(
         return new IndexPhotoResult(
             result.face_count,
             result.faces.Select(f => new FaceDetectionResult(f.embedding, f.bounding_box, f.confidence)).ToList());
+    }
+
+    /// <inheritdoc />
+    public Task<FaceSearchPrecheckResult> PrecheckSelfieAsync(byte[] selfieBytes, CancellationToken cancellationToken = default)
+    {
+        if (selfieBytes is null || selfieBytes.Length < 16)
+            return Task.FromResult(new FaceSearchPrecheckResult(false, "Selfie image is required. Please upload a non-empty image."));
+
+        if (!IsLikelyImage(selfieBytes))
+            return Task.FromResult(new FaceSearchPrecheckResult(false, "The uploaded file is not a valid image. Please upload a JPG, PNG, or WEBP image."));
+
+        if (selfieBytes.Length > 10 * 1024 * 1024)
+            return Task.FromResult(new FaceSearchPrecheckResult(false, "Selfie image must not exceed 10 MB."));
+
+        return Task.FromResult(new FaceSearchPrecheckResult(true));
     }
 
     /// <inheritdoc />

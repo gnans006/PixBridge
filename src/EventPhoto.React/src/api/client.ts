@@ -13,13 +13,18 @@ export function buildApiUrl(path: string): string {
 
 export const apiClient = axios.create({
   baseURL: API_BASE,
-  headers: { 'Content-Type': 'application/json' },
 });
 
 apiClient.interceptors.request.use((config) => {
   const token = authStore.getToken();
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (config.data instanceof FormData) {
+    config.headers.delete('Content-Type');
+  } else if (config.data !== undefined && !config.headers.has('Content-Type')) {
+    config.headers.set('Content-Type', 'application/json');
   }
 
   return config;

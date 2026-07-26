@@ -2133,3 +2133,320 @@ Behavioral rules:
 - API owns controllers, middleware, JWT auth, SignalR, Swagger
 - Worker owns watched-folder ingestion and thumbnail processing
 - Soft delete, path safety, LAN deployment, and no-op worker notifications are core conventions
+
+
+
+# Installing pgvector on Windows (PostgreSQL 17)
+
+## Prerequisites
+
+- PostgreSQL 17.x installed
+- Visual Studio with **Desktop development with C++** workload
+- Git installed
+
+---
+
+## Step 1: Clone pgvector
+
+Open **x64 Native Tools Command Prompt** and clone the repository.
+
+```cmd
+cd %TEMP%
+git clone https://github.com/pgvector/pgvector.git pgvector-src
+cd pgvector-src
+```
+
+---
+
+## Step 2: Configure PostgreSQL installation path
+
+Set the PostgreSQL installation directory.
+
+```cmd
+set PGROOT=C:\Program Files\PostgreSQL\17
+```
+
+Verify:
+
+```cmd
+echo %PGROOT%
+```
+
+Expected output:
+
+```text
+C:\Program Files\PostgreSQL\17
+```
+
+---
+
+## Step 3: Build pgvector
+
+Compile the extension.
+
+```cmd
+nmake /F Makefile.win
+```
+
+If the build succeeds, you should see output similar to:
+
+```text
+Creating library vector.lib and object vector.exp
+copy sql\vector.sql sql\vector--0.8.5.sql
+1 file(s) copied.
+```
+
+This generates:
+
+- vector.dll
+- vector.lib
+- vector.exp
+- vector--0.8.5.sql
+
+---
+
+## Step 4: Install pgvector
+
+Run:
+
+```cmd
+nmake /F Makefile.win install
+```
+
+### If installation succeeds
+
+The following files are copied automatically.
+
+#### Library
+
+```
+C:\Program Files\PostgreSQL\17\lib\vector.dll
+```
+
+#### Extension metadata
+
+```
+C:\Program Files\PostgreSQL\17\share\extension\vector.control
+```
+
+#### SQL scripts
+
+```
+C:\Program Files\PostgreSQL\17\share\extension\
+```
+
+All `vector--*.sql` files are copied into this folder.
+
+---
+
+## Manual Installation (if `nmake install` fails)
+
+Sometimes `nmake install` fails with:
+
+```text
+Access is denied.
+```
+
+If that happens, manually copy the generated files.
+
+### Copy the extension library
+
+Copy:
+
+```
+vector.dll
+```
+
+to:
+
+```
+C:\Program Files\PostgreSQL\17\lib\
+```
+
+---
+
+### Copy extension metadata
+
+Copy:
+
+```
+vector.control
+```
+
+to:
+
+```
+C:\Program Files\PostgreSQL\17\share\extension\
+```
+
+---
+
+### Copy SQL scripts
+
+Copy **all** SQL files from:
+
+```
+pgvector-src\sql\
+```
+
+to:
+
+```
+C:\Program Files\PostgreSQL\17\share\extension\
+```
+
+This includes:
+
+```
+vector--0.1.0--0.1.1.sql
+vector--0.1.1--0.1.3.sql
+...
+vector--0.8.5.sql
+```
+
+> **Important**
+>
+> Copy **all** `vector--*.sql` files, **not just** `vector--0.8.5.sql`.
+>
+> PostgreSQL uses these upgrade scripts when upgrading the extension between versions.
+
+---
+
+## Step 5: Restart PostgreSQL
+
+Restart the PostgreSQL service.
+
+Open:
+
+```
+services.msc
+```
+
+Restart:
+
+```
+postgresql-x64-17
+```
+
+---
+
+## Step 6: Enable the extension
+
+Connect to PostgreSQL.
+
+```cmd
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres
+```
+
+Run:
+
+```sql
+CREATE EXTENSION vector;
+```
+
+Expected:
+
+```text
+CREATE EXTENSION
+```
+
+---
+
+## Step 7: Verify installation
+
+Run:
+
+```sql
+\dx
+```
+
+Expected output:
+
+```text
+                 List of installed extensions
+
+ Name    | Version | Schema | Description
+---------+---------+--------+-----------------------------------
+ vector  | 0.8.5   | public | vector data type
+ plpgsql | 1.0     | ...
+```
+
+You can also verify using:
+
+```sql
+SELECT extname FROM pg_extension;
+```
+
+Expected:
+
+```text
+ extname
+---------
+ vector
+ plpgsql
+```
+
+---
+
+## Common Errors
+
+### ERROR: extension "vector" is not available
+
+```text
+ERROR: extension "vector" is not available
+
+DETAIL:
+Could not open extension control file
+"C:/Program Files/PostgreSQL/17/share/extension/vector.control"
+```
+
+**Cause**
+
+The extension files were not installed.
+
+**Solution**
+
+Verify that:
+
+```
+vector.control
+```
+
+exists in
+
+```
+C:\Program Files\PostgreSQL\17\share\extension\
+```
+
+and
+
+```
+vector.dll
+```
+
+exists in
+
+```
+C:\Program Files\PostgreSQL\17\lib\
+```
+
+---
+
+### Access is denied during install
+
+```text
+copy vector.dll
+Access is denied.
+```
+
+**Solution**
+
+Run the command prompt as Administrator.
+
+If it still fails, manually copy:
+
+- vector.dll
+- vector.control
+- all vector--*.sql files
+
+to the appropriate PostgreSQL directories.

@@ -37,24 +37,49 @@ public sealed class FaceSearchController(IMediator mediator) : ControllerBase
     /// performs a pgvector HNSW search, and returns a session token with matched photo count.
     /// </summary>
     [HttpPost("events/{eventId:guid}/search")]
+    [Consumes("multipart/form-data", "application/octet-stream", "image/jpeg", "image/png", "image/webp")]
     [RequestSizeLimit(10 * 1024 * 1024)]  // 10 MB
+    [DisableRequestSizeLimit]
     [ProducesResponseType(typeof(ApiResponse<FaceSearchStatusResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> StartFaceSearch(
         Guid eventId,
-        IFormFile selfie,
         [FromQuery] float? threshold,
         CancellationToken ct)
     {
-        if (selfie is null || selfie.Length == 0)
-            return BadRequest(ApiResponse.Fail("Selfie image is required."));
+        byte[]? selfieBytes = null;
 
-        using var ms = new MemoryStream();
-        await selfie.CopyToAsync(ms, ct);
+        if (Request.HasFormContentType)
+        {
+            Request.EnableBuffering();
+            var form = await Request.ReadFormAsync(ct);
+            var file = form.Files.GetFile("selfie");
+            if (file is not null && file.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await file.CopyToAsync(ms, ct);
+                selfieBytes = ms.ToArray();
+            }
+        }
+
+        if (selfieBytes is null || selfieBytes.Length == 0)
+        {
+            var contentLength = Request.ContentLength ?? 0;
+            if (contentLength > 0)
+            {
+                Request.EnableBuffering();
+                using var ms = new MemoryStream();
+                await Request.Body.CopyToAsync(ms, ct);
+                selfieBytes = ms.ToArray();
+            }
+        }
+
+        if (selfieBytes is null || selfieBytes.Length == 0)
+            return BadRequest(ApiResponse.Fail("Selfie image is required. Upload a non-empty image file."));
 
         var result = await mediator.Send(
-            new StartFaceSearchCommand(eventId, ms.ToArray(), threshold), ct);
+            new StartFaceSearchCommand(eventId, selfieBytes, threshold), ct);
 
         return result.IsSuccess
             ? Ok(ApiResponse<FaceSearchStatusResponse>.Ok(result.Value))

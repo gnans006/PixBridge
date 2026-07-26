@@ -45,13 +45,9 @@ export const faceSearchApi = {
   /** Uploads selfie and starts face-search session. */
   startSearch: (eventId: string, selfie: File, threshold?: number) => {
     const form = new FormData();
-    form.append('selfie', selfie);
+    form.append('selfie', selfie, selfie.name);
     const params = threshold !== undefined ? `?threshold=${threshold}` : '';
-    return client.post<ApiResponse<FaceSearchStatus>>(
-      `/face-search/events/${eventId}/search${params}`,
-      form,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
-    );
+    return client.post<ApiResponse<FaceSearchStatus>>(`/face-search/events/${eventId}/search${params}`, form);
   },
 
   /** Polls session status (fallback when SignalR is unavailable). */

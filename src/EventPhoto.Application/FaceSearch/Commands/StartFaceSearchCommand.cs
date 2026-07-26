@@ -63,22 +63,39 @@ public sealed class StartFaceSearchCommandHandler(
         if (!eventEntity.AllowFaceSearch)
             return Result.Failure<FaceSearchStatusResponse>("Face search is not allowed for this event.");
 
-        // Generate embedding from selfie
-        EmbeddingResult embeddingResult;
-        try
+        // Precheck the selfie first to avoid wasting credits on obviously invalid images.
+        // If the image cannot be processed, we still create a completed session with zero matches
+        // so the guest flow does not fail with a 400 response.
+        EmbeddingResult? embeddingResult = null;
+        var usedFallback = false;
+        var fallbackMessage = (string?)null;
+
+        var precheck = await faceRecognitionService.PrecheckSelfieAsync(request.SelfieBytes, cancellationToken);
+        if (!precheck.IsValid)
         {
-            embeddingResult = await faceRecognitionService.GenerateEmbeddingAsync(
-                request.SelfieBytes, cancellationToken);
+            logger.LogWarning("Selfie precheck failed for event {EventId}: {Reason}", request.EventId, precheck.Message);
+            usedFallback = true;
+            fallbackMessage = precheck.Message ?? "We could not validate your selfie. Search completed with no matches.";
         }
-        catch (Exception ex)
+        else
         {
-            logger.LogWarning(ex, "Failed to generate embedding for selfie (EventId={EventId})", request.EventId);
-            return Result.Failure<FaceSearchStatusResponse>(
-                "Could not process your selfie. Please ensure your face is clearly visible and try again.");
+            try
+            {
+                embeddingResult = await faceRecognitionService.GenerateEmbeddingAsync(
+                    request.SelfieBytes, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Face recognition embedding generation failed for selfie search (EventId={EventId})", request.EventId);
+                usedFallback = true;
+                fallbackMessage = "Face recognition service is unavailable right now. Search completed with no matches.";
+            }
         }
 
+        var embedding = embeddingResult?.Embedding ?? Enumerable.Repeat(0f, 512).ToArray();
+
         // Create session
-        var session = GuestFaceSession.Create(request.EventId, embeddingResult.Embedding);
+        var session = GuestFaceSession.Create(request.EventId, embedding);
         await sessionRepository.AddAsync(session, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -92,22 +109,32 @@ public sealed class StartFaceSearchCommandHandler(
 
         var threshold = request.ThresholdOverride ?? eventEntity.FaceMatchThreshold;
 
-        // pgvector HNSW nearest-neighbour search
-        var hits = await embeddingRepository.SearchByEmbeddingAsync(
-            request.EventId,
-            embeddingResult.Embedding,
-            threshold,
-            topK: 200,
-            cancellationToken);
+        List<PhotoMatch> photoMatches;
+        if (usedFallback)
+        {
+            photoMatches = [];
+            await faceNotificationService.NotifySearchProgressAsync(
+                session.SessionToken, 0, cancellationToken);
+        }
+        else
+        {
+            // pgvector HNSW nearest-neighbour search
+            var hits = await embeddingRepository.SearchByEmbeddingAsync(
+                request.EventId,
+                embedding,
+                threshold,
+                topK: 200,
+                cancellationToken);
 
-        await faceNotificationService.NotifySearchProgressAsync(
-            session.SessionToken, hits.Count, cancellationToken);
+            await faceNotificationService.NotifySearchProgressAsync(
+                session.SessionToken, hits.Count, cancellationToken);
 
-        // Deduplicate: keep the best similarity score per photo
-        var photoMatches = hits
-            .GroupBy(h => h.PhotoId)
-            .Select(g => PhotoMatch.Create(session.Id, g.Key, g.Max(x => x.Similarity)))
-            .ToList();
+            // Deduplicate: keep the best similarity score per photo
+            photoMatches = hits
+                .GroupBy(h => h.PhotoId)
+                .Select(g => PhotoMatch.Create(session.Id, g.Key, g.Max(x => x.Similarity)))
+                .ToList();
+        }
 
         if (photoMatches.Count > 0)
             await matchRepository.AddRangeAsync(photoMatches, cancellationToken);
@@ -127,6 +154,7 @@ public sealed class StartFaceSearchCommandHandler(
             session.SessionToken,
             session.Status.ToString(),
             session.MatchCount,
-            session.ExpiresAt));
+            session.ExpiresAt,
+            fallbackMessage));
     }
 }

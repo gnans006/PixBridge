@@ -50,9 +50,10 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         // TODO: Remove these Ignore calls after installing pgvector and running AddFaceRecognitionVectors migration
-        modelBuilder.Ignore<FaceEmbedding>();
-        modelBuilder.Ignore<GuestFaceSession>();
-        modelBuilder.Ignore<PhotoMatch>();
+        // modelBuilder.Ignore<FaceEmbedding>();
+        // modelBuilder.Ignore<GuestFaceSession>();
+        // modelBuilder.Ignore<PhotoMatch>();
+        modelBuilder.HasPostgresExtension("vector");
         base.OnModelCreating(modelBuilder);
     }
 
