@@ -2450,3 +2450,308 @@ If it still fails, manually copy:
 - all vector--*.sql files
 
 to the appropriate PostgreSQL directories.
+
+
+
+
+
+# Python Setup for Face Recognition Service
+
+## Prerequisites
+
+- Windows 10/11
+- Python 3.10 or later
+- Git installed
+
+---
+
+## Step 1: Verify Python Installation
+
+Open **Command Prompt** or **PowerShell**.
+
+Run:
+
+```powershell
+python --version
+```
+
+Expected output:
+
+```text
+Python 3.10.11
+```
+
+If Python is not installed, download it from:
+
+https://www.python.org/downloads/
+
+> **Important**
+>
+> During installation, enable:
+>
+> ✅ Add Python to PATH
+
+---
+
+## Step 2: Verify Python Path
+
+Run:
+
+```powershell
+where python
+```
+
+Example:
+
+```text
+C:\Users\<username>\AppData\Local\Python\bin\python.exe
+```
+
+---
+
+## Step 3: Navigate to the Face Recognition Project
+
+```powershell
+cd C:\CLS\PixBridge\src\PixBridge.FaceRecognition
+```
+
+Verify:
+
+```powershell
+pwd
+```
+
+Expected:
+
+```text
+C:\CLS\PixBridge\src\PixBridge.FaceRecognition
+```
+
+---
+
+## Step 4: Create a Python Virtual Environment
+
+### Command Prompt
+
+```cmd
+python -m venv .venv
+```
+
+### PowerShell
+
+```powershell
+python -m venv .venv
+```
+
+If using a full Python path in PowerShell:
+
+```powershell
+& "C:\Users\<username>\AppData\Local\Python\bin\python.exe" -m venv .venv
+```
+
+A new folder will be created:
+
+```
+PixBridge.FaceRecognition
+│
+├── .venv
+├── app
+├── requirements.txt
+└── ...
+```
+
+---
+
+## Step 5: Activate the Virtual Environment
+
+### Command Prompt
+
+```cmd
+.venv\Scripts\activate
+```
+
+### PowerShell
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Expected prompt:
+
+```text
+(.venv) PS C:\CLS\PixBridge\src\PixBridge.FaceRecognition>
+```
+
+---
+
+## Step 6: Upgrade pip
+
+```powershell
+python -m pip install --upgrade pip
+```
+
+Verify:
+
+```powershell
+pip --version
+```
+
+---
+
+## Step 7: Install Project Dependencies
+
+Install all required packages.
+
+```powershell
+pip install -r requirements.txt
+```
+
+This installs packages such as:
+
+- FastAPI
+- Uvicorn
+- InsightFace
+- OpenCV
+- NumPy
+- ONNX Runtime
+- Pillow
+- pgvector (if applicable)
+
+---
+
+## Step 8: Verify Installed Packages
+
+```powershell
+pip list
+```
+
+or
+
+```powershell
+pip freeze
+```
+
+---
+
+## Step 9: Start the Face Recognition Service
+
+Run:
+
+```powershell
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Expected output:
+
+```text
+INFO:     Started server process
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+
+---
+
+## Step 10: Verify the API
+
+Open a browser and navigate to:
+
+```
+http://localhost:8000/docs
+```
+
+You should see the FastAPI Swagger UI.
+
+---
+
+# Deactivate the Virtual Environment
+
+When finished:
+
+```powershell
+deactivate
+```
+
+---
+
+# Reopen the Project Later
+
+Navigate to the project:
+
+```powershell
+cd C:\CLS\PixBridge\src\PixBridge.FaceRecognition
+```
+
+Activate the virtual environment:
+
+### PowerShell
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+### Command Prompt
+
+```cmd
+.venv\Scripts\activate
+```
+
+Run the application:
+
+```powershell
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+---
+
+# Troubleshooting
+
+## Python is not recognized
+
+```text
+'python' is not recognized as an internal or external command
+```
+
+**Solution**
+
+- Verify Python installation.
+- Ensure Python is added to the PATH.
+- Restart the terminal.
+
+---
+
+## PowerShell Error
+
+```text
+Unexpected token '-m'
+```
+
+**Cause**
+
+PowerShell interprets a quoted executable path as a string.
+
+**Correct**
+
+```powershell
+& "C:\Users\<username>\AppData\Local\Python\bin\python.exe" -m venv .venv
+```
+
+---
+
+## Execution Policy Error
+
+```text
+running scripts is disabled on this system
+```
+
+Run PowerShell as Administrator:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+Then activate again:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
