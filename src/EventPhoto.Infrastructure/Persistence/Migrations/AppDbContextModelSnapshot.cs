@@ -611,6 +611,121 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                     b.Navigation("Session");
                 });
 
+            modelBuilder.Entity("EventPhoto.Domain.Entities.WatermarkConfiguration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("ApplyOnDownload")
+                        .HasColumnType("boolean")
+                        .HasColumnName("apply_on_download");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CustomText")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("custom_text");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<bool>("IncludeDownloadDate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_download_date");
+
+                    b.Property<bool>("IncludeEventName")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_event_name");
+
+                    b.Property<bool>("IncludeStudioName")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_studio_name");
+
+                    b.Property<string>("LogoPath")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("logo_path");
+
+                    b.Property<string>("TextColor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("#FFFFFF")
+                        .HasColumnName("text_color");
+
+                    b.Property<string>("FontName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("font_name");
+
+                    b.Property<float>("BackgroundOpacity")
+                        .HasColumnType("real")
+                        .HasDefaultValue(0.20f)
+                        .HasColumnName("background_opacity");
+
+                    b.Property<bool>("ApplyOnPreview")
+                        .HasColumnType("boolean")
+                        .HasColumnName("apply_on_preview");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("mode");
+
+                    b.Property<float>("Opacity")
+                        .HasColumnType("real")
+                        .HasColumnName("opacity");
+
+                    b.Property<string>("Scale")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scale");
+
+                    b.Property<string>("Style")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("style");
+
+                    b.Property<string>("Template")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("template");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_watermark_configurations_event_id");
+
+                    b.ToTable("watermark_configurations", (string)null);
+                });
+
+            modelBuilder.Entity("EventPhoto.Domain.Entities.WatermarkConfiguration", b =>
+                {
+                    b.HasOne("EventPhoto.Domain.Entities.Event", null)
+                        .WithOne()
+                        .HasForeignKey("EventPhoto.Domain.Entities.WatermarkConfiguration", "EventId")
+                        .HasConstraintName("FK_watermark_configurations_events_event_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("EventPhoto.Domain.Entities.Event", b =>
                 {
                     b.Navigation("Photos");

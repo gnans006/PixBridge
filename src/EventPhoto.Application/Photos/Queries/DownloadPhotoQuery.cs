@@ -1,21 +1,27 @@
 using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Application.Common.Models;
 using EventPhoto.Domain.Common;
+using EventPhoto.Domain.Enums;
 using EventPhoto.Domain.Interfaces;
 using MediatR;
 
 namespace EventPhoto.Application.Photos.Queries;
 
 /// <summary>
-/// Query that reads the raw bytes of a photo's original file and records a download event.
+/// Query that reads the raw bytes of a photo's original file, applies any active watermark,
+/// records a download event, and returns the result.
 /// </summary>
 /// <param name="PhotoId">The photo identifier.</param>
 /// <param name="IpAddress">The optional IP address of the downloader.</param>
 /// <param name="UserAgent">The optional browser user-agent string.</param>
+/// <param name="SessionId">
+/// The guest face-search session token, when the download originates from a matched session.
+/// </param>
 public sealed record DownloadPhotoQuery(
     Guid PhotoId,
     string? IpAddress,
-    string? UserAgent)
+    string? UserAgent,
+    string? SessionId = null)
     : IRequest<Result<DownloadResult>>;
 
 /// <summary>
@@ -25,7 +31,11 @@ public sealed class DownloadPhotoQueryHandler(
     IPhotoRepository photoRepository,
     IDownloadLogRepository downloadLogRepository,
     IFileService fileService,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IWatermarkConfigurationRepository watermarkRepository,
+    IWatermarkService watermarkService,
+    IEventRepository eventRepository,
+    ISystemSettingRepository systemSettingRepository)
     : IRequestHandler<DownloadPhotoQuery, Result<DownloadResult>>
 {
     /// <inheritdoc />
@@ -46,6 +56,33 @@ public sealed class DownloadPhotoQueryHandler(
 
         var bytes = await fileService.ReadAllBytesAsync(photo.OriginalPath, cancellationToken);
 
+        // ── Watermarking ─────────────────────────────────────────────────────
+        try
+        {
+            var watermarkConfig = await watermarkRepository.GetByEventIdAsync(photo.EventId, cancellationToken);
+            if (watermarkConfig is { Enabled: true, ApplyOnDownload: true }
+                && watermarkConfig.Mode != WatermarkMode.Disabled)
+            {
+                var eventEntity = await eventRepository.GetByIdAsync(photo.EventId, cancellationToken);
+                var studioNameSetting = await systemSettingRepository.GetByKeyAsync("app.name", cancellationToken);
+
+                var context = new WatermarkContext(
+                    StudioName: studioNameSetting?.Value,
+                    EventName: eventEntity?.Name ?? string.Empty,
+                    EventDate: eventEntity?.EventDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
+                    DownloadDate: DateTimeOffset.UtcNow,
+                    PhotoName: photo.FileName,
+                    SessionId: request.SessionId);
+
+                bytes = await watermarkService.ApplyWatermarkAsync(bytes, watermarkConfig, context, cancellationToken);
+            }
+        }
+        catch (Exception)
+        {
+            // Watermark lookup failed (e.g. table not yet migrated). Continue with original bytes.
+        }
+
+        // ── Record download ──────────────────────────────────────────────────
         photo.RecordDownload();
         await photoRepository.UpdateAsync(photo, cancellationToken);
 

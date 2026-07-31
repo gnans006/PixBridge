@@ -30,10 +30,6 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
     // ── Face Recognition ─────────────────────────────────────────────────────
-    // NOTE: These DbSets are present for repository compilation. Vector entities
-    // are temporarily excluded from the EF model (via Ignore in OnModelCreating)
-    // until pgvector is installed on PostgreSQL. Once pgvector is available,
-    // remove the Ignore calls and run: dotnet ef migrations add AddFaceRecognitionVectors
 
     /// <summary>Gets the face embedding vectors set.</summary>
     public DbSet<FaceEmbedding> FaceEmbeddings => Set<FaceEmbedding>();
@@ -44,15 +40,14 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Gets the photo matches set.</summary>
     public DbSet<PhotoMatch> PhotoMatches => Set<PhotoMatch>();
 
+    /// <summary>Gets the watermark configurations set.</summary>
+    public DbSet<WatermarkConfiguration> WatermarkConfigurations => Set<WatermarkConfiguration>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
-        // TODO: Remove these Ignore calls after installing pgvector and running AddFaceRecognitionVectors migration
-        // modelBuilder.Ignore<FaceEmbedding>();
-        // modelBuilder.Ignore<GuestFaceSession>();
-        // modelBuilder.Ignore<PhotoMatch>();
         modelBuilder.HasPostgresExtension("vector");
         base.OnModelCreating(modelBuilder);
     }

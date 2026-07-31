@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, ChevronLeft, Download, FolderOpen, Images, QrCode, RefreshCw, UserRound, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, Download, FolderOpen, Images, QrCode, RefreshCw, Stamp, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Link, useParams } from 'react-router-dom';
@@ -10,6 +10,7 @@ import { Badge } from '../../components/UI/Badge';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
 import { Spinner } from '../../components/UI/Spinner';
+import { WatermarkConfigModal } from '../../components/UI/WatermarkConfigModal';
 import { formatDate, formatDateTime } from '../../utils/format';
 
 export default function EventDetail() {
@@ -17,6 +18,7 @@ export default function EventDetail() {
   const queryClient = useQueryClient();
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrBust, setQrBust] = useState(() => Date.now());
+  const [showWatermarkModal, setShowWatermarkModal] = useState(false);
 
   const refreshQrMutation = useMutation({
     mutationFn: () => eventsApi.refreshQr(eventId!),
@@ -92,6 +94,10 @@ export default function EventDetail() {
           <Link to={`/gallery/${eventData.id}`} target="_blank">
             <Button>Open Gallery</Button>
           </Link>
+          <Button variant="secondary" onClick={() => setShowWatermarkModal(true)}>
+            <Stamp className="h-4 w-4" />
+            Watermark
+          </Button>
           <Button variant="secondary" onClick={() => setShowQrModal(true)}>
             <QrCode className="h-4 w-4" />
             QR Code
@@ -148,6 +154,14 @@ export default function EventDetail() {
         )}
       </Card>
     </div>
+
+    {/* Watermark Configuration Modal */}
+    <WatermarkConfigModal
+      eventId={eventId!}
+      eventName={eventData.name}
+      isOpen={showWatermarkModal}
+      onClose={() => setShowWatermarkModal(false)}
+    />
 
     {/* QR Code Modal */}
     {showQrModal ? (

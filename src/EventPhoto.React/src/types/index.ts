@@ -107,6 +107,62 @@ export interface SystemSetting {
   description?: string;
 }
 
+// ── Watermark ────────────────────────────────────────────────────────────────
+
+export type WatermarkMode =
+  | 'Disabled'
+  | 'StudioBranding'
+  | 'EventBranding'
+  | 'StudioAndEvent'
+  | 'CustomText'
+  | 'DynamicTemplate';
+
+export type WatermarkStyle = 'Corner' | 'Center' | 'Diagonal' | 'RepeatedPattern' | 'BottomRibbon';
+
+export type WatermarkScale = 'Small' | 'Medium' | 'Large' | 'Auto';
+
+export interface WatermarkConfigResponse {
+  id: string;
+  eventId: string;
+  enabled: boolean;
+  mode: WatermarkMode;
+  style: WatermarkStyle;
+  opacity: number;
+  scale: WatermarkScale;
+  customText?: string;
+  template?: string;
+  logoPath?: string;
+  includeStudioName: boolean;
+  includeEventName: boolean;
+  includeDownloadDate: boolean;
+  applyOnDownload: boolean;
+  textColor: string;
+  fontName?: string;
+  backgroundOpacity: number;
+  applyOnPreview: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertWatermarkConfigRequest {
+  enabled: boolean;
+  mode: WatermarkMode;
+  style: WatermarkStyle;
+  opacity: number;
+  scale: WatermarkScale;
+  customText?: string;
+  template?: string;
+  logoPath?: string;
+  includeStudioName: boolean;
+  includeEventName: boolean;
+  includeDownloadDate: boolean;
+  applyOnDownload: boolean;
+  textColor: string;
+  fontName?: string;
+  backgroundOpacity: number;
+  applyOnPreview: boolean;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;

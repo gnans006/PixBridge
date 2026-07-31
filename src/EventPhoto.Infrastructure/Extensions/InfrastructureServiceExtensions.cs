@@ -7,6 +7,7 @@ using EventPhoto.Infrastructure.Services.FaceRecognition;
 using EventPhoto.Infrastructure.Services.FileSystem;
 using EventPhoto.Infrastructure.Services.QrCode;
 using EventPhoto.Infrastructure.Services.Thumbnails;
+using EventPhoto.Infrastructure.Services.Watermark;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +50,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IGuestFaceSessionRepository, GuestFaceSessionRepository>();
         services.AddScoped<IPhotoMatchRepository, PhotoMatchRepository>();
 
+        // Watermark repository
+        services.AddScoped<IWatermarkConfigurationRepository, WatermarkConfigurationRepository>();
+
         // Existing services
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -56,6 +60,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IQrCodeService, QrCodeService>();
         services.AddScoped<IFileStorageService, FileStorageService>();
         services.AddTransient<IFileService, FileService>();
+
+        // Watermark service
+        services.AddScoped<IWatermarkService, WatermarkService>();
 
         // Face Recognition HTTP client with retry + circuit-breaker
         var faceRecognitionBaseUrl = configuration["FaceRecognition:BaseUrl"] ?? "http://localhost:8080";

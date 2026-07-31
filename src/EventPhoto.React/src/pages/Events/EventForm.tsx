@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Stamp } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
@@ -92,10 +92,16 @@ export default function EventForm() {
 
   const mutation = useMutation({
     mutationFn: eventsApi.create,
-    onSuccess: () => {
+    onSuccess: (response) => {
       void queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast.success('Event created successfully!');
-      navigate('/admin/events');
+      const eventId = response?.data?.id;
+      if (eventId) {
+        toast.success('Event created! Configure watermark from the event details.');
+        navigate(`/admin/events/${eventId}`);
+      } else {
+        toast.success('Event created successfully!');
+        navigate('/admin/events');
+      }
     },
     onError: (error: unknown) => {
       const apiError = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -173,6 +179,18 @@ export default function EventForm() {
               ? <p className="mt-1 text-xs text-red-600">{errors.galleryRecentCount.message}</p>
               : <p className="mt-1 text-xs text-gray-500">Limits the gallery to the N most recently captured photos. Leave blank to show all.</p>}
           </div>
+          {/* ── Watermark ────────────────────────────────────────────── */}
+          <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+              <Stamp className="h-4 w-4" />
+              Download Watermark
+            </h3>
+            <p className="text-xs text-amber-700">
+              Watermarks are applied in-memory at download time — original images are never modified.
+              After creating the event, click <strong>Watermark</strong> on the event details page to configure the watermark style, text, logo, and opacity.
+            </p>
+          </div>
+
           {/* ── Face Recognition ─────────────────────────────────────── */}
           <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 space-y-3">
             <h3 className="text-sm font-semibold text-indigo-800">🔍 Face Recognition</h3>
