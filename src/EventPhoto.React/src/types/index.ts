@@ -95,9 +95,6 @@ export interface EventStatisticsResponse {
   totalDownloads: number;
   totalSizeBytes: number;
   totalSizeHuman: string;
-  thumbnailsPending: number;
-  thumbnailsFailed: number;
-  lastPhotoAt?: string;
 }
 
 export interface SystemSetting {
@@ -168,4 +165,91 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   validationErrors?: Record<string, string[]>;
+}
+
+// ── Dashboard Command Centre ─────────────────────────────────────────────────
+
+export interface DashboardOverviewResponse {
+  activeEvents: number;
+  totalEvents: number;
+  totalPhotos: number;
+  downloadsToday: number;
+  totalDownloads: number;
+  totalSizeBytes: number;
+  totalSizeHuman: string;
+  pendingThumbnails: number;
+  pendingFaceIndexes: number;
+  totalFaceEmbeddings: number;
+  eventsWithFaceSearch: number;
+  eventsWithWatermark: number;
+}
+
+export interface EventSpotlightResponse {
+  eventId: string;
+  name: string;
+  eventType: string;
+  eventDate: string;
+  clientName?: string;
+  venueName?: string;
+  photoCount: number;
+  totalDownloads: number;
+  storageBytes: number;
+  storageHuman: string;
+  faceRecognitionEnabled: boolean;
+  watermarkEnabled: boolean;
+  isActive: boolean;
+  firstThumbnailUrl?: string;
+}
+
+export interface RecentActivityItem {
+  activityType: string;
+  eventId: string;
+  eventName: string;
+  photoId?: string;
+  occurredAt: string;
+  ipAddress?: string;
+}
+
+export interface StorageEventItem {
+  eventId: string;
+  eventName: string;
+  sizeBytes: number;
+  sizeHuman: string;
+  photoCount: number;
+}
+
+export interface StorageAnalyticsResponse {
+  totalSizeBytes: number;
+  totalSizeHuman: string;
+  eventCount: number;
+  topEvents: StorageEventItem[];
+}
+
+export interface FaceAnalyticsEventItem {
+  eventId: string;
+  eventName: string;
+  photoCount: number;
+  faceEmbeddings: number;
+}
+
+export interface FaceAnalyticsResponse {
+  totalIndexedFaces: number;
+  totalPendingPhotos: number;
+  eventsWithFaceSearch: number;
+  eventBreakdown: FaceAnalyticsEventItem[];
+}
+
+export interface WatermarkAnalyticsResponse {
+  eventsWithWatermark: number;
+  totalEvents: number;
+  totalDownloads: number;
+  protectedDownloads: number;
+  coveragePercentage: number;
+  activeWatermarkEvents: number;
+}
+
+export interface HealthStatus {
+  status: string;
+  server: string;
+  timestamp: string;
 }

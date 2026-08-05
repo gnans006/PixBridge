@@ -84,4 +84,17 @@ public sealed class PhotoRepository(AppDbContext context) : IPhotoRepository
             .OrderBy(p => p.CapturedAt)
             .Take(batchSize)
             .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public Task<int> CountPendingThumbnailsAsync(CancellationToken cancellationToken = default)
+        => context.Photos.CountAsync(
+            p => p.ThumbnailStatus == Domain.Enums.ThumbnailStatus.Pending && !p.IsDeleted,
+            cancellationToken);
+
+    /// <inheritdoc />
+    public Task<int> CountPendingFaceIndexAsync(CancellationToken cancellationToken = default)
+        => context.Photos.CountAsync(
+            p => (p.FaceIndexStatus == Domain.Enums.FaceIndexStatus.Pending ||
+                  p.FaceIndexStatus == Domain.Enums.FaceIndexStatus.Processing) && !p.IsDeleted,
+            cancellationToken);
 }

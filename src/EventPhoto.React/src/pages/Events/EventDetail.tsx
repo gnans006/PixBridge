@@ -12,6 +12,7 @@ import { Card } from '../../components/UI/Card';
 import { Spinner } from '../../components/UI/Spinner';
 import { WatermarkConfigModal } from '../../components/UI/WatermarkConfigModal';
 import { formatDate, formatDateTime } from '../../utils/format';
+import { apiError } from '../../utils/errorHandler';
 
 export default function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -27,10 +28,10 @@ export default function EventDetail() {
       void queryClient.invalidateQueries({ queryKey: ['event', eventId] });
       toast.success('QR code refreshed.');
     },
-    onError: () => toast.error('Failed to refresh QR code.'),
+    onError: (error) => apiError(error, 'Failed to refresh QR code.'),
   });
 
-  const { data: eventData, isLoading: isEventLoading } = useQuery({
+  const { data: eventData, isLoading: isEventLoading, isError: isEventError } = useQuery({
     queryKey: ['event', eventId],
     queryFn: async () => {
       const response = await eventsApi.getById(eventId!);
@@ -65,8 +66,19 @@ export default function EventDetail() {
     );
   }
 
-  if (!eventData) {
-    return <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Event not found.</div>;
+  if (isEventError || !eventData) {
+    return (
+      <div className="space-y-4">
+        <Link to="/admin/events" className="inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900">
+          <ChevronLeft className="h-4 w-4" />
+          Back to Events
+        </Link>
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span>⚠️</span>
+          <span>{isEventError ? 'Could not load event details. The server may be unavailable.' : 'Event not found.'}</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -124,9 +136,6 @@ export default function EventDetail() {
             <div className="space-y-3 text-sm">
               <StatRow label="Total downloads" value={statsData?.totalDownloads ?? 0} />
               <StatRow label="Storage" value={statsData?.totalSizeHuman ?? eventData.totalSize} />
-              <StatRow label="Pending thumbs" value={statsData?.thumbnailsPending ?? 0} />
-              <StatRow label="Failed thumbs" value={statsData?.thumbnailsFailed ?? 0} />
-              <StatRow label="Last photo" value={statsData?.lastPhotoAt ? formatDateTime(statsData.lastPhotoAt) : 'N/A'} />
             </div>
           )}
         </Card>

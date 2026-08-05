@@ -73,4 +73,10 @@ public interface IPhotoRepository
     /// Used by <see cref="Worker.Services.FaceIndexing.FaceIndexingService"/>.
     /// </summary>
     Task<List<Photo>> GetPendingFaceIndexAsync(int batchSize, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the count of photos with pending thumbnail generation.</summary>
+    Task<int> CountPendingThumbnailsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the count of photos with pending or processing face indexing.</summary>
+    Task<int> CountPendingFaceIndexAsync(CancellationToken cancellationToken = default);
 }

@@ -17,12 +17,26 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   return (
-    <aside className={[
-      'z-30 flex h-full w-56 flex-col overflow-y-auto bg-gray-900 transition-transform duration-200',
-      // On mobile: slide in/out; on md+: always visible
-      'absolute md:relative',
-      open ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-    ].join(' ')}>
+    <aside
+      className={[
+        // Base
+        'z-30 flex flex-col flex-shrink-0 bg-gray-900',
+        // Mobile: absolute overlay; Desktop: in-flow (relative)
+        'absolute md:relative',
+        // Mobile has a fixed width so the transform slide works; Desktop animates the width itself
+        'w-56',
+        // Mobile: animate transform; Desktop: animate width — each only at its own breakpoint
+        'transition-transform md:transition-[width] duration-300 ease-in-out',
+        open
+          ? [
+              'translate-x-0 overflow-y-auto',
+              'md:w-56',
+              // Drop-shadow when floating over mobile content; subtle divider on desktop
+              'shadow-2xl shadow-black/40 md:shadow-none md:border-r md:border-gray-800',
+            ].join(' ')
+          : '-translate-x-full overflow-hidden md:w-0',
+      ].join(' ')}
+    >
       <div className="flex-1 py-6">
         <nav className="space-y-1 px-3">
           {links.map(({ to, label, icon: Icon, end }) => (

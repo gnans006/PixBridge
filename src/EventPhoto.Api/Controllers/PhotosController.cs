@@ -89,6 +89,23 @@ public sealed class PhotosController : ControllerBase
         return File(bytes, photo.MimeType ?? "image/jpeg");
     }
 
+    /// <summary>Views the full-resolution photo without recording a download.</summary>
+    [HttpGet("{id:guid}/view")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ViewPhoto(Guid id, CancellationToken cancellationToken)
+    {
+        var photo = await _photoRepository.GetByIdAsync(id, cancellationToken);
+        if (photo is null)
+            return NotFound(ApiResponse.Fail($"Photo '{id}' was not found."));
+
+        if (!System.IO.File.Exists(photo.OriginalPath))
+            return NotFound(ApiResponse.Fail("Photo file not found on disk."));
+
+        var stream = new FileStream(photo.OriginalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
+        return File(stream, photo.MimeType ?? "image/jpeg");
+    }
+
     /// <summary>
     /// Downloads the full-resolution photo.
     /// When <c>RestrictDownloadsToMatchedPhotos=true</c>, a valid <c>sessionToken</c>

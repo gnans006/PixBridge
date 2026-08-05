@@ -45,4 +45,14 @@ public interface IDownloadLogRepository
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The recent download log entries.</returns>
     Task<List<DownloadLog>> GetRecentByEventAsync(Guid eventId, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the download count for today (UTC midnight boundary).
+    /// </summary>
+    Task<int> GetTodayCountAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the most recent download log entries across all events.
+    /// </summary>
+    Task<List<DownloadLog>> GetRecentAsync(int count, CancellationToken cancellationToken = default);
 }

@@ -56,7 +56,7 @@ public sealed class MappingProfile : Profile
                 s.EventId,
                 s.FileName,
                 $"/api/photos/{s.Id}/thumbnail",
-                $"/api/photos/{s.Id}/download",
+                $"/api/photos/{s.Id}/view",
                 s.FileSizeBytes,
                 s.Width,
                 s.Height,

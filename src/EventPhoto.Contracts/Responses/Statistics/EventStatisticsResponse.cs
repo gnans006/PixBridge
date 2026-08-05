@@ -7,7 +7,4 @@ public sealed record EventStatisticsResponse(
     int TotalPhotos,
     int TotalDownloads,
     long TotalSizeBytes,
-    string TotalSizeHuman,
-    int ThumbnailsPending,
-    int ThumbnailsFailed,
-    DateTimeOffset? LastPhotoAt);
+    string TotalSizeHuman);

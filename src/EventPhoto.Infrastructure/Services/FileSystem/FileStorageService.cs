@@ -29,4 +29,13 @@ public sealed class FileStorageService : IFileStorageService
     /// <inheritdoc />
     public Stream OpenRead(string absolutePath) =>
         new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, useAsync: true);
+
+    /// <inheritdoc />
+    public long GetFolderSize(string directoryPath)
+    {
+        if (!Directory.Exists(directoryPath)) return 0;
+        return new DirectoryInfo(directoryPath)
+            .EnumerateFiles("*", SearchOption.AllDirectories)
+            .Sum(f => f.Length);
+    }
 }

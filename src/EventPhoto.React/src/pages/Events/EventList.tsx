@@ -1,232 +1,207 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ChevronLeft, ChevronRight, Eye, Plus, Power, QrCode, RefreshCw, Search, Trash2, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import toast from 'react-hot-toast';
+// ─── EventsPage — premium photography events gallery ────────────────────────
+// This file is the /admin/events route. It replaces the old CRUD list with a
+// full dark-theme studio experience: hero header, stats bar, event spotlight,
+// command search, filter chips, view toggle, and an animated card gallery.
+// ────────────────────────────────────────────────────────────────────────────
+import { AlertTriangle, ChevronLeft, ChevronRight, LayoutGrid, List, Plus } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { eventsApi } from '../../api/events';
-import { Badge } from '../../components/UI/Badge';
+import { EmptyEventsState } from '../../components/events/EmptyEventsState';
+import { EventCard } from '../../components/events/EventCard';
+import { EventFilters } from '../../components/events/EventFilters';
+import { EventGallerySkeleton } from '../../components/events/EventGallerySkeleton';
+import { EventSearch } from '../../components/events/EventSearch';
 import { Button } from '../../components/UI/Button';
-import { Card } from '../../components/UI/Card';
 import { Modal } from '../../components/UI/Modal';
-import { Spinner } from '../../components/UI/Spinner';
-import { formatDate } from '../../utils/format';
+import { useEventMutations, useEventTypes, useEvents, useFilteredEvents } from '../../hooks/useEvents';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 12;
+type ViewMode = 'gallery' | 'compact';
 
+// ── Main page component ──────────────────────────────────────────────────────
 export default function EventList() {
-  const queryClient = useQueryClient();
+  const [search,          setSearch]          = useState('');
+  const [filter,          setFilter]          = useState('all');
+  const [view,            setView]            = useState<ViewMode>('gallery');
+  const [page,            setPage]            = useState(1);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['events'],
-    queryFn: async () => {
-      const response = await eventsApi.getAll();
-      return response.data ?? [];
-    },
-    refetchInterval: 10_000,
-  });
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const { data: events, isLoading, isError } = useEvents();
+  const { deleteMutation, toggleMutation, refreshQrMutation } = useEventMutations();
 
-  const confirmEvent = confirmDeleteId ? (data ?? []).find(e => e.id === confirmDeleteId) : null;
+  // ── Derived state ─────────────────────────────────────────────────────────
+  const eventTypes   = useEventTypes(events);
+  const filtered     = useFilteredEvents(events, search, filter);
+  const totalPages   = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage     = Math.min(page, totalPages);
+  const paged        = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const confirmEvent = confirmDeleteId ? (events ?? []).find(e => e.id === confirmDeleteId) : null;
 
-  // Client-side search filter
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return data ?? [];
-    return (data ?? []).filter(e =>
-      e.name.toLowerCase().includes(q) ||
-      (e.clientName ?? '').toLowerCase().includes(q) ||
-      e.eventType.toLowerCase().includes(q) ||
-      e.eventDate.toString().includes(q),
-    );
-  }, [data, search]);
+  const handleSearch = (v: string) => { setSearch(v); setPage(1); };
+  const handleFilter = (f: string) => { setFilter(f); setPage(1); };
 
-  // Reset to page 1 whenever search changes
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const refreshingQrId = refreshQrMutation.isPending
+    ? (refreshQrMutation.variables ?? null)
+    : null;
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setPage(1);
-  };
-
-  const deleteMutation = useMutation({
-    mutationFn: eventsApi.delete,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['events'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
-      toast.success('Event deleted.');
-    },
-    onError: () => toast.error('Failed to delete event.'),
-  });
-
-  const [refreshingQrId, setRefreshingQrId] = useState<string | null>(null);
-
-  const refreshQrMutation = useMutation({
-    mutationFn: (id: string) => eventsApi.refreshQr(id),
-    onMutate: (id) => setRefreshingQrId(id),
-    onSuccess: () => {
-      setRefreshingQrId(null);
-      toast.success('QR code refreshed.');
-    },
-    onError: () => {
-      setRefreshingQrId(null);
-      toast.error('Failed to refresh QR code.');
-    },
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, activate }: { id: string; activate: boolean }) => eventsApi.toggleActive(id, activate),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['events'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
-      toast.success('Event updated.');
-    },
-    onError: () => toast.error('Failed to update event.'),
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Events</h1>
-        <div className="flex items-center gap-2">
-          <Link to="/admin/events/new">
-            <Button>
+    <div className="-m-4 min-h-full bg-slate-950 sm:-m-6">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 pb-16 sm:px-6">
+
+        {/* ── Error banner ─────────────────────────────────────────────── */}
+        {isError ? (
+          <div className="flex items-center gap-3 rounded-xl border border-amber-800/50 bg-amber-900/20 px-4 py-3 text-sm text-amber-300">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+            Could not load events. Showing cached data or retrying…
+          </div>
+        ) : null}
+
+        {/* ── Search + Filters ─────────────────────────────────────────── */}
+        <div className="space-y-3">
+          <EventSearch value={search} onChange={handleSearch} />
+          <EventFilters
+            activeFilter={filter}
+            onFilterChange={handleFilter}
+            eventTypes={eventTypes}
+            events={events ?? []}
+          />
+        </div>
+
+        {/* ── View toggle + results count + New Event ─────────────────── */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-400">
+            {isLoading ? (
+              <span className="inline-block h-4 w-28 animate-pulse rounded bg-slate-800" />
+            ) : (
+              <>
+                <span className="font-semibold text-slate-200">{filtered.length}</span>
+                {' event'}{filtered.length !== 1 ? 's' : ''}
+                {search || filter !== 'all' ? ' found' : ' total'}
+              </>
+            )}
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-px rounded-xl border border-slate-800 bg-slate-900 p-1">
+              <button
+                type="button"
+                onClick={() => setView('gallery')}
+                aria-label="Gallery view"
+                title="Gallery view"
+                className={`rounded-lg p-2 transition-colors ${view === 'gallery' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('compact')}
+                aria-label="Compact view"
+                title="Compact view"
+                className={`rounded-lg p-2 transition-colors ${view === 'compact' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                <List className="h-4 w-4" />
+              </button>
+            </div>
+            <Link
+              to="/admin/events/new"
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition-colors hover:bg-indigo-500"
+            >
               <Plus className="h-4 w-4" />
               New Event
-            </Button>
-          </Link>
+            </Link>
+          </div>
         </div>
-      </div>
 
-      {/* Search bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search by event name, client, type or date…"
-          value={search}
-          onChange={e => handleSearch(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-        />
-        {search ? (
-          <button
-            type="button"
-            title="Clear search"
-            onClick={() => handleSearch('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <X className="h-4 w-4" />
-          </button>
+        {/* ── 6. Event Gallery ─────────────────────────────────────────── */}
+        {isLoading ? (
+          <EventGallerySkeleton view={view} />
+        ) : (events ?? []).length === 0 ? (
+          <EmptyEventsState hasSearch={false} />
+        ) : filtered.length === 0 ? (
+          <EmptyEventsState hasSearch={true} />
+        ) : view === 'gallery' ? (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {paged.map((event, i) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                index={i}
+                view="gallery"
+                onDelete={setConfirmDeleteId}
+                onToggleActive={(id, activate) => toggleMutation.mutate({ id, activate })}
+                onRefreshQr={(id) => refreshQrMutation.mutate(id)}
+                refreshingQrId={refreshingQrId}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {paged.map((event, i) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                index={i}
+                view="compact"
+                onDelete={setConfirmDeleteId}
+                onToggleActive={(id, activate) => toggleMutation.mutate({ id, activate })}
+                onRefreshQr={(id) => refreshQrMutation.mutate(id)}
+                refreshingQrId={refreshingQrId}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── 7. Pagination ────────────────────────────────────────────── */}
+        {totalPages > 1 ? (
+          <div className="flex items-center justify-between border-t border-slate-800 pt-6">
+            <p className="text-sm text-slate-500">
+              Page {safePage} of {totalPages} · {filtered.length} events
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                title="Previous page"
+                disabled={safePage === 1}
+                onClick={() => setPage(p => p - 1)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 text-slate-400 transition-colors hover:border-slate-600 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPage(p)}
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition-colors ${
+                    p === safePage
+                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      : 'border-slate-700 text-slate-400 hover:border-slate-600 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                title="Next page"
+                disabled={safePage === totalPages}
+                onClick={() => setPage(p => p + 1)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 text-slate-400 transition-colors hover:border-slate-600 hover:bg-slate-800 hover:text-slate-200 disabled:opacity-40"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         ) : null}
       </div>
 
-      {/* Results info */}
-      {search ? (
-        <p className="text-sm text-gray-500">
-          {filtered.length === 0
-            ? 'No events match your search.'
-            : `${filtered.length} event${filtered.length === 1 ? '' : 's'} found`}
-        </p>
-      ) : null}
-
-      {/* Empty state */}
-      {(data ?? []).length === 0 ? (
-        <Card className="p-12 text-center text-gray-500">No events yet. Create your first event to get started.</Card>
-      ) : null}
-
-      {/* Event cards */}
-      <div className="space-y-3">
-        {paged.map((eventItem) => (
-          <Card key={eventItem.id} className="p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link to={`/admin/events/${eventItem.id}`} className="font-semibold text-gray-900 transition-colors hover:text-primary-600">
-                    {eventItem.name}
-                  </Link>
-                  <Badge label={eventItem.isActive ? 'Active' : 'Inactive'} color={eventItem.isActive ? 'green' : 'red'} />
-                  <Badge label={eventItem.eventType} color="blue" />
-                </div>
-                <p className="text-sm text-gray-500">
-                  {formatDate(eventItem.eventDate)} · {eventItem.clientName ?? 'No client'} · {eventItem.photoCount} photos · {eventItem.totalSize}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Link to={`/gallery/${eventItem.id}`} target="_blank" title="Open gallery">
-                  <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
-                </Link>
-                <a href={eventsApi.getQrCodeUrl(eventItem.id)} target="_blank" rel="noreferrer" title="View QR code">
-                  <Button variant="ghost" size="sm"><QrCode className="h-4 w-4" /></Button>
-                </a>
-                <Button variant="ghost" size="sm"
-                  title="Refresh QR code with current IP"
-                  disabled={refreshingQrId === eventItem.id}
-                  onClick={() => refreshQrMutation.mutate(eventItem.id)}>
-                  <RefreshCw className={`h-4 w-4 ${refreshingQrId === eventItem.id ? 'animate-spin' : ''}`} />
-                </Button>
-                <Button variant="ghost" size="sm"
-                  title={eventItem.isActive ? 'Deactivate event' : 'Activate event'}
-                  onClick={() => toggleMutation.mutate({ id: eventItem.id, activate: !eventItem.isActive })}>
-                  <Power className="h-4 w-4" />
-                </Button>
-                <Button variant="danger" size="sm" title="Delete event"
-                  onClick={() => setConfirmDeleteId(eventItem.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 ? (
-        <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-          <p className="text-sm text-gray-500">
-            Page {safePage} of {totalPages} · {filtered.length} event{filtered.length === 1 ? '' : 's'}
-          </p>
-          <div className="flex items-center gap-1">
-            <button type="button" title="Previous page"
-              disabled={safePage === 1}
-              onClick={() => setPage(p => p - 1)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button key={p} type="button"
-                onClick={() => setPage(p)}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-medium transition-colors ${
-                  p === safePage
-                    ? 'border-primary-600 bg-primary-600 text-white'
-                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                }`}>
-                {p}
-              </button>
-            ))}
-            <button type="button" title="Next page"
-              disabled={safePage === totalPages}
-              onClick={() => setPage(p => p + 1)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Delete confirmation modal */}
-      <Modal isOpen={Boolean(confirmDeleteId)} title="Delete Event" onClose={() => setConfirmDeleteId(null)}>
+      {/* ── Delete confirmation modal ─────────────────────────────────── */}
+      <Modal
+        isOpen={Boolean(confirmDeleteId)}
+        title="Delete Event"
+        onClose={() => setConfirmDeleteId(null)}
+      >
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
             <AlertTriangle className="h-7 w-7 text-red-600" />
@@ -263,3 +238,4 @@ export default function EventList() {
     </div>
   );
 }
+

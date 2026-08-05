@@ -9,6 +9,7 @@ import { eventsApi } from '../../api/events';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
 import { Input } from '../../components/UI/Input';
+import { apiError } from '../../utils/errorHandler';
 
 const eventTypes = ['Wedding', 'Reception', 'Birthday', 'Corporate', 'Outdoor', 'Other'] as const;
 
@@ -104,8 +105,7 @@ export default function EventForm() {
       }
     },
     onError: (error: unknown) => {
-      const apiError = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      toast.error(apiError ?? 'Failed to create event.');
+      apiError(error, 'Failed to create event.');
     },
   });
 

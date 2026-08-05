@@ -47,4 +47,7 @@ public interface IFileStorageService
         EnsureDirectoryExists(directoryPath);
         return Task.CompletedTask;
     }
+
+    /// <summary>Returns the total size in bytes of all files directly inside a folder, or 0 if not found.</summary>
+    long GetFolderSize(string directoryPath);
 }

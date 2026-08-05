@@ -40,4 +40,19 @@ public sealed class DownloadLogRepository(AppDbContext context) : IDownloadLogRe
             .OrderByDescending(d => d.DownloadedAt)
             .Take(count)
             .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public Task<int> GetTodayCountAsync(CancellationToken cancellationToken = default)
+    {
+        var todayUtc = DateTime.UtcNow.Date;
+        return context.DownloadLogs
+            .CountAsync(d => d.DownloadedAt >= todayUtc, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<List<DownloadLog>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
+        => context.DownloadLogs
+            .OrderByDescending(d => d.DownloadedAt)
+            .Take(count)
+            .ToListAsync(cancellationToken);
 }

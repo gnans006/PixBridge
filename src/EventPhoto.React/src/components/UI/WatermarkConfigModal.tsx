@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Droplets, Eye, Info, Layers, Palette, Type } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { apiError } from '../../utils/errorHandler';
 import { watermarkApi } from '../../api/watermark';
 import type {
   UpsertWatermarkConfigRequest,
@@ -161,7 +162,7 @@ export function WatermarkConfigModal({
       toast.success('Watermark configuration saved.');
       onClose();
     },
-    onError: () => toast.error('Failed to save watermark configuration.'),
+    onError: (error) => apiError(error, 'Failed to save watermark configuration.'),
   });
 
   const handleSave = () => {

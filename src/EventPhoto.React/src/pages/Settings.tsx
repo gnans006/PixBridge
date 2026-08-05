@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { AlertTriangle } from 'lucide-react';
 import { settingsApi } from '../api/settings';
 import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
 import { Input } from '../components/UI/Input';
 import { Spinner } from '../components/UI/Spinner';
+import { apiError } from '../utils/errorHandler';
 
 // Per-key validation rules
 function validateSetting(key: string, value: string): string | null {
@@ -35,7 +37,7 @@ export default function Settings() {
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
       const response = await settingsApi.getAll();
@@ -49,7 +51,7 @@ export default function Settings() {
       void queryClient.invalidateQueries({ queryKey: ['settings'] });
       toast.success('Setting saved.');
     },
-    onError: () => toast.error('Failed to save.'),
+    onError: (error) => apiError(error, 'Failed to save setting.'),
   });
 
   const handleSave = (key: string, currentValue: string) => {
@@ -67,6 +69,18 @@ export default function Settings() {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="max-w-2xl space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+          <span>Could not load settings. The server may be unavailable.</span>
+        </div>
       </div>
     );
   }

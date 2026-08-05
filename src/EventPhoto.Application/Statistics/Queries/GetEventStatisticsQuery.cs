@@ -1,3 +1,4 @@
+using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Contracts.Responses.Statistics;
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Interfaces;
@@ -17,8 +18,8 @@ public sealed record GetEventStatisticsQuery(Guid EventId)
 /// </summary>
 public sealed class GetEventStatisticsQueryHandler(
     IEventRepository eventRepository,
-    IPhotoRepository photoRepository,
-    IDownloadLogRepository downloadLogRepository)
+    IDownloadLogRepository downloadLogRepository,
+    IFileStorageService fileStorageService)
     : IRequestHandler<GetEventStatisticsQuery, Result<EventStatisticsResponse>>
 {
     /// <inheritdoc />
@@ -37,14 +38,13 @@ public sealed class GetEventStatisticsQueryHandler(
             request.EventId,
             cancellationToken);
 
-        var pendingPhotos = await photoRepository.GetPendingThumbnailsAsync(int.MaxValue, cancellationToken);
-        var pendingCount = pendingPhotos.Count(p => p.EventId == request.EventId);
-        var sizeHuman = eventEntity.TotalSizeBytes switch
+        var liveSizeBytes = fileStorageService.GetFolderSize(eventEntity.WatchFolder);
+        var sizeHuman = liveSizeBytes switch
         {
-            < 1024 => $"{eventEntity.TotalSizeBytes} B",
-            < 1_048_576 => $"{eventEntity.TotalSizeBytes / 1024.0:F1} KB",
-            < 1_073_741_824 => $"{eventEntity.TotalSizeBytes / 1_048_576.0:F1} MB",
-            _ => $"{eventEntity.TotalSizeBytes / 1_073_741_824.0:F2} GB"
+            < 1024 => $"{liveSizeBytes} B",
+            < 1_048_576 => $"{liveSizeBytes / 1024.0:F1} KB",
+            < 1_073_741_824 => $"{liveSizeBytes / 1_048_576.0:F1} MB",
+            _ => $"{liveSizeBytes / 1_073_741_824.0:F2} GB"
         };
 
         return Result.Success(new EventStatisticsResponse(
@@ -52,10 +52,7 @@ public sealed class GetEventStatisticsQueryHandler(
             eventEntity.Name,
             eventEntity.PhotoCount,
             totalDownloads,
-            eventEntity.TotalSizeBytes,
-            sizeHuman,
-            pendingCount,
-            0,
-            null));
+            liveSizeBytes,
+            sizeHuman));
     }
 }

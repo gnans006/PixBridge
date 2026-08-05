@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle } from 'lucide-react';
 import { eventsApi } from '../api/events';
 import { statisticsApi } from '../api/statistics';
 import { Card } from '../components/UI/Card';
 import { Spinner } from '../components/UI/Spinner';
-import { formatDateTime } from '../utils/format';
 
 export default function Statistics() {
-  const { data: events, isLoading } = useQuery({
+  const { data: events, isLoading, isError } = useQuery({
     queryKey: ['events'],
     queryFn: async () => {
       const response = await eventsApi.getAll();
@@ -18,6 +18,18 @@ export default function Statistics() {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Statistics</h1>
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+          <span>Could not load event statistics. The server may be unavailable.</span>
+        </div>
       </div>
     );
   }
@@ -49,7 +61,7 @@ function EventStatsCard({ eventId, eventName }: { eventId: string; eventName: st
       {isLoading ? (
         <Spinner size="sm" />
       ) : (
-        <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
           <div>
             <p className="text-gray-500">Photos</p>
             <p className="font-medium">{data?.totalPhotos ?? 0}</p>
@@ -61,14 +73,6 @@ function EventStatsCard({ eventId, eventName }: { eventId: string; eventName: st
           <div>
             <p className="text-gray-500">Storage</p>
             <p className="font-medium">{data?.totalSizeHuman ?? '0 B'}</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Pending Thumbs</p>
-            <p className="font-medium">{data?.thumbnailsPending ?? 0}</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Last Photo</p>
-            <p className="font-medium">{data?.lastPhotoAt ? formatDateTime(data.lastPhotoAt) : 'N/A'}</p>
           </div>
         </div>
       )}
