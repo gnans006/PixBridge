@@ -96,9 +96,22 @@ if (-not $SkipMigration) {
     Write-Host "`n[Skipped] EF Core migration (-SkipMigration flag set)" -ForegroundColor DarkGray
 }
 
-# ── Step 3 · npm install ──────────────────────────────────────────────────────
+# ── Step 3 · React .env file ──────────────────────────────────────────────────
+Write-Step "Step 3 · React environment file"
+$envFile = Join-Path $React ".env"
+if (-not (Test-Path $envFile)) {
+    Write-Host "  .env not found (gitignored) — creating with defaults..." -ForegroundColor Yellow
+    @"
+VITE_API_BASE=/api
+"@ | Set-Content $envFile -Encoding UTF8
+    Write-Host "  Created: src\EventPhoto.React\.env" -ForegroundColor Green
+} else {
+    Write-Host "  .env already exists — skipping." -ForegroundColor DarkGray
+}
+
+# ── Step 4 · npm install ──────────────────────────────────────────────────────
 if (-not $SkipNpm) {
-    Write-Step "Step 3 · Installing npm packages"
+    Write-Step "Step 4 · Installing npm packages"
     Push-Location $React
     npm install
     if ($LASTEXITCODE -ne 0) { Write-Host "npm install failed." -ForegroundColor Red; Pop-Location; exit 1 }
@@ -132,5 +145,12 @@ Write-Host @"
   To start the application:
     API   →  cd src\EventPhoto.Api   && dotnet run
     React →  cd src\EventPhoto.React && npm run dev
+    Worker→  cd src\EventPhoto.Worker && dotnet run
+
+  IMPORTANT — set this environment variable before running dotnet:
+    `$env:ASPNETCORE_ENVIRONMENT = 'Development'
+
+  Or run with:
+    `$env:ASPNETCORE_ENVIRONMENT='Development'; dotnet run
 
 "@
