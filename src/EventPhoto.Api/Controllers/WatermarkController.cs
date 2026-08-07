@@ -17,7 +17,7 @@ namespace EventPhoto.Api.Controllers;
 [Route("api/events/{eventId:guid}/watermark-config")]
 [Authorize(Roles = "Admin")]
 [Produces("application/json")]
-public sealed class WatermarkController(IMediator mediator) : ControllerBase
+public sealed class WatermarkController(IMediator mediator, ILogger<WatermarkController> logger) : ControllerBase
 {
     /// <summary>
     /// Returns the watermark configuration for an event.
@@ -75,9 +75,13 @@ public sealed class WatermarkController(IMediator mediator) : ControllerBase
 
         if (result.IsFailure)
         {
-            return result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase)
-                ? NotFound(ApiResponse<WatermarkConfigResponse>.Fail(result.Error))
-                : BadRequest(ApiResponse<WatermarkConfigResponse>.Fail(result.Error));
+            if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return NotFound(ApiResponse<WatermarkConfigResponse>.Fail(result.Error));
+
+            logger.LogWarning(
+                "UpsertWatermarkConfig failed for event {EventId}: {Error}",
+                eventId, result.Error);
+            return BadRequest(ApiResponse<WatermarkConfigResponse>.Fail(result.Error));
         }
 
         return Ok(ApiResponse<WatermarkConfigResponse>.Ok(result.Value));

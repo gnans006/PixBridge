@@ -248,6 +248,100 @@ export interface WatermarkAnalyticsResponse {
   activeWatermarkEvents: number;
 }
 
+// ── Event Workspace ──────────────────────────────────────────────────────────
+
+export interface EventWorkspaceResponse {
+  id: string;
+  name: string;
+  description?: string;
+  eventType: string;
+  eventDate: string;
+  venueName?: string;
+  clientName?: string;
+  watchFolder: string;
+  thumbnailFolder: string;
+  qrCodeUrl?: string;
+  isActive: boolean;
+  photoCount: number;
+  totalSizeBytes: number;
+  totalSize: string;
+  totalDownloads: number;
+  createdAt: string;
+  galleryRecentCount?: number;
+  allowGalleryBrowsing: boolean;
+  allowFaceSearch: boolean;
+  restrictDownloadsToMatchedPhotos: boolean;
+  enableFaceRecognition: boolean;
+  faceMatchThreshold: number;
+  watermarkEnabled: boolean;
+}
+
+export interface DailyDownloadCount {
+  date: string;
+  count: number;
+}
+
+export interface RecentDownloadItem {
+  photoId: string;
+  ipAddress?: string;
+  downloadedAt: string;
+}
+
+export interface EventAnalyticsResponse {
+  eventId: string;
+  eventName: string;
+  totalPhotos: number;
+  totalDownloads: number;
+  todayDownloads: number;
+  storageSizeBytes: number;
+  storageHuman: string;
+  downloadsLast30Days: DailyDownloadCount[];
+  recentActivity: RecentDownloadItem[];
+}
+
+export interface FaceRecognitionMetricsResponse {
+  eventId: string;
+  enabled: boolean;
+  matchThreshold: number;
+  totalPhotos: number;
+  indexedFaces: number;
+  indexedPhotos: number;
+  pendingPhotos: number;
+  failedPhotos: number;
+}
+
+export interface StorageMetricsResponse {
+  eventId: string;
+  watchFolder: string;
+  thumbnailFolder: string;
+  sizeBytes: number;
+  sizeHuman: string;
+  photoCount: number;
+  thumbnailCount: number;
+}
+
+export interface UpdateEventOverviewRequest {
+  name: string;
+  eventType: string;
+  eventDate: string;
+  description?: string;
+  venueName?: string;
+  clientName?: string;
+}
+
+export interface UpdateGallerySettingsRequest {
+  allowGalleryBrowsing: boolean;
+  allowFaceSearch: boolean;
+  restrictDownloadsToMatchedPhotos: boolean;
+  galleryRecentCount?: number;
+}
+
+export interface UpdateFaceRecognitionSettingsRequest {
+  enableFaceRecognition: boolean;
+  faceMatchThreshold: number;
+  allowFaceSearch: boolean;
+}
+
 export interface HealthStatus {
   status: string;
   server: string;

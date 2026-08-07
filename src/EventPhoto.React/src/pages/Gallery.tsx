@@ -47,7 +47,11 @@ export default function Gallery() {
     (_photo: NewPhotoEvent) => {
       void queryClient.invalidateQueries({ queryKey: ['photos', eventId] });
       void queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+      void queryClient.invalidateQueries({ queryKey: ['workspace', eventId] });
+      void queryClient.invalidateQueries({ queryKey: ['analytics', eventId] });
+      void queryClient.invalidateQueries({ queryKey: ['storage', eventId] });
       void queryClient.invalidateQueries({ queryKey: ['events'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard-overview'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       if (page !== 1) {
         setPage(1);
@@ -60,7 +64,11 @@ export default function Gallery() {
     (_event: DeletedPhotoEvent) => {
       void queryClient.invalidateQueries({ queryKey: ['photos', eventId] });
       void queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+      void queryClient.invalidateQueries({ queryKey: ['workspace', eventId] });
+      void queryClient.invalidateQueries({ queryKey: ['analytics', eventId] });
+      void queryClient.invalidateQueries({ queryKey: ['storage', eventId] });
       void queryClient.invalidateQueries({ queryKey: ['events'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard-overview'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     },
     [eventId, queryClient],

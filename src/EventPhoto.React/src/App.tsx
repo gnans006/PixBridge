@@ -4,7 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from './components/Layout/AdminLayout';
 import { GuestLayout } from './components/Layout/GuestLayout';
 import Dashboard from './pages/Dashboard';
-import EventDetail from './pages/Events/EventDetail';
+import EventWorkspacePage from './pages/Events/EventWorkspacePage';
 import EventForm from './pages/Events/EventForm';
 import EventList from './pages/Events/EventList';
 import Gallery from './pages/Gallery';
@@ -85,7 +85,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="events" element={<EventList />} />
             <Route path="events/new" element={<EventForm />} />
-            <Route path="events/:eventId" element={<EventDetail />} />
+            <Route path="events/:eventId" element={<EventWorkspacePage />} />
             <Route path="statistics" element={<Statistics />} />
             <Route path="logs" element={<Logs />} />
             <Route path="health" element={<HealthMonitoring />} />

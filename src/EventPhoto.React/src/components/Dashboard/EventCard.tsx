@@ -83,7 +83,7 @@ export function EventCard({ event }: Props) {
         {/* Metrics row */}
         <div className="mt-3 flex items-center gap-3 text-xs text-slate-400">
           <span className="flex items-center gap-1">
-            <Camera className="h-3 w-3" /> {event.photoCount}
+            <Camera className="h-3 w-3" /> {event.photoCount.toLocaleString()}
           </span>
           <span className="flex items-center gap-1">
             <Download className="h-3 w-3" /> {event.totalSize}

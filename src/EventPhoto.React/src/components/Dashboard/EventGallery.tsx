@@ -2,16 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { Camera, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { eventsApi } from '../../api/events';
+import { EVENTS_QUERY_KEY } from '../../hooks/useEvents';
 import { EventCard } from './EventCard';
 
 export function EventGallery() {
   const { data, isLoading } = useQuery({
-    queryKey: ['events'],
+    queryKey: EVENTS_QUERY_KEY,
     queryFn: async () => {
       const r = await eventsApi.getAll();
       return r.data ?? [];
     },
-    refetchInterval: 30_000,
+    refetchInterval: 15_000,
   });
 
   return (
