@@ -33,9 +33,9 @@ CloseApplications=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "installservice"; Description: "Install PixBridge as Windows Services (auto-start)"; GroupDescription: "Service Options:"; Flags: checked
-Name: "fixnetwork"; Description: "Configure firewall and set Wi-Fi profile to Private (recommended)"; GroupDescription: "Network:"; Flags: checked
-Name: "desktopicon"; Description: "Create a desktop shortcut to the Admin Panel"; GroupDescription: "Additional icons:"; Flags: checked
+Name: "installservice"; Description: "Install PixBridge as Windows Services (auto-start)"; GroupDescription: "Service Options:"
+Name: "fixnetwork"; Description: "Configure firewall and set Wi-Fi profile to Private (recommended)"; GroupDescription: "Network:"
+Name: "desktopicon"; Description: "Create a desktop shortcut to the Admin Panel"; GroupDescription: "Additional icons:"
 
 [Files]
 Source: "..\publish\api\*"; DestDir: "{app}\api"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -178,6 +178,7 @@ var
   LanIp:      String;
   GuestUrl:   String;
   TmpIpFile:  String;
+  TmpPsFile:  String;
   IpLines:    TArrayOfString;
   ErrorCode:  Integer;
 begin
@@ -194,25 +195,22 @@ begin
   SvcOk := FileExists(SvcLog) and FileContains(SvcLog, 'Running');
 
   if DbOk and SvcOk then begin
-    // Detect current LAN IP to show guest URL
+    // Detect current LAN IP — write a temp .ps1 file to avoid Pascal quote-nesting issues
     LanIp := '';
-    Exec('powershell.exe',
-      '-NoProfile -ExecutionPolicy Bypass -Command ' +
-      '"(Get-NetIPAddress -AddressFamily IPv4 | ' +
-      'Where-Object { $_.IPAddress -match \"^(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))\"}  | ' +
-      'Select-Object -First 1 -ExpandProperty IPAddress)"',
-      '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
-
-    // Fallback: read from fix-network-access log if psql call above can''t return a value
-    // (Inno Setup Exec doesn''t capture stdout — use a temp file instead)
     TmpIpFile := ExpandConstant('{tmp}\pixbridge_ip.txt');
+    TmpPsFile := ExpandConstant('{tmp}\pixbridge_getip.ps1');
+    SaveStringToFile(TmpPsFile,
+      '$ip = Get-NetIPAddress -AddressFamily IPv4 -PrefixOrigin Dhcp |' + #13#10 +
+      '      Select-Object -First 1 -ExpandProperty IPAddress' + #13#10 +
+      'if (-not $ip) {' + #13#10 +
+      '  $ip = Get-NetIPAddress -AddressFamily IPv4 |' + #13#10 +
+      '    Where-Object { $_.IPAddress -notlike ''127.*'' -and $_.IPAddress -notlike ''169.*'' } |' + #13#10 +
+      '    Select-Object -First 1 -ExpandProperty IPAddress' + #13#10 +
+      '}' + #13#10 +
+      'if ($ip) { $ip | Set-Content "' + TmpIpFile + '" }',
+      False);
     Exec('powershell.exe',
-      '-NoProfile -ExecutionPolicy Bypass -Command ' +
-      '"(Get-NetIPAddress -AddressFamily IPv4 | ' +
-      'Where-Object { $_.IPAddress -match ' +
-      "'" + '^(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))' + "'" + ' } | ' +
-      'Select-Object -First 1 -ExpandProperty IPAddress) | ' +
-      'Set-Content \"' + TmpIpFile + '\""',
+      '-NoProfile -ExecutionPolicy Bypass -File "' + TmpPsFile + '"',
       '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
 
     if FileExists(TmpIpFile) then begin
@@ -268,3 +266,5 @@ begin
 
   MsgBox(Msg, mbError, MB_OK);
 end;
+
+
