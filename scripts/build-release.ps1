@@ -132,16 +132,28 @@ if (-not $failed -or (Test-Path $prodSettings)) {
 Check "TypeScript type check (tsc --noEmit)"
 $reactDir = Join-Path $Root "src\EventPhoto.React"
 Push-Location $reactDir
-$tscOut = npx tsc --noEmit 2>&1
-$tscExit = $LASTEXITCODE
-Pop-Location
-if ($tscExit -ne 0) {
-    Fail "TypeScript errors found:"
-    $tscOut | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
-    $failed = $true
-} else {
-    Pass "TypeScript: no errors."
+# Ensure dependencies are installed before running tsc
+if (-not (Test-Path "node_modules")) {
+    Write-Host "  node_modules not found — running npm ci before type check..." -ForegroundColor Cyan
+    npm ci --silent
+    if ($LASTEXITCODE -ne 0) {
+        Fail "npm ci failed. Cannot run TypeScript check."
+        Pop-Location
+        $failed = $true
+    }
 }
+if (-not $failed -or (Test-Path "node_modules")) {
+    $tscOut = npx tsc --noEmit 2>&1
+    $tscExit = $LASTEXITCODE
+    if ($tscExit -ne 0) {
+        Fail "TypeScript errors found:"
+        $tscOut | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+        $failed = $true
+    } else {
+        Pass "TypeScript: no errors."
+    }
+}
+Pop-Location
 
 # ── Check 5: .NET solution builds cleanly ─────────────────────────────────
 Check ".NET solution builds (dotnet build -c Release)"
@@ -172,12 +184,10 @@ Write-Host "`n[PRE-BUILD] All checks passed. Starting build...`n" -ForegroundCol
 Write-Host "[1/4] Building React frontend..." -ForegroundColor Yellow
 Set-Location (Join-Path $Root "src\EventPhoto.React")
 
-# Install npm dependencies if node_modules is missing or outdated
-if (-not (Test-Path "node_modules")) {
-    Write-Host "  node_modules not found — running npm ci..." -ForegroundColor Cyan
-    npm ci
-    if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
-}
+# Install npm dependencies (always run ci for a clean, reproducible install)
+Write-Host "  Running npm ci..." -ForegroundColor Cyan
+npm ci
+if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
 
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "React build failed." }

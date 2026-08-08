@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Camera, LogOut, ChevronDown, User, KeyRound, Search, Bell } from 'lucide-react';
+import { Camera, LogOut, ChevronDown, User, KeyRound, Search, Bell, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useApplicationSettings } from '../../hooks/useApplicationSettings';
 import { ChangePasswordModal } from '../UI/ChangePasswordModal';
@@ -25,6 +25,8 @@ interface NavbarProps {
   onMenuToggle?: () => void;
   sidebarOpen?: boolean;
   onCollapseToggle?: () => void;
+  onSectionsToggle?: () => void;
+  sectionsCollapsed?: boolean;
   onSearchToggle?: () => void;
   onNotifToggle?: () => void;
   notifCount?: number;
@@ -34,6 +36,7 @@ interface NavbarProps {
 
 export function Navbar({
   onMenuToggle, sidebarOpen, onCollapseToggle,
+  onSectionsToggle, sectionsCollapsed,
   onSearchToggle, onNotifToggle, notifCount = 0,
   searchActive, notifActive,
 }: NavbarProps) {
@@ -92,6 +95,16 @@ export function Navbar({
             <span className="block h-0.5 w-5 rounded-full bg-current" />
             <span className="block h-0.5 w-3.5 rounded-full bg-current self-start ml-[5px]" />
             <span className="block h-0.5 w-5 rounded-full bg-current" />
+          </button>
+          <button
+            type="button"
+            onClick={onSectionsToggle}
+            title={sectionsCollapsed ? 'Expand menu sections' : 'Collapse menu sections'}
+            className="hidden md:flex items-center gap-1.5 rounded-lg border border-pds-border bg-pds-elevated px-2.5 py-1.5 text-[11px] font-medium text-pds-text-muted transition-all hover:border-pds-primary/40 hover:bg-pds-primary/10 hover:text-pds-primary"
+          >
+            {sectionsCollapsed
+              ? <><ChevronsRight className="h-3.5 w-3.5" /><span>Expand</span></>
+              : <><ChevronsLeft className="h-3.5 w-3.5" /><span>Collapse</span></>}
           </button>
           <Link to="/admin" className="flex items-center gap-2 transition-opacity hover:opacity-80">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pds-primary/20">

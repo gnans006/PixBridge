@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { authStore } from '../../store/authStore';
 import { NAVIGATION, hasMinRole, type NavSection } from '../../config/navigation.config';
 import { useApplicationSettings } from '../../hooks/useApplicationSettings';
@@ -9,6 +9,7 @@ import { useApplicationSettings } from '../../hooks/useApplicationSettings';
 interface SidebarProps {
   open?: boolean;
   collapsed?: boolean;
+  sectionsCollapsed?: boolean;
   onClose?: () => void;
   onToggleCollapse?: () => void;
 }
@@ -93,8 +94,7 @@ function SectionGroup({
   );
 }
 
-export function Sidebar({ open, collapsed = false, onClose, onToggleCollapse }: SidebarProps) {
-  const [sectionsCollapsed, setSectionsCollapsed] = useState(false);
+export function Sidebar({ open, collapsed = false, sectionsCollapsed = false, onClose }: SidebarProps) {
   const user = authStore.getUser();
   const role = user?.role ?? 'Viewer';
   const { data: appSettings } = useApplicationSettings();
@@ -118,21 +118,7 @@ export function Sidebar({ open, collapsed = false, onClose, onToggleCollapse }: 
       ].join(' ')}
     >
       {/* Nav sections */}
-      <div className={`relative flex-1 overflow-y-auto scrollbar-none ${collapsed ? 'py-3' : 'pt-8 pb-3'}`}>
-        {/* Floating collapse pill — hangs above the first section */}
-        {!collapsed && (
-          <div className="absolute top-1.5 left-0 right-0 flex justify-center z-10">
-            <button
-              onClick={() => setSectionsCollapsed(s => !s)}
-              title={sectionsCollapsed ? 'Expand all sections' : 'Collapse all sections'}
-              className="flex items-center gap-1 rounded-full border border-pds-border bg-pds-elevated px-3 py-0.5 text-[11px] font-medium text-pds-text-muted shadow-pds-card hover:border-pds-primary/40 hover:bg-pds-primary/10 hover:text-pds-primary transition-all duration-150"
-            >
-              {sectionsCollapsed
-                ? <><ChevronsRight className="h-3 w-3" /> Expand menu</>
-                : <><ChevronsLeft className="h-3 w-3" /> Collapse menu</>}
-            </button>
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto py-3 scrollbar-none">
         {visibleSections.map(section => (
           <SectionGroup key={section.id} section={section} collapsed={collapsed} forceCollapsed={sectionsCollapsed} onClose={onClose} />
         ))}

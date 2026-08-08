@@ -16,6 +16,7 @@ export function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('pds-sidebar-collapsed') === 'true',
   );
+  const [sectionsCollapsed, setSectionsCollapsed] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const { pathname } = useLocation();
   const mainRef = useRef<HTMLElement>(null);
@@ -47,6 +48,8 @@ export function AdminLayout() {
         sidebarOpen={sidebarOpen}
         onMenuToggle={() => setSidebarOpen(o => !o)}
         onCollapseToggle={toggleCollapse}
+        onSectionsToggle={() => setSectionsCollapsed(s => !s)}
+        sectionsCollapsed={sectionsCollapsed}
         onSearchToggle={() => togglePanel('search')}
         onNotifToggle={() => togglePanel('notifications')}
         notifCount={notifCount}
@@ -68,8 +71,8 @@ export function AdminLayout() {
         <Sidebar
           open={sidebarOpen}
           collapsed={sidebarCollapsed}
+          sectionsCollapsed={sectionsCollapsed}
           onClose={() => setSidebarOpen(false)}
-          onToggleCollapse={toggleCollapse}
         />
         {/* Content column — panels are anchored here so they never overlap the sidebar */}
         <div className="relative flex flex-1 flex-col overflow-hidden">
