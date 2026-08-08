@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { Check, Copy, Download, ExternalLink, Loader2, QrCode, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { eventsApi } from '../../api/events';
-import { workspaceApi } from '../../api/workspace';
 import { apiError } from '../../utils/errorHandler';
 import type { EventWorkspaceResponse } from '../../types';
 

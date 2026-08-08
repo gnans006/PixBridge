@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Brain, CheckCircle, Loader2, RefreshCw, RotateCcw, Save, XCircle } from 'lucide-react';
+import { AlertTriangle, Brain, Loader2, RefreshCw, RotateCcw, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { workspaceApi } from '../../api/workspace';
 import { apiError } from '../../utils/errorHandler';

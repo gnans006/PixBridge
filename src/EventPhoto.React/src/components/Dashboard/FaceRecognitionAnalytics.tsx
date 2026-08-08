@@ -19,8 +19,6 @@ export function FaceRecognitionAnalytics() {
     select: (r) => r.data,
   });
 
-  const totalPhotos = data?.eventBreakdown.reduce((s, e) => s + e.photoCount, 0) ?? 0;
-
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
       <div className="mb-4 flex items-center gap-2">

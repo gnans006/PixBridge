@@ -8,7 +8,6 @@ import {
   Power,
   PowerOff,
   QrCode,
-  RefreshCw,
   ScanFace,
   Trash2,
 } from 'lucide-react';

@@ -11,7 +11,7 @@ import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
 import { Spinner } from '../../components/UI/Spinner';
 import { WatermarkConfigModal } from '../../components/UI/WatermarkConfigModal';
-import { formatDate, formatDateTime } from '../../utils/format';
+import { formatDate } from '../../utils/format';
 import { apiError } from '../../utils/errorHandler';
 
 export default function EventDetail() {

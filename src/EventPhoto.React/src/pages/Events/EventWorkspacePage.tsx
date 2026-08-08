@@ -8,9 +8,7 @@ import {
   Camera,
   HardDrive,
   Info,
-  Loader2,
   QrCode,
-  Settings,
   Shield,
 } from 'lucide-react';
 import { useGalleryHub } from '../../hooks/useGalleryHub';

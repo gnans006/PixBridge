@@ -1,6 +1,5 @@
 import type { EventResponse } from '../../types';
-import { buildApiUrl } from '../../api/client';
-import { BarChart2, Camera, Download, Edit, ScanFace, Shield } from 'lucide-react';
+import { BarChart2, Camera, Download, Edit, ScanFace } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface Props {
