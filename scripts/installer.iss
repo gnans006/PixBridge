@@ -49,6 +49,7 @@ Source: "..\publish\setup\fix-network-access.ps1"; DestDir: "{app}\scripts"; Fla
 Source: "..\publish\setup\repair.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "..\publish\README.md"; DestDir: "{app}"; DestName: "README.md"; Flags: ignoreversion
 Source: "..\publish\deployment-guide.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\publish\CLIENT-DEPLOYMENT-GUIDE.md"; DestDir: "{app}\docs"; DestName: "CLIENT-DEPLOYMENT-GUIDE.md"; Flags: ignoreversion
 
 [Dirs]
 Name: "{app}\logs"

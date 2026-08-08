@@ -225,6 +225,7 @@ Copy-Item (Join-Path $Root "scripts\repair.ps1") $SetupDir -Force
 Copy-Item (Join-Path $Root "scripts\installer.iss") $SetupDir -Force
 Copy-Item (Join-Path $Root "docs\README.md") $PublishRoot -Force
 Copy-Item (Join-Path $Root "docs\deployment-guide.md") $PublishRoot -Force
+Copy-Item (Join-Path $Root "docs\CLIENT-DEPLOYMENT-GUIDE.md") $PublishRoot -Force
 
 # Copy Face Recognition Python service
 $FaceRecDir = Join-Path $PublishRoot "face-recognition"
