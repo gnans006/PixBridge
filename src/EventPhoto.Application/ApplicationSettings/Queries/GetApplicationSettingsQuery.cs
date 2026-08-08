@@ -18,6 +18,20 @@ public sealed record ApplicationSettingsDto(
     GalleryMode DefaultEventGalleryMode,
     bool EnableWatermarkByDefault,
     bool EnableFaceRecognitionByDefault,
+    // Phase 6
+    string? Phone,
+    string? Email,
+    string? Website,
+    string? Address,
+    string? Instagram,
+    string? Facebook,
+    string? WhatsApp,
+    string? LogoPath,
+    // Phase 7
+    string PrimaryColor,
+    string SecondaryColor,
+    string BrandTheme,
+    Guid? DefaultWatermarkProfileId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
@@ -44,6 +58,18 @@ public sealed class GetApplicationSettingsQueryHandler(
         s.DefaultEventGalleryMode,
         s.EnableWatermarkByDefault,
         s.EnableFaceRecognitionByDefault,
+        s.Phone,
+        s.Email,
+        s.Website,
+        s.Address,
+        s.Instagram,
+        s.Facebook,
+        s.WhatsApp,
+        s.LogoPath,
+        s.PrimaryColor,
+        s.SecondaryColor,
+        s.BrandTheme,
+        s.DefaultWatermarkProfileId,
         s.CreatedAt,
         s.UpdatedAt);
 }

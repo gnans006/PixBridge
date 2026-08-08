@@ -16,7 +16,7 @@ namespace EventPhoto.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/settings")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "OwnerOnly")]
 [Produces("application/json")]
 public sealed class ApplicationSettingsController(IMediator mediator) : ControllerBase
 {
@@ -38,6 +38,18 @@ public sealed class ApplicationSettingsController(IMediator mediator) : Controll
             dto.DefaultEventGalleryMode.ToString(),
             dto.EnableWatermarkByDefault,
             dto.EnableFaceRecognitionByDefault,
+            dto.Phone,
+            dto.Email,
+            dto.Website,
+            dto.Address,
+            dto.Instagram,
+            dto.Facebook,
+            dto.WhatsApp,
+            dto.LogoPath,
+            dto.PrimaryColor,
+            dto.SecondaryColor,
+            dto.BrandTheme,
+            dto.DefaultWatermarkProfileId,
             dto.CreatedAt,
             dto.UpdatedAt);
 
@@ -74,7 +86,53 @@ public sealed class ApplicationSettingsController(IMediator mediator) : Controll
             ? Ok(ApiResponse.Ok())
             : BadRequest(ApiResponse.Fail(result.Error!));
     }
+    // ── PUT /api/settings/studio-profile ─────────────────────────────────────────
 
+    /// <summary>Updates studio profile fields (contact info, social links, logo).</summary>
+    [HttpPut("studio-profile")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateStudioProfile(
+        [FromBody] UpdateStudioProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateStudioProfileCommand(
+            request.Phone,
+            request.Email,
+            request.Website,
+            request.Address,
+            request.Instagram,
+            request.Facebook,
+            request.WhatsApp,
+            request.LogoPath);
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.IsSuccess
+            ? Ok(ApiResponse.Ok())
+            : BadRequest(ApiResponse.Fail(result.Error!));
+    }
+
+    // ── PUT /api/settings/branding ───────────────────────────────────────────────
+
+    /// <summary>Updates branding colors and theme.</summary>
+    [HttpPut("branding")]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateBranding(
+        [FromBody] UpdateBrandingRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateBrandingCommand(
+            request.PrimaryColor,
+            request.SecondaryColor,
+            request.BrandTheme,
+            request.DefaultWatermarkProfileId);
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.IsSuccess
+            ? Ok(ApiResponse.Ok())
+            : BadRequest(ApiResponse.Fail(result.Error!));
+    }
     // ── GET /api/settings/network-info ───────────────────────────────────────
 
     /// <summary>Returns real-time LAN network information for the current server.</summary>

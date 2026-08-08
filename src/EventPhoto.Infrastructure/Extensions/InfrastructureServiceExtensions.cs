@@ -2,6 +2,7 @@ using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Domain.Interfaces;
 using EventPhoto.Infrastructure.Persistence;
 using EventPhoto.Infrastructure.Persistence.Repositories;
+using EventPhoto.Infrastructure.Services;
 using EventPhoto.Infrastructure.Services.Auth;
 using EventPhoto.Infrastructure.Services.FaceRecognition;
 using EventPhoto.Infrastructure.Services.FileSystem;
@@ -63,7 +64,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IThumbnailService, ThumbnailService>();
         services.AddScoped<IQrCodeService, QrCodeService>();
         services.AddScoped<IFileStorageService, FileStorageService>();
-        services.AddTransient<IFileService, FileService>();
+        services.AddTransient<IFileService, EventPhoto.Infrastructure.Services.FileSystem.FileService>();
 
         // Watermark service
         services.AddScoped<IWatermarkService, WatermarkService>();
@@ -91,6 +92,10 @@ public static class InfrastructureServiceExtensions
         .AddPolicyHandler(GetCircuitBreakerPolicy());
 
         services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
+
+        // Audit logging
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<IAuditService, EventPhoto.Infrastructure.Services.AuditService>();
 
         return services;
     }

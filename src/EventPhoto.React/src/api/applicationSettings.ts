@@ -10,6 +10,20 @@ export interface ApplicationSettings {
   defaultEventGalleryMode: 'GalleryOnly' | 'FaceSearchOnly' | 'Hybrid';
   enableWatermarkByDefault: boolean;
   enableFaceRecognitionByDefault: boolean;
+  // Phase 6 — Studio Profile
+  phone?: string;
+  email?: string;
+  website?: string;
+  address?: string;
+  instagram?: string;
+  facebook?: string;
+  whatsApp?: string;
+  logoPath?: string;
+  // Phase 7 — Branding
+  primaryColor: string;
+  secondaryColor: string;
+  brandTheme: string;
+  defaultWatermarkProfileId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +55,24 @@ export interface TestPublicUrlResult {
   errorMessage: string | null;
 }
 
+export interface UpdateStudioProfileRequest {
+  phone?: string;
+  email?: string;
+  website?: string;
+  address?: string;
+  instagram?: string;
+  facebook?: string;
+  whatsApp?: string;
+  logoPath?: string;
+}
+
+export interface UpdateBrandingRequest {
+  primaryColor: string;
+  secondaryColor: string;
+  brandTheme: string;
+  defaultWatermarkProfileId?: string | null;
+}
+
 export const applicationSettingsApi = {
   async get(): Promise<ApplicationSettings> {
     const res = await apiClient.get<ApiResponse<ApplicationSettings>>('/settings/application');
@@ -49,6 +81,14 @@ export const applicationSettingsApi = {
 
   async update(data: UpdateApplicationSettingsRequest): Promise<void> {
     await apiClient.put('/settings/application', data);
+  },
+
+  async updateStudioProfile(data: UpdateStudioProfileRequest): Promise<void> {
+    await apiClient.put('/settings/studio-profile', data);
+  },
+
+  async updateBranding(data: UpdateBrandingRequest): Promise<void> {
+    await apiClient.put('/settings/branding', data);
   },
 
   async getNetworkInfo(port = 5000): Promise<NetworkInformation> {

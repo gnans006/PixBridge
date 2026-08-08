@@ -32,7 +32,20 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<IPhotoNotificationService, PhotoNotificationService>();
 builder.Services.AddScoped<IFaceNotificationService, FaceNotificationService>();
 builder.Services.AddJwtAuthentication(builder.Configuration);
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // ── Studio Role Policies ──────────────────────────────────────────────
+    // These accept both legacy (Admin/Viewer) and new (StudioOwner/StudioManager/Operator)
+    // claim values so tokens issued before the migration continue to work.
+    options.AddPolicy("OwnerOnly", policy =>
+        policy.RequireRole("StudioOwner", "Admin"));
+
+    options.AddPolicy("ManagerOrOwner", policy =>
+        policy.RequireRole("StudioOwner", "StudioManager", "Admin"));
+
+    options.AddPolicy("OperatorOrAbove", policy =>
+        policy.RequireRole("StudioOwner", "StudioManager", "Operator", "Admin", "Viewer"));
+});
 builder.Services.AddControllers();
 builder.Services.AddSwaggerWithJwt();
 builder.Services.AddCors(options =>

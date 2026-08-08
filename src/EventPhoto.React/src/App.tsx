@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from './components/Layout/AdminLayout';
 import { GuestLayout } from './components/Layout/GuestLayout';
+import { ThemeProvider } from './providers/ThemeProvider';
 import Dashboard from './pages/Dashboard';
 import EventWorkspacePage from './pages/Events/EventWorkspacePage';
 import EventForm from './pages/Events/EventForm';
@@ -17,6 +18,13 @@ import Statistics from './pages/Statistics';
 import Logs from './pages/Logs';
 import HealthMonitoring from './pages/HealthMonitoring';
 import SystemSettings from './pages/SystemSettings';
+import StudioUsersPage from './pages/Studio/StudioUsersPage';
+import AuditLogsPage from './pages/Platform/AuditLogsPage';
+import NetworkPage from './pages/Platform/NetworkPage';
+import AppearancePage from './pages/Platform/AppearancePage';
+import StudioProfilePage from './pages/Studio/StudioProfilePage';
+import BrandingPage from './pages/Studio/BrandingPage';
+import FaceRecognitionPage from './pages/AI/FaceRecognitionPage';
 import { apiError } from './utils/errorHandler';
 
 const queryClient = new QueryClient({
@@ -40,10 +48,12 @@ const queryClient = new QueryClient({
 
 export default function App() {
   return (
+    <ThemeProvider>
     <QueryClientProvider client={queryClient}>
         <Toaster
-          position="top-left"
+          position="top-right"
           gutter={8}
+          containerStyle={{ top: 80 }}
           toastOptions={{
             duration: 5000,
             style: {
@@ -82,7 +92,7 @@ export default function App() {
             {/* Personal matched gallery */}
             <Route path="/gallery/:eventId/results/:sessionToken" element={<MyPhotosGalleryPage />} />
           </Route>
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route path="admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="events" element={<EventList />} />
             <Route path="events/new" element={<EventForm />} />
@@ -92,11 +102,24 @@ export default function App() {
             <Route path="health" element={<HealthMonitoring />} />
             <Route path="settings" element={<Settings />} />
             <Route path="system-settings" element={<SystemSettings />} />
+            {/* Studio */}
+            <Route path="studio/users" element={<StudioUsersPage />} />
+            <Route path="studio/profile" element={<StudioProfilePage />} />
+            <Route path="studio/branding" element={<BrandingPage />} />
+            {/* Platform */}
+            <Route path="platform/audit" element={<AuditLogsPage />} />
+            <Route path="platform/network" element={<NetworkPage />} />
+            <Route path="platform/appearance" element={<AppearancePage />} />
+            {/* Experiences */}
+            <Route path="experiences/qr" element={<Navigate to="/admin/events" replace />} />
+            {/* AI */}
+            <Route path="ai/face-recognition" element={<FaceRecognitionPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
+    </ThemeProvider>
   );
 }

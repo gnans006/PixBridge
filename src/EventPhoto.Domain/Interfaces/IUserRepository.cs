@@ -52,4 +52,24 @@ public interface IUserRepository
     /// <param name="user">The user to update.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     Task UpdateAsync(User user, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns all studio users (active and inactive).
+    /// </summary>
+    Task<List<User>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks whether a username already exists, optionally excluding a user by identifier.
+    /// </summary>
+    Task<bool> ExistsByUsernameAsync(string username, Guid? excludeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks whether an email already exists, optionally excluding a user by identifier.
+    /// </summary>
+    Task<bool> ExistsByEmailAsync(string email, Guid? excludeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the count of active StudioOwner (or Admin) accounts.
+    /// </summary>
+    Task<int> CountOwnerAccountsAsync(CancellationToken cancellationToken = default);
 }

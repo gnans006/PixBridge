@@ -12,7 +12,7 @@ namespace EventPhoto.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/system")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "OwnerOnly")]
 [Produces("application/json")]
 public sealed class NetworkController : ControllerBase
 {

@@ -1,8 +1,21 @@
 import type { HTMLAttributes } from 'react';
 
-export function Card({ className = '', children, ...props }: HTMLAttributes<HTMLDivElement>) {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  variant?: 'default' | 'elevated' | 'surface';
+  padding?: boolean;
+}
+
+export function Card({ variant = 'default', padding = false, className = '', children, ...props }: CardProps) {
+  const variants: Record<string, string> = {
+    default:  'bg-pds-card border-pds-border',
+    elevated: 'bg-pds-elevated border-pds-border',
+    surface:  'bg-pds-surface border-pds-border',
+  };
   return (
-    <div className={`rounded-xl border border-gray-200 bg-white shadow-sm ${className}`} {...props}>
+    <div
+      className={`rounded-2xl border ${variants[variant]} ${padding ? 'p-6' : ''} ${className}`}
+      {...props}
+    >
       {children}
     </div>
   );

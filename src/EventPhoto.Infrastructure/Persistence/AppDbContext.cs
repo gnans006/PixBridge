@@ -46,6 +46,9 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Gets the application settings singleton record.</summary>
     public DbSet<ApplicationSettings> ApplicationSettings => Set<ApplicationSettings>();
 
+    /// <summary>Gets the audit log entries set.</summary>
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

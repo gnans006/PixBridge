@@ -16,7 +16,7 @@ namespace EventPhoto.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "OperatorOrAbove")]
 [Produces("application/json")]
 public sealed class EventsController : ControllerBase
 {
@@ -157,6 +157,7 @@ public sealed class EventsController : ControllerBase
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>An empty success envelope.</returns>
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "ManagerOrOwner")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

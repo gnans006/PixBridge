@@ -10,5 +10,19 @@ public sealed record ApplicationSettingsResponse(
     string DefaultEventGalleryMode,
     bool EnableWatermarkByDefault,
     bool EnableFaceRecognitionByDefault,
+    // Phase 6 — Studio Profile
+    string? Phone,
+    string? Email,
+    string? Website,
+    string? Address,
+    string? Instagram,
+    string? Facebook,
+    string? WhatsApp,
+    string? LogoPath,
+    // Phase 7 — Branding
+    string PrimaryColor,
+    string SecondaryColor,
+    string BrandTheme,
+    Guid? DefaultWatermarkProfileId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);

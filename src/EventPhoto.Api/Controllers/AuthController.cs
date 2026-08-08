@@ -58,7 +58,7 @@ public sealed class AuthController : ControllerBase
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>An empty success envelope when the password change succeeds.</returns>
     [HttpPost("change-password")]
-    [Authorize(Roles = "Admin")]
+    [Authorize]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]

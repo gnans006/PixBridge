@@ -30,6 +30,19 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("BrandTheme")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("dark")
+                        .HasColumnName("brand_theme");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -40,6 +53,15 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("default_event_gallery_mode");
 
+                    b.Property<Guid?>("DefaultWatermarkProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("default_watermark_profile_id");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email");
+
                     b.Property<bool>("EnableFaceRecognitionByDefault")
                         .HasColumnType("boolean")
                         .HasColumnName("enable_face_recognition_by_default");
@@ -48,11 +70,47 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("enable_watermark_by_default");
 
+                    b.Property<string>("Facebook")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("facebook");
+
+                    b.Property<string>("Instagram")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("instagram");
+
+                    b.Property<string>("LogoPath")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("logo_path");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("PrimaryColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasDefaultValue("#6366f1")
+                        .HasColumnName("primary_color");
+
                     b.Property<string>("PublicBaseUrl")
                         .IsRequired()
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)")
                         .HasColumnName("public_base_url");
+
+                    b.Property<string>("SecondaryColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasDefaultValue("#8b5cf6")
+                        .HasColumnName("secondary_color");
 
                     b.Property<string>("ServerName")
                         .IsRequired()
@@ -74,9 +132,81 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<string>("Website")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("website");
+
+                    b.Property<string>("WhatsApp")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("whats_app");
+
                     b.HasKey("Id");
 
                     b.ToTable("application_settings", (string)null);
+                });
+
+            modelBuilder.Entity("EventPhoto.Domain.Entities.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("actor_name");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timestamp");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("EntityType", "EntityId");
+
+                    b.ToTable("audit_logs", (string)null);
                 });
 
             modelBuilder.Entity("EventPhoto.Domain.Entities.DownloadLog", b =>
@@ -556,6 +686,14 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("email");
 
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasDefaultValue("")
+                        .HasColumnName("full_name");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -569,6 +707,11 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)")
                         .HasColumnName("password_hash");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("phone");
 
                     b.Property<int>("Role")
                         .HasColumnType("integer")
@@ -593,6 +736,113 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("EventPhoto.Domain.Entities.WatermarkConfiguration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("ApplyOnDownload")
+                        .HasColumnType("boolean")
+                        .HasColumnName("apply_on_download");
+
+                    b.Property<bool>("ApplyOnPreview")
+                        .HasColumnType("boolean")
+                        .HasColumnName("apply_on_preview");
+
+                    b.Property<float>("BackgroundOpacity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("real")
+                        .HasDefaultValue(0.2f)
+                        .HasColumnName("background_opacity");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CustomText")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("custom_text");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("FontName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("font_name");
+
+                    b.Property<bool>("IncludeDownloadDate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_download_date");
+
+                    b.Property<bool>("IncludeEventName")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_event_name");
+
+                    b.Property<bool>("IncludeStudioName")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_studio_name");
+
+                    b.Property<string>("LogoPath")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("logo_path");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("mode");
+
+                    b.Property<float>("Opacity")
+                        .HasColumnType("real")
+                        .HasColumnName("opacity");
+
+                    b.Property<string>("Scale")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scale");
+
+                    b.Property<string>("Style")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("style");
+
+                    b.Property<string>("Template")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("template");
+
+                    b.Property<string>("TextColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("#FFFFFF")
+                        .HasColumnName("text_color");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_watermark_configurations_event_id");
+
+                    b.ToTable("watermark_configurations", (string)null);
                 });
 
             modelBuilder.Entity("EventPhoto.Domain.Entities.DownloadLog", b =>
@@ -668,115 +918,9 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("EventPhoto.Domain.Entities.WatermarkConfiguration", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<bool>("ApplyOnDownload")
-                        .HasColumnType("boolean")
-                        .HasColumnName("apply_on_download");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CustomText")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("custom_text");
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("enabled");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<bool>("IncludeDownloadDate")
-                        .HasColumnType("boolean")
-                        .HasColumnName("include_download_date");
-
-                    b.Property<bool>("IncludeEventName")
-                        .HasColumnType("boolean")
-                        .HasColumnName("include_event_name");
-
-                    b.Property<bool>("IncludeStudioName")
-                        .HasColumnType("boolean")
-                        .HasColumnName("include_studio_name");
-
-                    b.Property<string>("LogoPath")
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)")
-                        .HasColumnName("logo_path");
-
-                    b.Property<string>("TextColor")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("#FFFFFF")
-                        .HasColumnName("text_color");
-
-                    b.Property<string>("FontName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("font_name");
-
-                    b.Property<float>("BackgroundOpacity")
-                        .HasColumnType("real")
-                        .HasDefaultValue(0.20f)
-                        .HasColumnName("background_opacity");
-
-                    b.Property<bool>("ApplyOnPreview")
-                        .HasColumnType("boolean")
-                        .HasColumnName("apply_on_preview");
-
-                    b.Property<string>("Mode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("mode");
-
-                    b.Property<float>("Opacity")
-                        .HasColumnType("real")
-                        .HasColumnName("opacity");
-
-                    b.Property<string>("Scale")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("scale");
-
-                    b.Property<string>("Style")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("style");
-
-                    b.Property<string>("Template")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("template");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_watermark_configurations_event_id");
-
-                    b.ToTable("watermark_configurations", (string)null);
-                });
-
-            modelBuilder.Entity("EventPhoto.Domain.Entities.WatermarkConfiguration", b =>
-                {
                     b.HasOne("EventPhoto.Domain.Entities.Event", null)
                         .WithOne()
                         .HasForeignKey("EventPhoto.Domain.Entities.WatermarkConfiguration", "EventId")
-                        .HasConstraintName("FK_watermark_configurations_events_event_id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

@@ -41,6 +41,46 @@ public sealed class ApplicationSettings : AggregateRoot
     /// <summary>Gets whether face recognition should be enabled by default on new events.</summary>
     public bool EnableFaceRecognitionByDefault { get; private set; }
 
+    // ── Phase 6 — Studio Profile ──────────────────────────────────────────────
+
+    /// <summary>Gets the studio's contact phone number.</summary>
+    public string? Phone { get; private set; }
+
+    /// <summary>Gets the studio's contact email address.</summary>
+    public string? Email { get; private set; }
+
+    /// <summary>Gets the studio's website URL.</summary>
+    public string? Website { get; private set; }
+
+    /// <summary>Gets the studio's physical address.</summary>
+    public string? Address { get; private set; }
+
+    /// <summary>Gets the studio's Instagram handle or URL.</summary>
+    public string? Instagram { get; private set; }
+
+    /// <summary>Gets the studio's Facebook page URL.</summary>
+    public string? Facebook { get; private set; }
+
+    /// <summary>Gets the studio's WhatsApp number or link.</summary>
+    public string? WhatsApp { get; private set; }
+
+    /// <summary>Gets the file-system path of the studio logo.</summary>
+    public string? LogoPath { get; private set; }
+
+    // ── Phase 7 — Branding ────────────────────────────────────────────────────
+
+    /// <summary>Gets the primary brand colour (hex, e.g. "#6366f1").</summary>
+    public string PrimaryColor { get; private set; } = "#6366f1";
+
+    /// <summary>Gets the secondary brand colour (hex).</summary>
+    public string SecondaryColor { get; private set; } = "#8b5cf6";
+
+    /// <summary>Gets the preferred UI theme: "dark", "light", or "system".</summary>
+    public string BrandTheme { get; private set; } = "dark";
+
+    /// <summary>Gets the default watermark profile applied to new events.</summary>
+    public Guid? DefaultWatermarkProfileId { get; private set; }
+
     // ── Factory ──────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -59,6 +99,9 @@ public sealed class ApplicationSettings : AggregateRoot
             DefaultEventGalleryMode = GalleryMode.GalleryOnly,
             EnableWatermarkByDefault = false,
             EnableFaceRecognitionByDefault = false,
+            PrimaryColor = "#6366f1",
+            SecondaryColor = "#8b5cf6",
+            BrandTheme = "dark",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
         };
@@ -105,6 +148,61 @@ public sealed class ApplicationSettings : AggregateRoot
         DefaultEventGalleryMode = defaultEventGalleryMode;
         EnableWatermarkByDefault = enableWatermarkByDefault;
         EnableFaceRecognitionByDefault = enableFaceRecognitionByDefault;
+        Touch();
+    }
+
+    /// <summary>
+    /// Updates studio profile contact and social media fields.
+    /// </summary>
+    public void UpdateStudioProfile(
+        string? phone,
+        string? email,
+        string? website,
+        string? address,
+        string? instagram,
+        string? facebook,
+        string? whatsApp,
+        string? logoPath)
+    {
+        if (email is not null && email.Length > 200)
+            throw new DomainException("Email must not exceed 200 characters.");
+        if (website is not null && website.Length > 2048)
+            throw new DomainException("Website URL must not exceed 2048 characters.");
+
+        Phone = phone?.Trim();
+        Email = email?.Trim();
+        Website = website?.Trim();
+        Address = address?.Trim();
+        Instagram = instagram?.Trim();
+        Facebook = facebook?.Trim();
+        WhatsApp = whatsApp?.Trim();
+        LogoPath = logoPath;
+        Touch();
+    }
+
+    /// <summary>
+    /// Updates branding colors and theme.
+    /// </summary>
+    public void UpdateBranding(
+        string primaryColor,
+        string secondaryColor,
+        string brandTheme,
+        Guid? defaultWatermarkProfileId)
+    {
+        static bool IsHex(string? s) =>
+            s is { Length: >= 4 and <= 7 } && s.StartsWith('#');
+
+        if (!IsHex(primaryColor))
+            throw new DomainException("Primary color must be a valid hex color (e.g. #6366f1).");
+        if (!IsHex(secondaryColor))
+            throw new DomainException("Secondary color must be a valid hex color.");
+        if (brandTheme is not ("dark" or "light" or "system"))
+            throw new DomainException("Brand theme must be 'dark', 'light', or 'system'.");
+
+        PrimaryColor = primaryColor;
+        SecondaryColor = secondaryColor;
+        BrandTheme = brandTheme;
+        DefaultWatermarkProfileId = defaultWatermarkProfileId;
         Touch();
     }
 

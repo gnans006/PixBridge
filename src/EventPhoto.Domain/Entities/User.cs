@@ -44,6 +44,21 @@ public sealed class User : Entity
     public DateTimeOffset? LastLoginAt { get; private set; }
 
     /// <summary>
+    /// Gets the full name of the studio staff member.
+    /// </summary>
+    public string FullName { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the display name used in the UI and JWT claims. Falls back to username.
+    /// </summary>
+    public string DisplayName => string.IsNullOrWhiteSpace(FullName) ? Username : FullName;
+
+    /// <summary>
+    /// Gets the optional phone number.
+    /// </summary>
+    public string? Phone { get; private set; }
+
+    /// <summary>
     /// Creates a new user account.
     /// </summary>
     /// <param name="username">The username.</param>
@@ -51,7 +66,7 @@ public sealed class User : Entity
     /// <param name="passwordHash">The hashed password.</param>
     /// <param name="role">The application role.</param>
     /// <returns>A new <see cref="User"/> instance.</returns>
-    public static User Create(string username, string email, string passwordHash, UserRole role = UserRole.Admin)
+    public static User Create(string username, string email, string passwordHash, UserRole role = UserRole.StudioOwner, string? fullName = null, string? phone = null)
     {
         if (string.IsNullOrWhiteSpace(username))
         {
@@ -73,7 +88,9 @@ public sealed class User : Entity
             Username = username.Trim().ToLowerInvariant(),
             Email = email.Trim().ToLowerInvariant(),
             PasswordHash = passwordHash,
-            Role = role
+            Role = role,
+            FullName = fullName?.Trim() ?? string.Empty,
+            Phone = phone?.Trim()
         };
     }
 
@@ -128,4 +145,30 @@ public sealed class User : Entity
         IsActive = true;
         Touch();
     }
+
+    /// <summary>
+    /// Updates the user profile fields.
+    /// </summary>
+    public void Update(string fullName, string email, string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new DomainException("Email is required.");
+        }
+
+        FullName = fullName?.Trim() ?? string.Empty;
+        Email = email.Trim().ToLowerInvariant();
+        Phone = phone?.Trim();
+        Touch();
+    }
+
+    /// <summary>
+    /// Changes the user's role. The last StudioOwner cannot be demoted.
+    /// </summary>
+    public void UpdateRole(UserRole newRole)
+    {
+        Role = newRole;
+        Touch();
+    }
 }
+

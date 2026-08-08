@@ -1,5 +1,6 @@
 using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Domain.Entities;
+using EventPhoto.Domain.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -30,12 +31,19 @@ public sealed class JwtTokenService : IJwtTokenService
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        // ToClaimValue() maps legacy Admin→StudioOwner, Viewer→Operator so all
+        // policy checks work uniformly regardless of when the account was created.
+        var roleClaimValue = user.Role.ToClaimValue();
+
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new Claim(ClaimTypes.Role, roleClaimValue),
+            new Claim("displayName", user.DisplayName),
+            new Claim("studioUserId", user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
         var token = new JwtSecurityToken(

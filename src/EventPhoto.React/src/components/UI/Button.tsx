@@ -1,44 +1,50 @@
 import type { ButtonHTMLAttributes } from 'react';
-import { Spinner } from './Spinner';
+import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
+  leftIcon?: React.ReactNode;
 }
 
 export function Button({
   variant = 'primary',
   size = 'md',
   isLoading = false,
+  leftIcon,
   children,
   className = '',
   disabled,
   type,
   ...props
 }: ButtonProps) {
-  const baseClass =
-    'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
-  const variantClass = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500',
-    secondary: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-300',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
-    ghost: 'text-gray-600 hover:bg-gray-100 focus:ring-gray-300',
-  }[variant];
-  const sizeClass = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
-  }[size];
+  const base =
+    'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-150 ' +
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-pds-primary focus-visible:ring-offset-2 ' +
+    'focus-visible:ring-offset-pds-bg disabled:pointer-events-none disabled:opacity-40 select-none';
+
+  const variants: Record<string, string> = {
+    primary:   'bg-pds-primary text-white hover:bg-pds-primary-hov shadow-pds-glow-sm hover:shadow-pds-glow active:scale-[0.98]',
+    secondary: 'border border-pds-border bg-pds-elevated text-pds-text-2 hover:bg-pds-card hover:text-pds-text hover:border-pds-primary/50 active:scale-[0.98]',
+    ghost:     'text-pds-text-muted hover:bg-pds-elevated hover:text-pds-text active:scale-[0.98]',
+    danger:    'bg-pds-danger text-white hover:opacity-90 active:scale-[0.98]',
+  };
+
+  const sizes: Record<string, string> = {
+    sm: 'h-8 px-3 text-xs',
+    md: 'h-9 px-4 text-sm',
+    lg: 'h-11 px-6 text-base',
+  };
 
   return (
     <button
       type={type ?? 'button'}
-      className={`${baseClass} ${variantClass} ${sizeClass} ${className}`}
+      className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={disabled || isLoading}
       {...props}
     >
-      {isLoading ? <Spinner size="sm" /> : null}
+      {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (leftIcon ?? null)}
       {children}
     </button>
   );

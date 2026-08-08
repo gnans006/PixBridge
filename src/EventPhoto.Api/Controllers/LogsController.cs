@@ -8,7 +8,7 @@ namespace EventPhoto.Api.Controllers;
 /// <summary>Provides recent application log entries from Serilog file output for the admin UI.</summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "OwnerOnly")]
 [Produces("application/json")]
 public sealed class LogsController : ControllerBase
 {

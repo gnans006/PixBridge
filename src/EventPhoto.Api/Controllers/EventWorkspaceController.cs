@@ -15,7 +15,7 @@ namespace EventPhoto.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/events/{eventId:guid}/workspace")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "OperatorOrAbove")]
 [Produces("application/json")]
 public sealed class EventWorkspaceController(IMediator mediator) : ControllerBase
 {

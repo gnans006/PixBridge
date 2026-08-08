@@ -15,7 +15,7 @@ namespace EventPhoto.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "OwnerOnly")]
 [Produces("application/json")]
 public sealed class SettingsController : ControllerBase
 {

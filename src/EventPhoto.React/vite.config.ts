@@ -13,5 +13,12 @@ export default defineConfig({
   build: {
     outDir: '../EventPhoto.Api/wwwroot',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'INVALID_ANNOTATION') return;
+        warn(warning);
+      },
+    },
   },
 });

@@ -1,14 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased;
-  }
+/* ═══════════════════════════════════════════════════════════════════════════
+   PixBridge Design System — CSS Custom Properties
+   Three themes: studio-dark (default), studio-light, studio-midnight
+   Colors stored as space-separated RGB channels for Tailwind opacity support
+   ═══════════════════════════════════════════════════════════════════════════ */
 
+/* Studio Dark — default */
+html {
+  --pds-bg:              11 15 25;      /* #0B0F19 */
+  --pds-surface:         18 24 38;      /* #121826 */
+  --pds-card:            26 34 53;      /* #1A2235 */
+  --pds-elevated:        33 45 69;      /* #212D45 */
+  --pds-border:          43 54 80;      /* #2B3650 */
+  --pds-primary:         99 102 241;    /* #6366F1 */
+  --pds-primary-hover:   124 126 255;   /* #7C7EFF */
+  --pds-accent:          168 85 247;    /* #A855F7 */
+  --pds-success:         16 185 129;    /* #10B981 */
+  --pds-warning:         245 158 11;    /* #F59E0B */
+  --pds-danger:          244 63 94;     /* #F43F5E */
+  --pds-text:            248 250 252;   /* #F8FAFC */
+  --pds-text-secondary:  203 213 225;   /* #CBD5E1 */
+  --pds-text-muted:      148 163 184;   /* #94A3B8 */
+}
+
+html[data-theme="studio-dark"] {
+  --pds-bg:              11 15 25;
+  --pds-surface:         18 24 38;
+  --pds-card:            26 34 53;
+  --pds-elevated:        33 45 69;
+  --pds-border:          43 54 80;
+  --pds-primary:         99 102 241;
+  --pds-primary-hover:   124 126 255;
+  --pds-accent:          168 85 247;
+  --pds-success:         16 185 129;
+  --pds-warning:         245 158 11;
+  --pds-danger:          244 63 94;
+  --pds-text:            248 250 252;
+  --pds-text-secondary:  203 213 225;
+  --pds-text-muted:      148 163 184;
+}
+
+html[data-theme="studio-light"] {
+  --pds-bg:              248 250 252;   /* #F8FAFC */
+  --pds-surface:         255 255 255;   /* #FFFFFF */
+  --pds-card:            241 245 249;   /* #F1F5F9 */
+  --pds-elevated:        226 232 240;   /* #E2E8F0 */
+  --pds-border:          203 213 225;   /* #CBD5E1 */
+  --pds-primary:         99 102 241;
+  --pds-primary-hover:   79 70 229;     /* #4F46E5 */
+  --pds-accent:          139 92 246;
+  --pds-success:         5 150 105;
+  --pds-warning:         217 119 6;
+  --pds-danger:          225 29 72;
+  --pds-text:            15 23 42;      /* #0F172A */
+  --pds-text-secondary:  71 85 105;     /* #475569 */
+  --pds-text-muted:      100 116 139;   /* #64748B */
+}
+
+html[data-theme="studio-midnight"] {
+  --pds-bg:              5 8 16;        /* #050810 */
+  --pds-surface:         9 13 26;       /* #090D1A */
+  --pds-card:            15 21 37;      /* #0F1525 */
+  --pds-elevated:        21 30 53;      /* #151E35 */
+  --pds-border:          30 42 64;      /* #1E2A40 */
+  --pds-primary:         124 126 255;   /* #7C7EFF */
+  --pds-primary-hover:   147 149 255;   /* #9395FF */
+  --pds-accent:          192 132 252;   /* #C084FC */
+  --pds-success:         16 185 129;
+  --pds-warning:         245 158 11;
+  --pds-danger:          244 63 94;
+  --pds-text:            240 244 255;   /* #F0F4FF */
+  --pds-text-secondary:  196 210 240;   /* #C4D2F0 */
+  --pds-text-muted:      148 163 184;
+}
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  body {
+    @apply bg-pds-bg text-pds-text antialiased;
+  }
   #root {
     @apply min-h-screen;
+  }
+}
+
+@layer utilities {
+  .pds-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgb(var(--pds-card)) 25%,
+      rgb(var(--pds-elevated)) 50%,
+      rgb(var(--pds-card)) 75%
+    );
+    background-size: 800px 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Legacy shimmer — keep for existing Dashboard components */
+  .shimmer-effect {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 800px 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
   }
 }
 
@@ -17,19 +124,3 @@
   100% { background-position:  800px 0; }
 }
 
-@layer utilities {
-  .shimmer-effect {
-    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
-    background-size: 800px 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
-  }
-
-  /* Hide scrollbar while keeping scroll functionality */
-  .scrollbar-none {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .scrollbar-none::-webkit-scrollbar {
-    display: none;
-  }
-}

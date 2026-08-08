@@ -46,6 +46,18 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.LastLoginAt)
             .HasColumnName("last_login_at");
 
+        builder.Property(u => u.FullName)
+            .HasColumnName("full_name")
+            .HasMaxLength(200)
+            .IsRequired()
+            .HasDefaultValue(string.Empty);
+
+        builder.Property(u => u.Phone)
+            .HasColumnName("phone")
+            .HasMaxLength(30);
+
+        builder.Ignore(u => u.DisplayName);
+
         builder.Property(u => u.CreatedAt)
             .HasColumnName("created_at")
             .IsRequired();

@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle } from 'lucide-react';
+import { BarChart2 } from 'lucide-react';
 import { eventsApi } from '../api/events';
 import { statisticsApi } from '../api/statistics';
 import { Card } from '../components/UI/Card';
-import { Spinner } from '../components/UI/Spinner';
+import { PageShell } from '../components/UI/PageShell';
+import { SkeletonCard } from '../components/UI/Skeleton';
+import { EmptyState } from '../components/UI/EmptyState';
 
 export default function Statistics() {
   const { data: events, isLoading, isError } = useQuery({
@@ -14,35 +16,33 @@ export default function Statistics() {
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Statistics</h1>
-        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-          <span>Could not load event statistics. The server may be unavailable.</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Statistics</h1>
-      <div className="space-y-4">
-        {events?.map((eventItem) => (
-          <EventStatsCard key={eventItem.id} eventId={eventItem.id} eventName={eventItem.name} />
-        ))}
-      </div>
-    </div>
+    <PageShell
+      title="Insights"
+      description="Per-production statistics: photo counts, downloads, face matches, and storage."
+    >
+      {isLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
+        </div>
+      ) : isError ? (
+        <Card padding className="text-center text-sm text-pds-danger">
+          Could not load statistics. The server may be unavailable.
+        </Card>
+      ) : !events?.length ? (
+        <EmptyState
+          icon={BarChart2}
+          title="No Productions Found"
+          description="Create a production to start tracking statistics."
+        />
+      ) : (
+        <div className="space-y-4">
+          {events.map(e => (
+            <EventStatsCard key={e.id} eventId={e.id} eventName={e.name} />
+          ))}
+        </div>
+      )}
+    </PageShell>
   );
 }
 
@@ -57,23 +57,23 @@ function EventStatsCard({ eventId, eventName }: { eventId: string; eventName: st
 
   return (
     <Card className="p-5">
-      <h3 className="mb-3 font-semibold text-gray-900">{eventName}</h3>
+      <h3 className="mb-3 font-semibold text-pds-text">{eventName}</h3>
       {isLoading ? (
-        <Spinner size="sm" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {[1,2,3].map(i => <div key={i} className="h-10 pds-shimmer rounded-lg" />)}
+        </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-          <div>
-            <p className="text-gray-500">Photos</p>
-            <p className="font-medium">{data?.totalPhotos ?? 0}</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Downloads</p>
-            <p className="font-medium">{data?.totalDownloads ?? 0}</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Storage</p>
-            <p className="font-medium">{data?.totalSizeHuman ?? '0 B'}</p>
-          </div>
+          {[
+            { label: 'Photos',    value: data?.totalPhotos ?? 0 },
+            { label: 'Downloads', value: data?.totalDownloads ?? 0 },
+            { label: 'Storage',   value: data?.totalSizeHuman ?? '0 B' },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-xl bg-pds-elevated px-3 py-2.5">
+              <p className="text-xs text-pds-text-muted">{label}</p>
+              <p className="mt-0.5 text-base font-semibold text-pds-text">{value}</p>
+            </div>
+          ))}
         </div>
       )}
     </Card>
