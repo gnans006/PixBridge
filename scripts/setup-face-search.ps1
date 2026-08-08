@@ -22,10 +22,6 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference    = "SilentlyContinue"
 
 # ── Config ────────────────────────────────────────────────────────────────────
-$PG_BIN          = "C:\Program Files\PostgreSQL\17\bin"
-$PG_LIB          = "C:\Program Files\PostgreSQL\17\lib"
-$PG_SHARE_EXT    = "C:\Program Files\PostgreSQL\17\share\extension"
-$PG_ROOT         = "C:\Program Files\PostgreSQL\17"
 $PGPASSWORD_VAL  = "Gnanavel@2026"
 $PGUSER          = "postgres"
 $PGDATABASE      = "pixbridge_dev"
@@ -36,8 +32,46 @@ $PGVECTOR_SRC    = "$env:TEMP\pgvector-build\pgvector-0.8.6"
 $PGVECTOR_ZIP    = "$env:TEMP\pgvector-src.zip"
 $PGVECTOR_VER    = "0.8.6"
 
-$VS_PATH         = "C:\Program Files\Microsoft Visual Studio\18\Professional"
 $VS_INSTALLER    = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+
+# ── Auto-detect PostgreSQL installation ──────────────────────────────────────
+$PG_ROOT = $null
+foreach ($searchRoot in @("$env:ProgramFiles\PostgreSQL", "C:\PostgreSQL", "D:\PostgreSQL", "E:\PostgreSQL")) {
+    if (Test-Path $searchRoot) {
+        $found = Get-ChildItem $searchRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d+$' } |
+            Sort-Object { [int]$_.Name } -Descending |
+            Select-Object -First 1
+        if ($found -and (Test-Path "$($found.FullName)\bin\psql.exe")) {
+            $PG_ROOT = $found.FullName
+            break
+        }
+    }
+}
+if (-not $PG_ROOT) { Write-Host "FAIL: PostgreSQL not found. Install it first." -ForegroundColor Red; exit 1 }
+$PG_BIN       = "$PG_ROOT\bin"
+$PG_LIB       = "$PG_ROOT\lib"
+$PG_SHARE_EXT = "$PG_ROOT\share\extension"
+Write-Host "  Detected PostgreSQL: $PG_ROOT" -ForegroundColor Cyan
+# Add PG bin to session PATH so psql/pg_config are available without full paths
+$env:PATH = "$PG_BIN;$env:PATH"
+
+# ── Auto-detect Visual Studio installation ────────────────────────────────────
+$VS_PATH = $null
+$vsEditions = @('BuildTools','Community','Professional','Enterprise','Preview')
+$vsVersions = @('18','17')   # VS 2028, VS 2022
+foreach ($ver in $vsVersions) {
+    foreach ($ed in $vsEditions) {
+        $candidate = "$env:ProgramFiles\Microsoft Visual Studio\$ver\$ed"
+        if (Test-Path "$candidate\Common7\Tools\VsDevCmd.bat") {
+            $VS_PATH = $candidate
+            break
+        }
+    }
+    if ($VS_PATH) { break }
+}
+if (-not $VS_PATH) { Write-Host "FAIL: Visual Studio not found (needed to build pgvector). Install VS 2022 or later with C++ tools." -ForegroundColor Red; exit 1 }
+Write-Host "  Detected Visual Studio: $VS_PATH" -ForegroundColor Cyan
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 function Step { param([string]$msg) Write-Host "`n==> $msg" -ForegroundColor Cyan }
@@ -67,12 +101,21 @@ if ($pythonExe) {
     }
 }
 
-# Also check common install locations
-foreach ($candidate in @(
-    "C:\Python311\python.exe",
-    "C:\Users\$env:USERNAME\AppData\Local\Programs\Python\Python311\python.exe",
-    "C:\Users\$env:USERNAME\AppData\Local\Programs\Python\Python312\python.exe"
-)) {
+# Also check common install locations — including system-wide and all user profiles
+# (running as Admin may not inherit $env:USERNAME's AppData)
+$pythonCandidates = @("C:\Python311\python.exe", "C:\Python312\python.exe")
+# System-wide install (default when "Install for all users" is ticked)
+$pythonCandidates += @(
+    "$env:ProgramFiles\Python311\python.exe",
+    "$env:ProgramFiles\Python312\python.exe"
+)
+# Per-user installs across all profiles on this machine
+Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    $pythonCandidates += "$($_.FullName)\AppData\Local\Programs\Python\Python311\python.exe"
+    $pythonCandidates += "$($_.FullName)\AppData\Local\Programs\Python\Python312\python.exe"
+    $pythonCandidates += "$($_.FullName)\AppData\Local\Programs\Python\Python313\python.exe"
+}
+foreach ($candidate in $pythonCandidates) {
     if (!$realPython -and (Test-Path $candidate)) {
         $ver = & $candidate --version 2>&1
         if ($ver -match "Python 3\.(1[1-9]|[2-9]\d)") { $realPython = $candidate }
@@ -84,19 +127,19 @@ if (!$realPython) {
     winget install Python.Python.3.11 --accept-source-agreements --accept-package-agreements --silent
     if ($LASTEXITCODE -ne 0) { FAIL "winget Python install failed. Install manually from https://python.org/downloads/release/python-3119/" }
 
-    # Refresh PATH
-    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+    # Refresh both Machine and User PATH after install
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
+                [System.Environment]::GetEnvironmentVariable("PATH", "User")
 
-    foreach ($candidate in @(
-        "C:\Python311\python.exe",
-        "C:\Users\$env:USERNAME\AppData\Local\Programs\Python\Python311\python.exe"
-    )) {
-        if (Test-Path $candidate) { $realPython = $candidate; break }
+    # Re-scan all user profiles after install
+    Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        foreach ($pyVer in @("Python311","Python312","Python313")) {
+            $c = "$($_.FullName)\AppData\Local\Programs\Python\$pyVer\python.exe"
+            if (!$realPython -and (Test-Path $c)) { $realPython = $c }
+        }
     }
-
-    if (!$realPython) {
-        $found = Get-ChildItem "C:\Users\$env:USERNAME\AppData\Local\Programs\Python" -Filter "python.exe" -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($found) { $realPython = $found.FullName }
+    foreach ($c in @("C:\Python311\python.exe","$env:ProgramFiles\Python311\python.exe")) {
+        if (!$realPython -and (Test-Path $c)) { $realPython = $c }
     }
     if (!$realPython) { FAIL "Python installed but could not locate python.exe. Check PATH and re-run." }
     OK "Python installed at $realPython"

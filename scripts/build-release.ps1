@@ -31,7 +31,8 @@
 #>
 
 param(
-    [string]$Version = "1.0.0"
+    [string]$Version    = "1.0.0",
+    [nullable[bool]]$FaceSearch = $null   # $true/$false or omit to be prompted
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,6 +44,21 @@ function Fail  { param([string]$Msg) Write-Host "  [FAIL] $Msg" -ForegroundColor
 function Check { param([string]$Msg) Write-Host "  [CHECK] $Msg" -ForegroundColor Cyan }
 
 Write-Host "`n===== PixBridge Release Build v$Version =====" -ForegroundColor Cyan
+
+# ── Face Search selection ─────────────────────────────────────────────────────
+if ($null -eq $FaceSearch) {
+    Write-Host ""
+    Write-Host "  Include Face Recognition (AI photo matching)?" -ForegroundColor Yellow
+    Write-Host "    Adds ~150 MB: Python service, pgvector, setup scripts." -ForegroundColor DarkGray
+    Write-Host "    Skip if this deployment does not use face search." -ForegroundColor DarkGray
+    $choice = Read-Host "  Include Face Search? [Y/n]"
+    $FaceSearch = ($choice -eq '' -or $choice -match '^[Yy]')
+}
+if ($FaceSearch) {
+    Write-Host "  [BUILD] Face Search: INCLUDED" -ForegroundColor Green
+} else {
+    Write-Host "  [BUILD] Face Search: EXCLUDED (lean build)" -ForegroundColor Cyan
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PREREQUISITES — must be installed on this machine before anything else
@@ -244,7 +260,6 @@ New-Item -ItemType Directory -Force -Path $SetupDir | Out-Null
 Copy-Item (Join-Path $Root "scripts\setup-postgresql.ps1") $SetupDir -Force
 Copy-Item (Join-Path $Root "scripts\install-service.ps1") $SetupDir -Force
 Copy-Item (Join-Path $Root "scripts\uninstall-service.ps1") $SetupDir -Force
-Copy-Item (Join-Path $Root "scripts\setup-face-search.ps1") $SetupDir -Force
 Copy-Item (Join-Path $Root "scripts\fix-network-access.ps1") $SetupDir -Force
 Copy-Item (Join-Path $Root "scripts\repair.ps1") $SetupDir -Force
 Copy-Item (Join-Path $Root "scripts\installer.iss") $SetupDir -Force
@@ -252,10 +267,16 @@ Copy-Item (Join-Path $Root "docs\README.md") $PublishRoot -Force
 Copy-Item (Join-Path $Root "docs\deployment-guide.md") $PublishRoot -Force
 Copy-Item (Join-Path $Root "docs\CLIENT-DEPLOYMENT-GUIDE.md") $PublishRoot -Force
 
-# Copy Face Recognition Python service
-$FaceRecDir = Join-Path $PublishRoot "face-recognition"
-New-Item -ItemType Directory -Force -Path $FaceRecDir | Out-Null
-Copy-Item (Join-Path $Root "src\PixBridge.FaceRecognition\*") $FaceRecDir -Recurse -Force
+if ($FaceSearch) {
+    Write-Host "  Copying Face Recognition service..." -ForegroundColor Cyan
+    Copy-Item (Join-Path $Root "scripts\setup-face-search.ps1") $SetupDir -Force
+    $FaceRecDir = Join-Path $PublishRoot "face-recognition"
+    New-Item -ItemType Directory -Force -Path $FaceRecDir | Out-Null
+    Copy-Item (Join-Path $Root "src\PixBridge.FaceRecognition\*") $FaceRecDir -Recurse -Force
+} else {
+    Write-Host "  Skipping Face Recognition (excluded from this build)." -ForegroundColor DarkGray
+    $FaceRecDir = $null
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST-BUILD VERIFICATION
@@ -273,6 +294,10 @@ $checks = @{
     "setup-postgresql.ps1"        = Join-Path $SetupDir      "setup-postgresql.ps1"
     "install-service.ps1"         = Join-Path $SetupDir      "install-service.ps1"
     "repair.ps1"                  = Join-Path $SetupDir      "repair.ps1"
+}
+if ($FaceSearch) {
+    $checks["Face Recognition service"] = Join-Path $PublishRoot "face-recognition\run.py"
+    $checks["setup-face-search.ps1"]    = Join-Path $SetupDir "setup-face-search.ps1"
 }
 
 foreach ($item in $checks.GetEnumerator()) {
@@ -386,7 +411,11 @@ if ($iscc) {
     $issContent = $issContent -replace '#define MyAppVersion "[^"]+"', "#define MyAppVersion `"$Version`""
     Set-Content $issFile -Value $issContent -Encoding UTF8
 
-    & $iscc $issFile
+    # Pass FaceSearch flag to Inno Setup via /D define
+    $isccArgs = @($issFile)
+    if ($FaceSearch) { $isccArgs += '/DIncludeFaceSearch' }
+
+    & $iscc @isccArgs
     if ($LASTEXITCODE -ne 0) {
         Write-Host "`n[INSTALLER FAILED] Inno Setup compile failed." -ForegroundColor Red
         exit 1

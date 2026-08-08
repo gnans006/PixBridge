@@ -40,11 +40,15 @@ Name: "desktopicon"; Description: "Create a desktop shortcut to the Admin Panel"
 [Files]
 Source: "..\publish\api\*"; DestDir: "{app}\api"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\publish\worker\*"; DestDir: "{app}\worker"; Flags: ignoreversion recursesubdirs createallsubdirs
+#ifdef IncludeFaceSearch
 Source: "..\publish\face-recognition\*"; DestDir: "{app}\face-recognition"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
 Source: "..\publish\setup\setup-postgresql.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "..\publish\setup\install-service.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "..\publish\setup\uninstall-service.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
+#ifdef IncludeFaceSearch
 Source: "..\publish\setup\setup-face-search.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
+#endif
 Source: "..\publish\setup\fix-network-access.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "..\publish\setup\repair.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "..\publish\README.md"; DestDir: "{app}"; DestName: "README.md"; Flags: ignoreversion
@@ -266,6 +270,7 @@ begin
 
   MsgBox(Msg, mbError, MB_OK);
 end;
+
 
 
 
