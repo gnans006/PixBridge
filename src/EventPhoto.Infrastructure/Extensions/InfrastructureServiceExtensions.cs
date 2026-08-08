@@ -5,6 +5,7 @@ using EventPhoto.Infrastructure.Persistence.Repositories;
 using EventPhoto.Infrastructure.Services.Auth;
 using EventPhoto.Infrastructure.Services.FaceRecognition;
 using EventPhoto.Infrastructure.Services.FileSystem;
+using EventPhoto.Infrastructure.Services.Network;
 using EventPhoto.Infrastructure.Services.QrCode;
 using EventPhoto.Infrastructure.Services.Thumbnails;
 using EventPhoto.Infrastructure.Services.Watermark;
@@ -53,6 +54,9 @@ public static class InfrastructureServiceExtensions
         // Watermark repository
         services.AddScoped<IWatermarkConfigurationRepository, WatermarkConfigurationRepository>();
 
+        // Application settings repository
+        services.AddScoped<IApplicationSettingsRepository, ApplicationSettingsRepository>();
+
         // Existing services
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -63,6 +67,17 @@ public static class InfrastructureServiceExtensions
 
         // Watermark service
         services.AddScoped<IWatermarkService, WatermarkService>();
+
+        // Network & URL services
+        services.AddSingleton<INetworkInformationService, NetworkInformationService>();
+        services.AddScoped<IUrlGenerationService, UrlGenerationService>();
+        services.AddScoped<IUrlReachabilityService, UrlReachabilityService>();
+
+        // Named HTTP client for URL reachability tests
+        services.AddHttpClient("UrlValidation", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
 
         // Face Recognition HTTP client with retry + circuit-breaker
         var faceRecognitionBaseUrl = configuration["FaceRecognition:BaseUrl"] ?? "http://localhost:8080";

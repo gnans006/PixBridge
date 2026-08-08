@@ -29,6 +29,14 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
+    "LAN": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
     "IIS Express": {
       "commandName": "IISExpress",
       "launchBrowser": true,

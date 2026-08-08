@@ -5,6 +5,7 @@ using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Enums;
 using EventPhoto.Domain.Interfaces;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace EventPhoto.Application.Events.Commands;
 
@@ -32,7 +33,7 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
     private readonly IUnitOfWork _unitOfWork;
     private readonly IFileStorageService _fileStorageService;
     private readonly IQrCodeService _qrCodeService;
-    private readonly ISystemSettingRepository _settingRepository;
+    private readonly IUrlGenerationService _urlGenerationService;
     private readonly IMapper _mapper;
 
     /// <summary>Initializes a new instance of <see cref="CreateEventCommandHandler"/>.</summary>
@@ -41,14 +42,14 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
         IUnitOfWork unitOfWork,
         IFileStorageService fileStorageService,
         IQrCodeService qrCodeService,
-        ISystemSettingRepository settingRepository,
+        IUrlGenerationService urlGenerationService,
         IMapper mapper)
     {
         _eventRepository = eventRepository;
         _unitOfWork = unitOfWork;
         _fileStorageService = fileStorageService;
         _qrCodeService = qrCodeService;
-        _settingRepository = settingRepository;
+        _urlGenerationService = urlGenerationService;
         _mapper = mapper;
     }
 
@@ -60,7 +61,7 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
             return Result.Failure<EventResponse>($"Invalid event type: {request.EventType}");
         }
 
-        var serverUrl = await _settingRepository.GetValueAsync("app.serverUrl", cancellationToken) ?? "http://localhost:5000";
+        var serverUrl = await _urlGenerationService.GetPublicBaseUrlAsync(cancellationToken);
         var thumbnailFolder = Path.Combine(request.WatchFolder, ".thumbnails");
         var qrFolder = Path.Combine(request.WatchFolder, ".qrcodes");
 

@@ -43,6 +43,9 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Gets the watermark configurations set.</summary>
     public DbSet<WatermarkConfiguration> WatermarkConfigurations => Set<WatermarkConfiguration>();
 
+    /// <summary>Gets the application settings singleton record.</summary>
+    public DbSet<ApplicationSettings> ApplicationSettings => Set<ApplicationSettings>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

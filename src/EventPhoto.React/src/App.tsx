@@ -16,6 +16,7 @@ import Settings from './pages/Settings';
 import Statistics from './pages/Statistics';
 import Logs from './pages/Logs';
 import HealthMonitoring from './pages/HealthMonitoring';
+import SystemSettings from './pages/SystemSettings';
 import { apiError } from './utils/errorHandler';
 
 const queryClient = new QueryClient({
@@ -90,6 +91,7 @@ export default function App() {
             <Route path="logs" element={<Logs />} />
             <Route path="health" element={<HealthMonitoring />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="system-settings" element={<SystemSettings />} />
           </Route>
           <Route path="/" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

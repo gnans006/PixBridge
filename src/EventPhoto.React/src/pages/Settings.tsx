@@ -8,6 +8,7 @@ import { Card } from '../components/UI/Card';
 import { Input } from '../components/UI/Input';
 import { Spinner } from '../components/UI/Spinner';
 import { apiError } from '../utils/errorHandler';
+import { NetworkInfoCard } from '../components/Settings/NetworkInfoCard';
 
 // Per-key validation rules
 function validateSetting(key: string, value: string): string | null {
@@ -86,8 +87,9 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
+      <NetworkInfoCard />
       <Card className="space-y-4 p-6">
         {data?.map((setting) => (
           <div key={setting.key} className="flex items-end gap-3">

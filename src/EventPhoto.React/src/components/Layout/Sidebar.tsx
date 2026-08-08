@@ -1,4 +1,4 @@
-import { BarChart2, CalendarDays, LayoutDashboard, Settings, ScrollText, Activity } from 'lucide-react';
+import { BarChart2, CalendarDays, LayoutDashboard, Settings, ScrollText, Activity, Sliders } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const links = [
@@ -8,6 +8,7 @@ const links = [
   { to: '/admin/logs', label: 'Logs', icon: ScrollText, end: false },
   { to: '/admin/health', label: 'Health', icon: Activity, end: false },
   { to: '/admin/settings', label: 'Settings', icon: Settings, end: false },
+  { to: '/admin/system-settings', label: 'System', icon: Sliders, end: false },
 ];
 
 interface SidebarProps {

@@ -4,9 +4,10 @@ import type { UpsertWatermarkConfigRequest } from '../../types';
 interface WatermarkPreviewPanelProps {
   config: UpsertWatermarkConfigRequest;
   eventName: string;
+  studioName?: string;
 }
 
-export function WatermarkPreviewPanel({ config, eventName }: WatermarkPreviewPanelProps) {
+export function WatermarkPreviewPanel({ config, eventName, studioName }: WatermarkPreviewPanelProps) {
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -16,7 +17,7 @@ export function WatermarkPreviewPanel({ config, eventName }: WatermarkPreviewPan
         </span>
       </div>
       <div className="flex-1">
-        <WatermarkPreview config={config} eventName={eventName || 'Event Name'} studioName="PixBridge Studio" />
+        <WatermarkPreview config={config} eventName={eventName || 'Event Name'} studioName={studioName || 'My Studio'} />
       </div>
       <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-3">
         <p className="text-xs font-medium text-slate-300">How watermarks work</p>

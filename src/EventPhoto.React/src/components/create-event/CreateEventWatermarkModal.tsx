@@ -72,6 +72,7 @@ interface CreateEventWatermarkModalProps {
   config: UpsertWatermarkConfigRequest;
   onChange: (config: UpsertWatermarkConfigRequest) => void;
   eventName: string;
+  studioName?: string;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -82,6 +83,7 @@ export function CreateEventWatermarkModal({
   config,
   onChange,
   eventName,
+  studioName,
 }: CreateEventWatermarkModalProps) {
   const set = <K extends keyof UpsertWatermarkConfigRequest>(
     key: K,
@@ -396,7 +398,7 @@ export function CreateEventWatermarkModal({
 
                 {/* RIGHT: Live Preview */}
                 <div className="flex w-1/2 flex-col overflow-y-auto p-5">
-                  <WatermarkPreviewPanel config={config} eventName={eventName} />
+                  <WatermarkPreviewPanel config={config} eventName={eventName} studioName={studioName} />
                 </div>
               </div>
 

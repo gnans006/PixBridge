@@ -24,6 +24,61 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("EventPhoto.Domain.Entities.ApplicationSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DefaultEventGalleryMode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("default_event_gallery_mode");
+
+                    b.Property<bool>("EnableFaceRecognitionByDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enable_face_recognition_by_default");
+
+                    b.Property<bool>("EnableWatermarkByDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enable_watermark_by_default");
+
+                    b.Property<string>("PublicBaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("public_base_url");
+
+                    b.Property<string>("ServerName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("server_name");
+
+                    b.Property<int>("ServerPort")
+                        .HasColumnType("integer")
+                        .HasColumnName("server_port");
+
+                    b.Property<string>("StudioName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("studio_name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("application_settings", (string)null);
+                });
+
             modelBuilder.Entity("EventPhoto.Domain.Entities.DownloadLog", b =>
                 {
                     b.Property<Guid>("Id")

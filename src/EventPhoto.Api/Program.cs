@@ -9,9 +9,6 @@ using EventPhoto.Infrastructure.Extensions;
 using EventPhoto.Infrastructure.Persistence;
 using Microsoft.AspNetCore.RateLimiting;
 using Serilog;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
 using System.Threading.RateLimiting;
 using EventPhoto.Infrastructure.Services;
 
@@ -76,64 +73,64 @@ using (var scope = app.Services.CreateScope())
     var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseSeeder");
     await AppDbContextSeeder.SeedAsync(context, passwordHasher, logger);
 
-    // Auto-update app.serverUrl with current LAN IP; regenerate all QR images if IP changed
+    // Auto-update ApplicationSettings.PublicBaseUrl and legacy app.serverUrl with current LAN IP.
+    // Only updates when the stored URL uses a raw IP address (not a hostname like pixbridge.local).
     try
     {
-        var lanIp = NetworkInterface.GetAllNetworkInterfaces()
-            .Where(n => n.OperationalStatus == OperationalStatus.Up
-                     && n.NetworkInterfaceType != NetworkInterfaceType.Loopback
-                     && n.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
-            .SelectMany(n => n.GetIPProperties().UnicastAddresses)
-            .Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork
-                     && !IPAddress.IsLoopback(a.Address)
-                     && !a.Address.ToString().StartsWith("169.254"))
-            .Select(a => a.Address.ToString())
-            .FirstOrDefault();
+        var startupLog = services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+        var networkSvc = services.GetRequiredService<EventPhoto.Application.Common.Interfaces.INetworkInformationService>();
+        var appSettingsRepo = services.GetRequiredService<EventPhoto.Domain.Interfaces.IApplicationSettingsRepository>();
 
-        if (lanIp != null)
+        var appSettings = await appSettingsRepo.GetOrCreateDefaultAsync();
+        var networkInfo = networkSvc.GetCurrentNetworkInformation(appSettings.ServerPort);
+
+        if (networkInfo.PrimaryIpAddress is not "127.0.0.1"
+            && networkSvc.IsIpBasedUrl(appSettings.PublicBaseUrl))
         {
-            var startupLog = services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
-            var settingRepo = services.GetRequiredService<ISystemSettingRepository>();
-            var setting = await settingRepo.GetByKeyAsync("app.serverUrl");
-            if (setting != null)
+            var newBaseUrl = networkSvc.ReplaceIpInUrl(appSettings.PublicBaseUrl, networkInfo.PrimaryIpAddress);
+            if (newBaseUrl != appSettings.PublicBaseUrl)
             {
-                var uri = new Uri(setting.Value);
-                // When the URL was stored without an explicit port (defaulting to 80),
-                // treat it as port 5000 — the API's actual listening port.
-                var effectivePort = (uri.Port == 80 && !setting.Value.Contains(":80")) ? 5000 : uri.Port;
-                var newBaseUrl = $"{uri.Scheme}://{lanIp}:{effectivePort}";
-                var oldBaseUrl = $"{uri.Scheme}://{uri.Host}:{effectivePort}";
+                var oldBaseUrl = appSettings.PublicBaseUrl;
+                startupLog.LogInformation(
+                    "IP changed — updating PublicBaseUrl from {Old} to {New}",
+                    oldBaseUrl, newBaseUrl);
 
-                if (newBaseUrl != oldBaseUrl)
+                appSettings.UpdatePublicBaseUrl(newBaseUrl);
+                await appSettingsRepo.UpdateAsync(appSettings);
+
+                // Keep legacy app.serverUrl in sync for backward compatibility
+                var settingRepo = services.GetRequiredService<EventPhoto.Domain.Interfaces.ISystemSettingRepository>();
+                var legacySetting = await settingRepo.GetByKeyAsync("app.serverUrl");
+                if (legacySetting is not null)
                 {
-                    startupLog.LogInformation("IP changed from {Old} to {New} — updating serverUrl and regenerating QR codes", oldBaseUrl, newBaseUrl);
-
-                    // 1. Update the setting
-                    setting.UpdateValue(newBaseUrl);
-                    await settingRepo.UpdateAsync(setting);
-
-                    // 2. Regenerate QR images for all events
-                    var eventRepo = services.GetRequiredService<IEventRepository>();
-                    var qrService = services.GetRequiredService<IQrCodeService>();
-                    var events = await eventRepo.GetAllAsync();
-
-                    foreach (var ev in events.Where(e => e.QrCodePath != null))
-                    {
-                        var newGalleryUrl = ev.QrCodeUrl?.Replace(oldBaseUrl, newBaseUrl)
-                                         ?? $"{newBaseUrl}/gallery/{ev.Id}";
-                        await qrService.GenerateAsync(newGalleryUrl, ev.QrCodePath!, ev.Name);
-                        ev.SetQrCode(ev.QrCodePath!, newGalleryUrl);
-                        await eventRepo.UpdateAsync(ev);
-                        startupLog.LogInformation("QR regenerated for event {Name} → {Url}", ev.Name, newGalleryUrl);
-                    }
+                    legacySetting.UpdateValue(newBaseUrl);
+                    await settingRepo.UpdateAsync(legacySetting);
                 }
+
+                // Regenerate QR codes for all active events
+                var eventRepo = services.GetRequiredService<IEventRepository>();
+                var qrService = services.GetRequiredService<IQrCodeService>();
+                var events = await eventRepo.GetAllAsync();
+
+                foreach (var ev in events.Where(e => e.QrCodePath != null))
+                {
+                    var newGalleryUrl = ev.QrCodeUrl?.Replace(oldBaseUrl, newBaseUrl)
+                                     ?? $"{newBaseUrl}/gallery/{ev.Id}";
+                    await qrService.GenerateAsync(newGalleryUrl, ev.QrCodePath!, ev.Name);
+                    ev.SetQrCode(ev.QrCodePath!, newGalleryUrl);
+                    await eventRepo.UpdateAsync(ev);
+                    startupLog.LogInformation(
+                        "QR regenerated for event {Name} → {Url}", ev.Name, newGalleryUrl);
+                }
+
+                await context.SaveChangesAsync();
             }
         }
     }
     catch (Exception ex)
     {
         var startupLog = services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
-        startupLog.LogWarning(ex, "Could not auto-update app.serverUrl / regenerate QR codes");
+        startupLog.LogWarning(ex, "Could not auto-update PublicBaseUrl / regenerate QR codes");
     }
 }
 

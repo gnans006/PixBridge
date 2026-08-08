@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -11,6 +11,7 @@ import { eventsApi } from '../../api/events';
 import { watermarkApi } from '../../api/watermark';
 import { apiError } from '../../utils/errorHandler';
 import type { UpsertWatermarkConfigRequest } from '../../types';
+import { useApplicationSettings } from '../../hooks/useApplicationSettings';
 
 import { EventIdentitySection } from '../../components/create-event/EventIdentitySection';
 import { ClientInformationSection } from '../../components/create-event/ClientInformationSection';
@@ -113,11 +114,26 @@ function resolveGalleryMode(browsing: boolean, faceSearch: boolean): GalleryMode
   return 'GalleryOnly';
 }
 
+/** Map ApplicationSettings.defaultEventGalleryMode → form field values */
+function deriveGalleryDefaults(mode: string, faceRecogByDefault: boolean) {
+  switch (mode) {
+    case 'FaceSearchOnly':
+      return { allowGalleryBrowsing: false, allowFaceSearch: true, enableFaceRecognition: true };
+    case 'Hybrid':
+      return { allowGalleryBrowsing: true, allowFaceSearch: true, enableFaceRecognition: true };
+    default: // GalleryOnly
+      return { allowGalleryBrowsing: true, allowFaceSearch: false, enableFaceRecognition: faceRecogByDefault };
+  }
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function EventForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // ── Load application settings to seed intelligent defaults ─────────────────
+  const { data: appSettings } = useApplicationSettings();
 
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [watermarkConfig, setWatermarkConfig] = useState<UpsertWatermarkConfigRequest>(DEFAULT_WATERMARK_CONFIG);
@@ -128,13 +144,15 @@ export default function EventForm() {
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitted },
+    reset,
+    formState: { errors, isSubmitted, isDirty },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    mode: 'onTouched',       // validate after blur; no premature errors while typing
-    reValidateMode: 'onChange', // re-validate on change after first touch
+    mode: 'onTouched',
+    reValidateMode: 'onChange',
     defaultValues: {
       eventType: 'Wedding',
+      galleryRecentCount: 30,
       enableFaceRecognition: false,
       allowGalleryBrowsing: true,
       allowFaceSearch: false,
@@ -142,6 +160,31 @@ export default function EventForm() {
       faceMatchThreshold: 0.75,
     },
   });
+
+  // Once settings arrive, apply them as defaults — but only if the user hasn't
+  // started filling in the form yet (isDirty guards against overwriting user input).
+  useEffect(() => {
+    if (!appSettings || isDirty) return;
+    const galleryDefaults = deriveGalleryDefaults(
+      appSettings.defaultEventGalleryMode,
+      appSettings.enableFaceRecognitionByDefault,
+    );
+    reset(
+      {
+        eventType: 'Wedding',
+        galleryRecentCount: 30,
+        restrictDownloadsToMatchedPhotos: false,
+        faceMatchThreshold: 0.75,
+        ...galleryDefaults,
+      },
+      { keepDirty: false },
+    );
+    // Sync watermark enabled state from settings
+    if (appSettings.enableWatermarkByDefault) {
+      setWatermarkConfig(prev => ({ ...prev, enabled: true }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appSettings]);
 
   const watchedName = watch('name') ?? '';
   const watchedType = watch('eventType') ?? 'Wedding';
@@ -343,6 +386,7 @@ export default function EventForm() {
         config={watermarkConfig}
         onChange={setWatermarkConfig}
         eventName={watchedName}
+        studioName={appSettings?.studioName}
       />
     </>
   );

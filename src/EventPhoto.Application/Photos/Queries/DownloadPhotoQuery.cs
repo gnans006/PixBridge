@@ -35,7 +35,7 @@ public sealed class DownloadPhotoQueryHandler(
     IWatermarkConfigurationRepository watermarkRepository,
     IWatermarkService watermarkService,
     IEventRepository eventRepository,
-    ISystemSettingRepository systemSettingRepository)
+    IApplicationSettingsRepository applicationSettingsRepository)
     : IRequestHandler<DownloadPhotoQuery, Result<DownloadResult>>
 {
     /// <inheritdoc />
@@ -64,10 +64,10 @@ public sealed class DownloadPhotoQueryHandler(
                 && watermarkConfig.Mode != WatermarkMode.Disabled)
             {
                 var eventEntity = await eventRepository.GetByIdAsync(photo.EventId, cancellationToken);
-                var studioNameSetting = await systemSettingRepository.GetByKeyAsync("app.name", cancellationToken);
+                var appSettings = await applicationSettingsRepository.GetOrCreateDefaultAsync(cancellationToken);
 
                 var context = new WatermarkContext(
-                    StudioName: studioNameSetting?.Value,
+                    StudioName: appSettings.StudioName,
                     EventName: eventEntity?.Name ?? string.Empty,
                     EventDate: eventEntity?.EventDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
                     DownloadDate: DateTimeOffset.UtcNow,

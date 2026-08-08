@@ -1,6 +1,7 @@
 import { Camera, LogOut, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useApplicationSettings } from '../../hooks/useApplicationSettings';
 
 interface NavbarProps {
   onMenuToggle?: () => void;
@@ -9,6 +10,8 @@ interface NavbarProps {
 
 export function Navbar({ onMenuToggle, sidebarOpen }: NavbarProps) {
   const { user, logout } = useAuth();
+  const { data: appSettings } = useApplicationSettings();
+  const studioName = appSettings?.studioName ?? 'PixBridge';
 
   return (
     <nav className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 shadow-sm sm:px-6">
@@ -26,7 +29,7 @@ export function Navbar({ onMenuToggle, sidebarOpen }: NavbarProps) {
         </button>
         <Link to="/admin" className="flex items-center gap-2 transition-opacity hover:opacity-80">
           <Camera className="h-6 w-6 text-primary-600" />
-          <span className="text-lg font-bold text-gray-900 sm:text-xl">PixBridge</span>
+          <span className="text-lg font-bold text-gray-900 sm:text-xl">{studioName}</span>
         </Link>
       </div>
       <div className="flex items-center gap-3 sm:gap-4">
