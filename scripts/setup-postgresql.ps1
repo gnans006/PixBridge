@@ -31,9 +31,47 @@ Write-Log "Log file: $LogFile"
 
 # ── Pre-check 1: psql available ────────────────────────────────────────────
 $psqlCmd = Get-Command psql -ErrorAction SilentlyContinue
+
 if (-not $psqlCmd) {
-    Write-Log "psql not found in PATH. Install PostgreSQL 15+ and add its bin folder to PATH." "ERROR"
-    Write-Log "Download: https://www.postgresql.org/download/windows/" "ERROR"
+    # PostgreSQL is installed but its bin folder isn't in PATH — search common locations
+    Write-Log "psql not found in PATH. Searching common PostgreSQL install locations..." "WARN"
+
+    $searchRoots = @(
+        "$env:ProgramFiles\PostgreSQL",
+        "${env:ProgramFiles(x86)}\PostgreSQL",
+        "C:\PostgreSQL",
+        "D:\PostgreSQL",
+        "E:\PostgreSQL"
+    )
+    $psqlPath = $null
+    foreach ($root in $searchRoots) {
+        if (Test-Path $root) {
+            # Find the highest version folder (e.g. 15, 16, 17)
+            $versionDirs = Get-ChildItem $root -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^\d+' } |
+                Sort-Object { [int]($_.Name -replace '[^\d].*','') } -Descending
+            foreach ($vd in $versionDirs) {
+                $candidate = Join-Path $vd.FullName "bin\psql.exe"
+                if (Test-Path $candidate) {
+                    $psqlPath = $candidate
+                    break
+                }
+            }
+        }
+        if ($psqlPath) { break }
+    }
+
+    if ($psqlPath) {
+        Write-Log "Found psql at: $psqlPath — adding to session PATH." "WARN"
+        $binDir = Split-Path $psqlPath -Parent
+        $env:PATH = "$binDir;$env:PATH"
+        $psqlCmd = Get-Command psql -ErrorAction SilentlyContinue
+    }
+}
+
+if (-not $psqlCmd) {
+    Write-Log "psql not found. Install PostgreSQL 15+ from https://www.postgresql.org/download/windows/" "ERROR"
+    Write-Log "After installing, either add the PostgreSQL bin folder to PATH or rerun this script." "ERROR"
     exit 1
 }
 Write-Log "psql found: $($psqlCmd.Source)"
