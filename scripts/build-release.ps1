@@ -52,8 +52,9 @@ $prereqFailed = $false
 
 # .NET SDK 8+
 $dotnetVer = dotnet --version 2>&1
-if ($LASTEXITCODE -ne 0 -or -not ($dotnetVer -match '^8\.|^9\.')) {
-    Write-Host "  [FAIL] .NET SDK 8 or 9 is required. Found: $dotnetVer" -ForegroundColor Red
+$dotnetMajor = if ($dotnetVer -match '^(\d+)\.') { [int]$Matches[1] } else { 0 }
+if ($LASTEXITCODE -ne 0 -or $dotnetMajor -lt 8) {
+    Write-Host "  [FAIL] .NET SDK 8 or higher is required. Found: $dotnetVer" -ForegroundColor Red
     Write-Host "         Download: https://dotnet.microsoft.com/download/dotnet/8.0" -ForegroundColor Yellow
     $prereqFailed = $true
 } else {
