@@ -142,7 +142,7 @@ if (-not (Test-Path "node_modules")) {
         $failed = $true
     }
 }
-if (-not $failed -or (Test-Path "node_modules")) {
+if (-not $failed) {
     $tscOut = npx tsc --noEmit 2>&1
     $tscExit = $LASTEXITCODE
     if ($tscExit -ne 0) {
@@ -184,10 +184,24 @@ Write-Host "`n[PRE-BUILD] All checks passed. Starting build...`n" -ForegroundCol
 Write-Host "[1/4] Building React frontend..." -ForegroundColor Yellow
 Set-Location (Join-Path $Root "src\EventPhoto.React")
 
-# Install npm dependencies (always run ci for a clean, reproducible install)
-Write-Host "  Running npm ci..." -ForegroundColor Cyan
-npm ci
-if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
+# Install npm dependencies — only run npm ci when node_modules is missing or
+# package-lock.json has changed since the last install (avoids EPERM on locked
+# native .node binaries when a dev server or antivirus holds the file open).
+# Also reinstall if tsc is missing (partial previous install).
+$needsInstall = $true
+if ((Test-Path 'node_modules') -and (Test-Path 'package-lock.json') -and (Test-Path 'node_modules\.bin\tsc.cmd')) {
+    $lockMtime = (Get-Item 'package-lock.json').LastWriteTimeUtc
+    $nmMtime   = (Get-Item 'node_modules').LastWriteTimeUtc
+    if ($nmMtime -ge $lockMtime) {
+        $needsInstall = $false
+        Write-Host "  node_modules is up-to-date, skipping npm ci." -ForegroundColor Cyan
+    }
+}
+if ($needsInstall) {
+    Write-Host "  Running npm ci..." -ForegroundColor Cyan
+    npm ci
+    if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
+}
 
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "React build failed." }

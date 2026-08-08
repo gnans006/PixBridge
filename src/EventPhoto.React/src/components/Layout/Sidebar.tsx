@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { authStore } from '../../store/authStore';
 import { NAVIGATION, hasMinRole, type NavSection } from '../../config/navigation.config';
-import { useApplicationSettings } from '../../hooks/useApplicationSettings';
 
 interface SidebarProps {
   open?: boolean;
@@ -97,8 +96,6 @@ function SectionGroup({
 export function Sidebar({ open, collapsed = false, sectionsCollapsed = false, onClose }: SidebarProps) {
   const user = authStore.getUser();
   const role = user?.role ?? 'Viewer';
-  const { data: appSettings } = useApplicationSettings();
-  const studioName = appSettings?.studioName ?? 'PixBridge';
 
   const visibleSections = NAVIGATION.filter(
     section => !section.allowedRoles || section.allowedRoles.includes(role as never),
