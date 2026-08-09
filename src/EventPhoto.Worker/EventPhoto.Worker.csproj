@@ -21,4 +21,13 @@
     <ProjectReference Include="..\EventPhoto.Application\EventPhoto.Application.csproj" />
     <ProjectReference Include="..\EventPhoto.Infrastructure\EventPhoto.Infrastructure.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- appsettings.Local.json is gitignored; copy it when it exists so the Worker finds it
+         whether running as a compiled Windows Service or via dotnet run from a different CWD. -->
+    <Content Update="appsettings.Local.json" Condition="Exists('appsettings.Local.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+  </ItemGroup>
 </Project>

@@ -132,8 +132,9 @@ function Start-Api {
 
 function Start-Worker {
     Write-Host "  Starting Worker..." -ForegroundColor Cyan
+    $workerDir = Split-Path $workerProj -Parent
     Start-Process powershell -ArgumentList "-NoExit", "-Command",
-        "Write-Host 'PixBridge Worker' -ForegroundColor Cyan; dotnet run --project `"$workerProj`" --environment Development" `
+        "Write-Host 'PixBridge Worker' -ForegroundColor Cyan; Set-Location `"$workerDir`"; dotnet run --project `"$workerProj`" --environment Development" `
         -WindowStyle Normal
     Write-Host "  Worker window opened." -ForegroundColor Green
 }

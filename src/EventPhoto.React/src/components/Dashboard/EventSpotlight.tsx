@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart2, Camera, Download, Edit, HardDrive, ScanFace, Shield, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { dashboardApi } from '../../api/dashboard';
-import { buildApiUrl } from '../../api/client';
 import { Spinner } from '../UI/Spinner';
 
 function FeatureBadge({ icon: Icon, label, active }: { icon: typeof Shield; label: string; active: boolean }) {
@@ -56,9 +55,7 @@ export function EventSpotlight() {
     );
   }
 
-  const thumbnailSrc = data.firstThumbnailUrl
-    ? buildApiUrl(data.firstThumbnailUrl)
-    : null;
+  const thumbnailSrc = data.firstThumbnailUrl ?? null;
 
   const typeGradient: Record<string, string> = {
     Wedding: 'from-rose-900 to-pink-950',

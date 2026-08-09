@@ -18,8 +18,7 @@ public sealed record GetMatchedPhotosQuery(
 public sealed class GetMatchedPhotosQueryHandler(
     IGuestFaceSessionRepository sessionRepository,
     IPhotoMatchRepository matchRepository,
-    IPhotoRepository photoRepository,
-    ISystemSettingRepository settingRepository)
+    IPhotoRepository photoRepository)
     : IRequestHandler<GetMatchedPhotosQuery, Result<FaceSearchResultResponse>>
 {
     public async Task<Result<FaceSearchResultResponse>> Handle(
@@ -32,9 +31,6 @@ public sealed class GetMatchedPhotosQueryHandler(
 
         if (session.IsExpired)
             return Result.Failure<FaceSearchResultResponse>("Session has expired.");
-
-        var serverUrl = await settingRepository.GetValueAsync("app.serverUrl", cancellationToken) ?? "http://localhost:5000";
-        var baseUrl = serverUrl.TrimEnd('/');
 
         var matches = await matchRepository.GetPagedBySessionIdAsync(
             session.Id, request.Page, request.PageSize, cancellationToken);
@@ -53,8 +49,8 @@ public sealed class GetMatchedPhotosQueryHandler(
                 var (label, category) = GetConfidenceDisplay(m.SimilarityScore);
                 return new FaceSearchMatchResponse(
                     photo.Id,
-                    $"{baseUrl}/api/photos/{photo.Id}/thumbnail",
-                    $"{baseUrl}/api/photos/{photo.Id}/download?sessionToken={request.SessionToken}",
+                    $"/api/photos/{photo.Id}/thumbnail",
+                    $"/api/photos/{photo.Id}/download?sessionToken={request.SessionToken}",
                     m.SimilarityScore,
                     photo.CapturedAt,
                     photo.FileName,

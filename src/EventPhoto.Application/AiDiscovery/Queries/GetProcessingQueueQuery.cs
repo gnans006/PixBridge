@@ -81,8 +81,7 @@ public sealed record GetDeadLetterQueueQuery(
 public sealed class GetDeadLetterQueueQueryHandler(
     IFaceProcessingJobRepository jobRepository,
     IEventRepository eventRepository,
-    IPhotoRepository photoRepository,
-    ISystemSettingRepository settingRepository)
+    IPhotoRepository photoRepository)
     : IRequestHandler<GetDeadLetterQueueQuery, Result<DeadLetterQueueResponse>>
 {
     public async Task<Result<DeadLetterQueueResponse>> Handle(
@@ -103,14 +102,11 @@ public sealed class GetDeadLetterQueueQueryHandler(
         var photos = (await photoRepository.GetByIdsAsync(photoIds, cancellationToken))
             .ToDictionary(p => p.Id);
 
-        var serverUrl = await settingRepository.GetValueAsync("app.serverUrl", cancellationToken)
-            ?? "http://localhost:5000";
-
         var items = jobs.Select(job =>
         {
             var photoExists = photos.TryGetValue(job.PhotoId, out var ph);
             var thumbUrl = photoExists
-                ? $"{serverUrl.TrimEnd('/')}/api/photos/{job.PhotoId}/thumbnail"
+                ? $"/api/photos/{job.PhotoId}/thumbnail"
                 : string.Empty;
 
             return new DeadLetterJobResponse(
