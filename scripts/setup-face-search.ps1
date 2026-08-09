@@ -93,8 +93,11 @@ foreach ($ver in $vsVersions) {
     }
     if ($VS_PATH) { break }
 }
-if (-not $VS_PATH) { Write-Host "FAIL: Visual Studio not found (needed to build pgvector). Install VS 2022 or later with C++ tools." -ForegroundColor Red; exit 1 }
-Write-Host "  Detected Visual Studio: $VS_PATH" -ForegroundColor Cyan
+if (-not $VS_PATH) {
+    Write-Host "  WARN: Visual Studio not found. Source build unavailable — pre-built binaries will be used." -ForegroundColor Yellow
+} else {
+    Write-Host "  Detected Visual Studio: $VS_PATH" -ForegroundColor Cyan
+}
 } # end if (-not $ServiceOnly) — PG/VS detection skipped when -ServiceOnly
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -171,62 +174,62 @@ if (!$realPython) {
     OK "Using existing Python: $realPython"
 }
 if (-not $ServiceOnly) {
-# ───────────────────────────────────────────────────────────────────────────
-# STEP 2 — Add MSVC C++ tools to VS18 (needed to build pgvector)
-# ─────────────────────────────────────────────────────────────────────────────
-Step "Checking for MSVC C++ compiler (nmake/cl.exe)"
+# ── MSVC check is deferred — only needed if pre-built pgvector download fails.
+# ── It runs inside the source-build block below.
 
-$nmake = Get-ChildItem "$VS_PATH\VC\Tools\MSVC" -Filter "nmake.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($nmake) {
-    OK "nmake found at $($nmake.FullName)"
+# ── Definitive availability check: query PostgreSQL, not just file existence ──
+# A partial previous install can leave vector.dll + vector.control in place
+# but without the SQL upgrade scripts — making the extension invisible to PG.
+$env:PGPASSWORD = $PGPASSWORD_VAL
+$vectorCount = (& "$PG_BIN\psql.exe" -U $PGUSER -d postgres -tAc `
+    "SELECT COUNT(*) FROM pg_available_extensions WHERE name='vector';" 2>&1) -replace '\s',''
+$pgvectorVisible = ($vectorCount -eq "1")
+
+if ($pgvectorVisible) {
+    Step "pgvector already visible to PostgreSQL — skipping build"
+    OK "vector extension confirmed in pg_available_extensions"
 } else {
-    if (!(Test-Path $VS_INSTALLER)) { FAIL "VS installer not found at $VS_INSTALLER" }
-    Write-Host "    Adding Microsoft.VisualStudio.Component.VC.Tools.x86.x64 to VS18..."
-    Write-Host "    (This downloads ~700MB — please wait. VS Code / devenv will be temporarily disrupted.)"
-    # --force bypasses the VSProcessesRunning pre-check that blocked previous attempts
-    Start-Process -FilePath $VS_INSTALLER `
-        -ArgumentList "modify", "--installPath", "`"$VS_PATH`"",
-            "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-            "--quiet", "--norestart", "--force" `
-        -Wait -NoNewWindow
-    # Give VS installer a moment to flush files
-    Start-Sleep -Seconds 5
-    $nmake = Get-ChildItem "$VS_PATH\VC\Tools\MSVC" -Filter "nmake.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if (!$nmake) { FAIL "MSVC install appeared to complete but nmake.exe not found. Check `"$env:TEMP\dd_setup_*.log`" for details." }
-    OK "MSVC installed"
+
+# ── Attempt 1: Download pre-built Windows binaries (no MSVC required) ────────
+Step "Installing pgvector $PGVECTOR_VER"
+
+$pgMajor       = ($PG_ROOT | Select-String '\d+$').Matches.Value
+$prebuiltZip   = "$env:TEMP\pgvector-prebuilt.zip"
+$prebuiltDir   = "$env:TEMP\pgvector-prebuilt"
+$prebuiltUrl   = "https://github.com/pgvector/pgvector/releases/download/v$PGVECTOR_VER/pgvector-v$PGVECTOR_VER-pg$pgMajor-windows-x86_64.zip"
+$installedViaPrebuilt = $false
+
+Write-Host "    Trying pre-built binaries (no compiler required)..."
+Write-Host "    URL: $prebuiltUrl"
+try {
+    Invoke-WebRequest -Uri $prebuiltUrl -OutFile $prebuiltZip -UseBasicParsing -ErrorAction Stop
+    Remove-Item $prebuiltDir -Recurse -Force -ErrorAction SilentlyContinue
+    Expand-Archive $prebuiltZip -DestinationPath $prebuiltDir -Force
+
+    # Layout varies by release — search for vector.dll and vector.control
+    $prebuiltDll  = Get-ChildItem $prebuiltDir -Recurse -Filter "vector.dll"  | Select-Object -First 1
+    $prebuiltCtrl = Get-ChildItem $prebuiltDir -Recurse -Filter "vector.control" | Select-Object -First 1
+    $prebuiltSql  = Get-ChildItem $prebuiltDir -Recurse -Filter "vector--*.sql"
+
+    if ($prebuiltDll -and $prebuiltCtrl -and $prebuiltSql) {
+        Copy-Item $prebuiltDll.FullName  $PG_LIB       -Force
+        Copy-Item $prebuiltCtrl.FullName $PG_SHARE_EXT -Force
+        $prebuiltSql | ForEach-Object { Copy-Item $_.FullName $PG_SHARE_EXT -Force }
+        OK "Pre-built binaries installed (DLL + $($prebuiltSql.Count) SQL file(s))"
+        $installedViaPrebuilt = $true
+    } else {
+        WARN "Pre-built zip missing expected files — will build from source."
+    }
+} catch {
+    WARN "Pre-built download failed ($_). Will build from source."
 }
 
-$nmakePath = $nmake.FullName
-$msvcBin   = Split-Path $nmakePath -Parent
+# ── Attempt 2: Build from source (requires MSVC) ─────────────────────────────
+if (-not $installedViaPrebuilt) {
 
-# Find cl.exe in the same MSVC bin directory
-$clPath = Join-Path $msvcBin "cl.exe"
-if (!(Test-Path $clPath)) { FAIL "cl.exe not found at expected location $clPath" }
-OK "cl.exe: $clPath"
-
-# ── Windows SDK check — corecrt.h must be present for pgvector to compile ────
-$ucrtHeader = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -ErrorAction SilentlyContinue |
-    Sort-Object Name -Descending |
-    ForEach-Object { "$($_.FullName)\ucrt\corecrt.h" } |
-    Where-Object { Test-Path $_ } |
-    Select-Object -First 1
-
-if ($ucrtHeader) {
-    OK "Windows SDK UCRT headers: $ucrtHeader"
-} else {
-    Write-Host "    Windows SDK not found — installing Microsoft.WindowsSDK.10.0.26100 via winget..."
-    Write-Host "    (~500 MB download, please wait...)"
-    winget install Microsoft.WindowsSDK.10.0.26100 --accept-source-agreements --accept-package-agreements --silent
-    if ($LASTEXITCODE -ne 0) { FAIL "Windows SDK install failed. Install manually: winget install Microsoft.WindowsSDK.10.0.26100" }
-    OK "Windows SDK installed"
+if (-not $VS_PATH) {
+    FAIL "Pre-built pgvector download failed AND Visual Studio is not installed.`n`n  Options:`n  A) Install VS 2022 with 'Desktop development with C++' workload, then re-run.`n  B) Download pgvector manually from https://github.com/pgvector/pgvector/releases`n     and copy vector.dll to $PG_LIB and all vector*.sql + vector.control to $PG_SHARE_EXT`n     then restart PostgreSQL and re-run this script."
 }
-if ((Test-Path $vectorDllDest) -and (Test-Path $vectorCtrlDest)) {
-    Step "pgvector already installed — skipping build"
-    OK "vector.dll  → $vectorDllDest"
-    OK "vector.control → $vectorCtrlDest"
-} else {
-
-Step "Getting pgvector $PGVECTOR_VER source"
 
 $PGVECTOR_DIR = "$env:TEMP\pgvector-build"
 New-Item -ItemType Directory -Force -Path $PGVECTOR_DIR | Out-Null
@@ -250,9 +253,54 @@ if (Test-Path "$PGVECTOR_SRC\Makefile.win") {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 4 — Build + install pgvector  (matches PIXBRIDGE.md Steps 3-4)
+# STEP 2 — Ensure MSVC C++ tools are available (needed for source build)
 # ─────────────────────────────────────────────────────────────────────────────
-Step "Building and installing pgvector $PGVECTOR_VER"
+Step "Checking for MSVC C++ compiler (nmake/cl.exe)"
+
+$nmake = Get-ChildItem "$VS_PATH\VC\Tools\MSVC" -Filter "nmake.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($nmake) {
+    OK "nmake found at $($nmake.FullName)"
+} else {
+    if (!(Test-Path $VS_INSTALLER)) { FAIL "VS installer not found at $VS_INSTALLER" }
+    Write-Host "    Adding Microsoft.VisualStudio.Component.VC.Tools.x86.x64 to VS..."
+    Write-Host "    (This downloads ~700MB — please wait. VS Code / devenv will be temporarily disrupted.)"
+    Start-Process -FilePath $VS_INSTALLER `
+        -ArgumentList "modify", "--installPath", "`"$VS_PATH`"",
+            "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+            "--quiet", "--norestart", "--force" `
+        -Wait -NoNewWindow
+    Start-Sleep -Seconds 5
+    $nmake = Get-ChildItem "$VS_PATH\VC\Tools\MSVC" -Filter "nmake.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (!$nmake) { FAIL "MSVC install appeared to complete but nmake.exe not found. Check `"$env:TEMP\dd_setup_*.log`" for details." }
+    OK "MSVC installed"
+}
+
+$nmakePath = $nmake.FullName
+$msvcBin   = Split-Path $nmakePath -Parent
+$clPath    = Join-Path $msvcBin "cl.exe"
+if (!(Test-Path $clPath)) { FAIL "cl.exe not found at expected location $clPath" }
+OK "cl.exe: $clPath"
+
+# ── Windows SDK check — corecrt.h must be present for pgvector to compile ────
+$ucrtHeader = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending |
+    ForEach-Object { "$($_.FullName)\ucrt\corecrt.h" } |
+    Where-Object { Test-Path $_ } |
+    Select-Object -First 1
+
+if ($ucrtHeader) {
+    OK "Windows SDK UCRT headers: $ucrtHeader"
+} else {
+    Write-Host "    Windows SDK not found — installing Microsoft.WindowsSDK.10.0.26100 via winget..."
+    winget install Microsoft.WindowsSDK.10.0.26100 --accept-source-agreements --accept-package-agreements --silent
+    if ($LASTEXITCODE -ne 0) { FAIL "Windows SDK install failed. Install manually: winget install Microsoft.WindowsSDK.10.0.26100" }
+    OK "Windows SDK installed"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 3 — Get pgvector source
+# ─────────────────────────────────────────────────────────────────────────────
+Step "Getting pgvector $PGVECTOR_VER source"
 
 # Use 8.3 short path for PGROOT — Makefile.win passes paths unquoted to cl.exe,
 # which breaks when the path contains spaces (C:\Program Files\...)
@@ -307,16 +355,15 @@ Write-Host "    Files installed:"
 Get-ChildItem "$PG_LIB" -Filter "vector.dll" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "      $($_.FullName)" }
 Get-ChildItem "$PG_SHARE_EXT" -Filter "vector*" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "      $($_.Name)" }
 
-} # end else (pgvector not pre-installed)
+} # end if (-not $installedViaPrebuilt) — source build
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 5 — Restart PostgreSQL service  (PIXBRIDGE.md Step 5)
+# STEP 5 — Restart PostgreSQL service
 # ─────────────────────────────────────────────────────────────────────────────
-Step "Restarting PostgreSQL 17 service"
+Step "Restarting PostgreSQL service"
 
 $pgSvc = Get-Service -Name "postgresql-x64-17" -ErrorAction SilentlyContinue
 if (!$pgSvc) {
-    # Try to find the service by pattern
     $pgSvc = Get-Service -Name "postgresql*" -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 if ($pgSvc) {
@@ -333,16 +380,21 @@ if ($pgSvc) {
     OK "Restart attempted"
 }
 
+} # end else (pgvector not already visible to PostgreSQL)
+
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 6 — Verify pgvector is available in PostgreSQL  (PIXBRIDGE.md Step 7)
+# STEP 6 — Verify pgvector is available in PostgreSQL
 # ─────────────────────────────────────────────────────────────────────────────
 Step "Verifying pgvector availability in PostgreSQL"
 
 $env:PGPASSWORD = $PGPASSWORD_VAL
-$available = & "$PG_BIN\psql.exe" -U $PGUSER -d $PGDATABASE `
+$available = & "$PG_BIN\psql.exe" -U $PGUSER -d postgres `
     -c "SELECT name, default_version FROM pg_available_extensions WHERE name = 'vector';" 2>&1
 if ($available -notmatch "vector") {
-    FAIL "pgvector not visible to PostgreSQL. Ensure the DLL is in $PG_LIB and the SQL files are in $PG_SHARE_EXT, then restart PostgreSQL."
+    Write-Host "`n  Installed files:" -ForegroundColor Yellow
+    Get-ChildItem "$PG_LIB" -Filter "vector.dll" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "    $($_.FullName)" }
+    Get-ChildItem "$PG_SHARE_EXT" -Filter "vector*" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "    $($_.Name)" }
+    FAIL "pgvector not visible to PostgreSQL after install.`n`n  Likely cause: SQL upgrade scripts are missing from $PG_SHARE_EXT`n  Fix: Delete any partial vector.dll / vector.control from that folder and re-run this script."
 }
 OK "pgvector available: $($available -join ' ')"
 
