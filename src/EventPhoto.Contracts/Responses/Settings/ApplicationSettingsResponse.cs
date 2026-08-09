@@ -10,6 +10,9 @@ public sealed record ApplicationSettingsResponse(
     string DefaultEventGalleryMode,
     bool EnableWatermarkByDefault,
     bool EnableFaceRecognitionByDefault,
+    // Feature flags
+    bool IsWatermarkEnabled,
+    bool IsFaceSearchEnabled,
     // Phase 6 — Studio Profile
     string? Phone,
     string? Email,

@@ -74,6 +74,8 @@ export default function StudioProfilePage() {
           defaultEventGalleryMode: settings.defaultEventGalleryMode,
           enableWatermarkByDefault: settings.enableWatermarkByDefault,
           enableFaceRecognitionByDefault: settings.enableFaceRecognitionByDefault,
+          isWatermarkEnabled: settings.isWatermarkEnabled,
+          isFaceSearchEnabled: settings.isFaceSearchEnabled,
         });
       }
       return applicationSettingsApi.updateStudioProfile({

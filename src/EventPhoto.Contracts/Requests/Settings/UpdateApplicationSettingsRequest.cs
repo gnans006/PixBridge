@@ -8,4 +8,6 @@ public sealed record UpdateApplicationSettingsRequest(
     int ServerPort,
     string DefaultEventGalleryMode,
     bool EnableWatermarkByDefault,
-    bool EnableFaceRecognitionByDefault);
+    bool EnableFaceRecognitionByDefault,
+    bool IsWatermarkEnabled,
+    bool IsFaceSearchEnabled);

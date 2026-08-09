@@ -15,7 +15,9 @@ public sealed record UpdateApplicationSettingsCommand(
     int ServerPort,
     GalleryMode DefaultEventGalleryMode,
     bool EnableWatermarkByDefault,
-    bool EnableFaceRecognitionByDefault) : IRequest<Result>;
+    bool EnableFaceRecognitionByDefault,
+    bool IsWatermarkEnabled,
+    bool IsFaceSearchEnabled) : IRequest<Result>;
 
 /// <summary>Validates <see cref="UpdateApplicationSettingsCommand"/>.</summary>
 public sealed class UpdateApplicationSettingsCommandValidator : AbstractValidator<UpdateApplicationSettingsCommand>
@@ -67,7 +69,9 @@ public sealed class UpdateApplicationSettingsCommandHandler(
                 request.ServerPort,
                 request.DefaultEventGalleryMode,
                 request.EnableWatermarkByDefault,
-                request.EnableFaceRecognitionByDefault);
+                request.EnableFaceRecognitionByDefault,
+                request.IsWatermarkEnabled,
+                request.IsFaceSearchEnabled);
         }
         catch (DomainException ex)
         {

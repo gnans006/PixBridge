@@ -38,6 +38,8 @@ public sealed class ApplicationSettingsController(IMediator mediator) : Controll
             dto.DefaultEventGalleryMode.ToString(),
             dto.EnableWatermarkByDefault,
             dto.EnableFaceRecognitionByDefault,
+            dto.IsWatermarkEnabled,
+            dto.IsFaceSearchEnabled,
             dto.Phone,
             dto.Email,
             dto.Website,
@@ -79,7 +81,9 @@ public sealed class ApplicationSettingsController(IMediator mediator) : Controll
             request.ServerPort,
             galleryMode,
             request.EnableWatermarkByDefault,
-            request.EnableFaceRecognitionByDefault);
+            request.EnableFaceRecognitionByDefault,
+            request.IsWatermarkEnabled,
+            request.IsFaceSearchEnabled);
 
         var result = await mediator.Send(command, cancellationToken);
         return result.IsSuccess

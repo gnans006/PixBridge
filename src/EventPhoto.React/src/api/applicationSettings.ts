@@ -10,6 +10,9 @@ export interface ApplicationSettings {
   defaultEventGalleryMode: 'GalleryOnly' | 'FaceSearchOnly' | 'Hybrid';
   enableWatermarkByDefault: boolean;
   enableFaceRecognitionByDefault: boolean;
+  // Feature flags
+  isWatermarkEnabled: boolean;
+  isFaceSearchEnabled: boolean;
   // Phase 6 — Studio Profile
   phone?: string;
   email?: string;
@@ -36,6 +39,8 @@ export interface UpdateApplicationSettingsRequest {
   defaultEventGalleryMode: string;
   enableWatermarkByDefault: boolean;
   enableFaceRecognitionByDefault: boolean;
+  isWatermarkEnabled: boolean;
+  isFaceSearchEnabled: boolean;
 }
 
 export interface NetworkInformation {

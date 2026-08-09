@@ -117,12 +117,34 @@ end;
 function PostgreSQLInstalled: Boolean;
 var
   Code: Integer;
+  v:    Integer;
+  PF:   String;
 begin
+  // 1. psql is in PATH — ideal case
   Exec('powershell.exe',
     '-NoProfile -ExecutionPolicy Bypass -Command ' +
     '"if (Get-Command psql -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"',
     '', SW_HIDE, ewWaitUntilTerminated, Code);
-  Result := (Code = 0);
+  if Code = 0 then begin
+    Result := True;
+    Exit;
+  end;
+
+  // 2. psql not in PATH — scan filesystem for PostgreSQL 12..20 in common install roots.
+  //    This covers machines where the bin dir was never added to System PATH,
+  //    e.g. C:\Program Files\PostgreSQL\17\bin\psql.exe
+  PF := ExpandConstant('{pf}');
+  for v := 12 to 20 do begin
+    if FileExists(PF + '\PostgreSQL\' + IntToStr(v) + '\bin\psql.exe') or
+       FileExists('C:\PostgreSQL\' + IntToStr(v) + '\bin\psql.exe')    or
+       FileExists('D:\PostgreSQL\' + IntToStr(v) + '\bin\psql.exe')    or
+       FileExists('E:\PostgreSQL\' + IntToStr(v) + '\bin\psql.exe')    then begin
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  Result := False;
 end;
 
 function Port5000Free: Boolean;
@@ -270,6 +292,7 @@ begin
 
   MsgBox(Msg, mbError, MB_OK);
 end;
+
 
 
 

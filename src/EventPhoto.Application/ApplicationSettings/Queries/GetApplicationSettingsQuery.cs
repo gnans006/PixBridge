@@ -18,6 +18,9 @@ public sealed record ApplicationSettingsDto(
     GalleryMode DefaultEventGalleryMode,
     bool EnableWatermarkByDefault,
     bool EnableFaceRecognitionByDefault,
+    // Feature flags
+    bool IsWatermarkEnabled,
+    bool IsFaceSearchEnabled,
     // Phase 6
     string? Phone,
     string? Email,
@@ -58,6 +61,8 @@ public sealed class GetApplicationSettingsQueryHandler(
         s.DefaultEventGalleryMode,
         s.EnableWatermarkByDefault,
         s.EnableFaceRecognitionByDefault,
+        s.IsWatermarkEnabled,
+        s.IsFaceSearchEnabled,
         s.Phone,
         s.Email,
         s.Website,

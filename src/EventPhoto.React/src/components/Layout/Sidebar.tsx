@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { authStore } from '../../store/authStore';
 import { NAVIGATION, hasMinRole, type NavSection } from '../../config/navigation.config';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 interface SidebarProps {
   open?: boolean;
@@ -14,14 +15,15 @@ interface SidebarProps {
 }
 
 function SectionGroup({
-  section, collapsed, forceCollapsed, onClose,
-}: { section: NavSection; collapsed: boolean; forceCollapsed?: boolean; onClose?: () => void }) {
+  section, collapsed, forceCollapsed, onClose, flags,
+}: { section: NavSection; collapsed: boolean; forceCollapsed?: boolean; onClose?: () => void; flags: Record<string, boolean> }) {
   const [expanded, setExpanded] = useState(true);
   const user = authStore.getUser();
   const role = user?.role ?? 'Viewer';
 
   const visibleItems = section.items.filter(
-    item => !item.minRole || hasMinRole(role, item.minRole),
+    item => (!item.minRole || hasMinRole(role, item.minRole))
+         && (!item.featureFlag || flags[item.featureFlag] !== false),
   );
   if (visibleItems.length === 0) return null;
 
@@ -96,9 +98,11 @@ function SectionGroup({
 export function Sidebar({ open, collapsed = false, sectionsCollapsed = false, onClose }: SidebarProps) {
   const user = authStore.getUser();
   const role = user?.role ?? 'Viewer';
+  const flags = useFeatureFlags();
 
   const visibleSections = NAVIGATION.filter(
-    section => !section.allowedRoles || section.allowedRoles.includes(role as never),
+    section => (!section.allowedRoles || section.allowedRoles.includes(role as never))
+            && (!section.featureFlag || flags[section.featureFlag] !== false),
   );
 
   return (
@@ -117,7 +121,7 @@ export function Sidebar({ open, collapsed = false, sectionsCollapsed = false, on
       {/* Nav sections */}
       <div className="flex-1 overflow-y-auto py-3 scrollbar-none">
         {visibleSections.map(section => (
-          <SectionGroup key={section.id} section={section} collapsed={collapsed} forceCollapsed={sectionsCollapsed} onClose={onClose} />
+          <SectionGroup key={section.id} section={section} collapsed={collapsed} forceCollapsed={sectionsCollapsed} onClose={onClose} flags={flags} />
         ))}
       </div>
 

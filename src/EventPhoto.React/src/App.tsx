@@ -22,6 +22,7 @@ import StudioUsersPage from './pages/Studio/StudioUsersPage';
 import AuditLogsPage from './pages/Platform/AuditLogsPage';
 import NetworkPage from './pages/Platform/NetworkPage';
 import AppearancePage from './pages/Platform/AppearancePage';
+import { ConfigurationPage } from './pages/Platform/ConfigurationPage';
 import StudioProfilePage from './pages/Studio/StudioProfilePage';
 import BrandingPage from './pages/Studio/BrandingPage';
 import FaceRecognitionPage from './pages/AI/FaceRecognitionPage';
@@ -110,6 +111,7 @@ export default function App() {
             <Route path="platform/audit" element={<AuditLogsPage />} />
             <Route path="platform/network" element={<NetworkPage />} />
             <Route path="platform/appearance" element={<AppearancePage />} />
+            <Route path="platform/configuration" element={<ConfigurationPage />} />
             {/* Experiences */}
             <Route path="experiences/qr" element={<Navigate to="/admin/events" replace />} />
             {/* AI */}

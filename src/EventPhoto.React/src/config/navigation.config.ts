@@ -15,6 +15,7 @@ import {
   Shield,
   Sparkles,
   Palette,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -27,6 +28,8 @@ export interface NavItem {
   end?: boolean;
   /** Minimum role required. If omitted the item is visible to all authenticated users. */
   minRole?: NavigationRole;
+  /** Feature flag key — item is hidden when that flag is disabled. */
+  featureFlag?: 'isFaceSearchEnabled' | 'isWatermarkEnabled';
 }
 
 export interface NavSection {
@@ -35,6 +38,8 @@ export interface NavSection {
   items: NavItem[];
   /** If set, section is hidden for roles not in this list */
   allowedRoles?: NavigationRole[];
+  /** Feature flag key — entire section hidden when that flag is disabled. */
+  featureFlag?: 'isFaceSearchEnabled' | 'isWatermarkEnabled';
 }
 
 // Role hierarchy — higher index = higher access
@@ -85,8 +90,9 @@ export const NAVIGATION: NavSection[] = [
   {
     id: 'ai',
     label: 'AI Studio',
+    featureFlag: 'isFaceSearchEnabled',
     items: [
-      { label: 'Face Recognition', to: '/admin/ai/face-recognition', icon: ScanFace, minRole: 'StudioManager' },
+      { label: 'Face Recognition', to: '/admin/ai/face-recognition', icon: ScanFace, minRole: 'StudioManager', featureFlag: 'isFaceSearchEnabled' },
     ],
     allowedRoles: ['StudioOwner', 'StudioManager', 'Admin'],
   },
@@ -119,12 +125,13 @@ export const NAVIGATION: NavSection[] = [
     id: 'platform',
     label: 'Platform',
     items: [
-      { label: 'System Settings', to: '/admin/system-settings', icon: Sliders,   minRole: 'StudioOwner' },
-      { label: 'Network',         to: '/admin/platform/network',     icon: Network,   minRole: 'StudioOwner' },
-      { label: 'Appearance',       to: '/admin/platform/appearance',  icon: Palette,   minRole: 'StudioOwner' },
-      { label: 'Audit Logs',      to: '/admin/platform/audit',  icon: Shield,    minRole: 'StudioOwner' },
-      { label: 'Logs',            to: '/admin/logs',            icon: ScrollText,minRole: 'StudioOwner' },
-      { label: 'Health Monitor',  to: '/admin/health',          icon: Activity,  minRole: 'StudioOwner' },
+      { label: 'Configuration',   to: '/admin/platform/configuration', icon: SlidersHorizontal, minRole: 'StudioOwner' },
+      { label: 'System Settings', to: '/admin/system-settings',        icon: Sliders,           minRole: 'StudioOwner' },
+      { label: 'Network',         to: '/admin/platform/network',       icon: Network,           minRole: 'StudioOwner' },
+      { label: 'Appearance',      to: '/admin/platform/appearance',    icon: Palette,           minRole: 'StudioOwner' },
+      { label: 'Audit Logs',      to: '/admin/platform/audit',         icon: Shield,            minRole: 'StudioOwner' },
+      { label: 'Logs',            to: '/admin/logs',                   icon: ScrollText,        minRole: 'StudioOwner' },
+      { label: 'Health Monitor',  to: '/admin/health',                 icon: Activity,          minRole: 'StudioOwner' },
     ],
     allowedRoles: ['StudioOwner', 'Admin'],
   },

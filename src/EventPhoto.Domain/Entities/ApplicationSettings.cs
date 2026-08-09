@@ -41,6 +41,14 @@ public sealed class ApplicationSettings : AggregateRoot
     /// <summary>Gets whether face recognition should be enabled by default on new events.</summary>
     public bool EnableFaceRecognitionByDefault { get; private set; }
 
+    // ── Feature Flags ─────────────────────────────────────────────────────────
+
+    /// <summary>Gets whether the Watermark module is globally enabled for this studio.</summary>
+    public bool IsWatermarkEnabled { get; private set; } = true;
+
+    /// <summary>Gets whether the Face Search / AI module is globally enabled for this studio.</summary>
+    public bool IsFaceSearchEnabled { get; private set; } = true;
+
     // ── Phase 6 — Studio Profile ──────────────────────────────────────────────
 
     /// <summary>Gets the studio's contact phone number.</summary>
@@ -99,6 +107,8 @@ public sealed class ApplicationSettings : AggregateRoot
             DefaultEventGalleryMode = GalleryMode.GalleryOnly,
             EnableWatermarkByDefault = false,
             EnableFaceRecognitionByDefault = false,
+            IsWatermarkEnabled = true,
+            IsFaceSearchEnabled = true,
             PrimaryColor = "#6366f1",
             SecondaryColor = "#8b5cf6",
             BrandTheme = "dark",
@@ -120,7 +130,9 @@ public sealed class ApplicationSettings : AggregateRoot
         int serverPort,
         GalleryMode defaultEventGalleryMode,
         bool enableWatermarkByDefault,
-        bool enableFaceRecognitionByDefault)
+        bool enableFaceRecognitionByDefault,
+        bool isWatermarkEnabled,
+        bool isFaceSearchEnabled)
     {
         if (string.IsNullOrWhiteSpace(studioName))
             throw new DomainException("Studio name is required.");
@@ -148,6 +160,8 @@ public sealed class ApplicationSettings : AggregateRoot
         DefaultEventGalleryMode = defaultEventGalleryMode;
         EnableWatermarkByDefault = enableWatermarkByDefault;
         EnableFaceRecognitionByDefault = enableFaceRecognitionByDefault;
+        IsWatermarkEnabled = isWatermarkEnabled;
+        IsFaceSearchEnabled = isFaceSearchEnabled;
         Touch();
     }
 

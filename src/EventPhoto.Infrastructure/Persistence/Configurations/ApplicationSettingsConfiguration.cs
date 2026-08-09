@@ -51,6 +51,17 @@ public sealed class ApplicationSettingsConfiguration : IEntityTypeConfiguration<
             .HasColumnName("enable_face_recognition_by_default")
             .IsRequired();
 
+        // Feature flags
+        builder.Property(a => a.IsWatermarkEnabled)
+            .HasColumnName("is_watermark_enabled")
+            .IsRequired()
+            .HasDefaultValue(true);
+
+        builder.Property(a => a.IsFaceSearchEnabled)
+            .HasColumnName("is_face_search_enabled")
+            .IsRequired()
+            .HasDefaultValue(true);
+
         // Phase 6 — Studio Profile
         builder.Property(a => a.Phone)
             .HasColumnName("phone")
