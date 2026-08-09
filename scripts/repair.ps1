@@ -34,12 +34,31 @@ $ErrorActionPreference = "Stop"
 
 # ── Resolve install directory ─────────────────────────────────────────────
 if (-not $InstallDir) {
-    # When run from inside {app}\scripts, go one level up
-    $InstallDir = Split-Path $PSScriptRoot -Parent
+    # Primary: when run from {app}\scripts\repair.ps1, go one level up
+    $candidate = Split-Path $PSScriptRoot -Parent
+    if ($candidate -and (Test-Path (Join-Path $candidate "scripts\setup-postgresql.ps1"))) {
+        $InstallDir = $candidate
+    }
 }
 
-if (-not (Test-Path $InstallDir)) {
-    Write-Host "Cannot find install directory: $InstallDir" -ForegroundColor Red
+if (-not $InstallDir -or -not (Test-Path (Join-Path $InstallDir "scripts\setup-postgresql.ps1"))) {
+    # Fallback: search common install roots (default autopf + custom locations)
+    $searchRoots = @(
+        "$env:ProgramFiles\PixBridge",
+        "${env:ProgramFiles(x86)}\PixBridge",
+        "C:\PixBridge",
+        "D:\PixBridge"
+    )
+    foreach ($root in $searchRoots) {
+        if (Test-Path (Join-Path $root "scripts\setup-postgresql.ps1")) {
+            $InstallDir = $root
+            break
+        }
+    }
+}
+
+if (-not $InstallDir -or -not (Test-Path $InstallDir)) {
+    Write-Host "Cannot find PixBridge install directory." -ForegroundColor Red
     Write-Host "Pass -InstallDir explicitly, e.g.:" -ForegroundColor Yellow
     Write-Host "  .\repair.ps1 -InstallDir 'C:\Program Files\PixBridge'" -ForegroundColor Yellow
     exit 1
@@ -68,7 +87,7 @@ function Repair-DB {
     if ($PgPassword) { $params += @("-PgPassword", $PgPassword) }
 
     Write-Host "  Running setup-postgresql.ps1..." -ForegroundColor Yellow
-    & powershell.exe -ExecutionPolicy Bypass -File $script @params
+    & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script @params
     if ($LASTEXITCODE -ne 0) {
         FAIL "Database setup failed. See log: $log"
         Get-Content $log | Select-Object -Last 10 | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
@@ -105,7 +124,7 @@ function Repair-Services {
     }
 
     Write-Host "  Running install-service.ps1..." -ForegroundColor Yellow
-    & powershell.exe -ExecutionPolicy Bypass -File $script -InstallDir $InstallDir -LogFile $log
+    & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script -InstallDir $InstallDir -LogFile $log
     if ($LASTEXITCODE -ne 0) {
         FAIL "Service installation failed. See log: $log"
         Get-Content $log | Select-Object -Last 10 | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
@@ -122,7 +141,7 @@ function Repair-Network {
         FAIL "fix-network-access.ps1 not found at $script"
         exit 1
     }
-    & powershell.exe -ExecutionPolicy Bypass -File $script
+    & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script
     if ($LASTEXITCODE -ne 0) {
         FAIL "Network fix failed."
         exit 1

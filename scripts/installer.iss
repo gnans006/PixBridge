@@ -65,12 +65,12 @@ Name: "{group}\Uninstall PixBridge"; Filename: "{uninstallexe}"
 Name: "{commondesktop}\PixBridge Admin"; Filename: "{#MyAppURL}/admin"; Tasks: desktopicon
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\scripts\setup-postgresql.ps1"" -LogFile ""{app}\logs\setup-db.log"""; StatusMsg: "Setting up PostgreSQL database..."; Description: "Set up PostgreSQL database"; Flags: waituntilterminated
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\scripts\fix-network-access.ps1"""; StatusMsg: "Configuring firewall and Wi-Fi..."; Description: "Configure firewall and Wi-Fi profile"; Flags: waituntilterminated; Tasks: fixnetwork
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\scripts\install-service.ps1"" -InstallDir ""{app}"" -LogFile ""{app}\logs\setup-services.log"""; StatusMsg: "Installing Windows Services..."; Description: "Install Windows Services"; Flags: waituntilterminated; Tasks: installservice
+Filename: "powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\scripts\setup-postgresql.ps1"""; StatusMsg: "Setting up PostgreSQL database..."; Description: "Set up PostgreSQL database"; Flags: waituntilterminated
+Filename: "powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\scripts\fix-network-access.ps1"""; StatusMsg: "Configuring firewall and Wi-Fi..."; Description: "Configure firewall and Wi-Fi profile"; Flags: waituntilterminated; Tasks: fixnetwork
+Filename: "powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\scripts\install-service.ps1"""; StatusMsg: "Installing Windows Services..."; Description: "Install Windows Services"; Flags: waituntilterminated; Tasks: installservice
 
 [UninstallRun]
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\scripts\uninstall-service.ps1"""; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\scripts\uninstall-service.ps1"""; Flags: runhidden waituntilterminated
 
 [Code]
 

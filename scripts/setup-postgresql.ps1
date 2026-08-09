@@ -12,10 +12,21 @@ param(
     [string]$DbName     = "pixbridge",
     [string]$DbUser     = "pixbridge",
     [string]$DbPassword = "pixbridge123",
-    [string]$LogFile    = "$env:TEMP\pixbridge-setup-db.log"
+    [string]$LogFile    = ""           # auto-derived from script location if omitted
 )
 
 $ErrorActionPreference = "Stop"
+
+# ── Resolve log file path ─────────────────────────────────────────────────────
+# Self-locate: when run from {app}\scripts\, put the log in {app}\logs\
+# This avoids depending on Inno Setup passing -LogFile correctly via CreateProcess.
+if (-not $LogFile) {
+    $LogFile = Join-Path (Split-Path $PSScriptRoot -Parent) "logs\setup-db.log"
+}
+$logsDir = Split-Path $LogFile -Parent
+if ($logsDir -and -not (Test-Path $logsDir)) {
+    $null = New-Item -ItemType Directory -Force -Path $logsDir
+}
 
 function Write-Log {
     param([string]$Message, [string]$Level = "INFO")
@@ -23,8 +34,8 @@ function Write-Log {
     $line | Tee-Object -FilePath $LogFile -Append | Write-Host -ForegroundColor $(if ($Level -eq "ERROR") { "Red" } elseif ($Level -eq "WARN") { "Yellow" } else { "Cyan" })
 }
 
-# Clear previous log
-"" | Set-Content $LogFile
+# Clear previous log and write initial marker so the file always exists
+try { "" | Set-Content $LogFile } catch { }
 
 Write-Log "=== PixBridge PostgreSQL Setup ==="
 Write-Log "Log file: $LogFile"

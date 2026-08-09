@@ -8,9 +8,24 @@
 #>
 
 param(
-    [string]$InstallDir = "C:\PixBridge",
-    [string]$LogFile    = "$env:TEMP\pixbridge-setup-services.log"
+    [string]$InstallDir = "",          # auto-derived from script location if omitted
+    [string]$LogFile    = ""           # auto-derived from script location if omitted
 )
+
+# ── Resolve install directory ───────────────────────────────────────────────
+if (-not $InstallDir) {
+    # When run from {app}\scripts\install-service.ps1, {app} is one level up
+    $InstallDir = Split-Path $PSScriptRoot -Parent
+}
+
+# ── Resolve log file path ───────────────────────────────────────────────
+if (-not $LogFile) {
+    $LogFile = Join-Path $InstallDir "logs\setup-services.log"
+}
+$logsDir = Split-Path $LogFile -Parent
+if ($logsDir -and -not (Test-Path $logsDir)) {
+    $null = New-Item -ItemType Directory -Force -Path $logsDir
+}
 
 $ErrorActionPreference = "Stop"
 $installedServices = [System.Collections.Generic.List[string]]::new()
@@ -99,7 +114,7 @@ function Install-PixBridgeService {
 }
 
 # ── Pre-check: Admin rights ────────────────────────────────────────────────
-"" | Set-Content $LogFile
+try { "" | Set-Content $LogFile } catch { }
 Write-Log "=== PixBridge Service Installer ==="
 Write-Log "Install directory: $InstallDir"
 
