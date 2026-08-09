@@ -13,6 +13,8 @@ class FaceResult(BaseModel):
     embedding: List[float] = Field(..., description="512-dimensional ArcFace embedding vector")
     bounding_box: str = Field(..., description="JSON string of face bounding box")
     confidence: float = Field(..., ge=0.0, le=1.0)
+    quality_score: float = Field(default=50.0, ge=0.0, le=100.0, description="Composite quality score 0-100")
+    pose_angles: Optional[List[float]] = Field(default=None, description="[yaw, pitch, roll] in degrees")
 
 
 class IndexPhotoRequest(BaseModel):
@@ -39,3 +41,4 @@ class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
     version: str = "1.0.0"
+

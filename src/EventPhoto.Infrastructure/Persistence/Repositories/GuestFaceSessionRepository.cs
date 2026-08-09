@@ -35,6 +35,14 @@ public sealed class GuestFaceSessionRepository(AppDbContext context) : IGuestFac
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
+    public Task<List<GuestFaceSession>> GetExpiredWithEmbeddingAsync(
+        DateTimeOffset expiredBefore,
+        CancellationToken cancellationToken = default)
+        => context.GuestFaceSessions
+            .Where(s => s.ExpiresAt < expiredBefore && s.SelfieDeletedAt == null)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
     public async Task AddAsync(GuestFaceSession session, CancellationToken cancellationToken = default)
         => await context.GuestFaceSessions.AddAsync(session, cancellationToken);
 

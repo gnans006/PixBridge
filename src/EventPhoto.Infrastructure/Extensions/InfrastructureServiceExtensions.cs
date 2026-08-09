@@ -47,10 +47,15 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IDownloadLogRepository, DownloadLogRepository>();
         services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
 
-        // Face Recognition repositories
+        // Face Recognition repositories (legacy + new)
         services.AddScoped<IFaceEmbeddingRepository, FaceEmbeddingRepository>();
         services.AddScoped<IGuestFaceSessionRepository, GuestFaceSessionRepository>();
         services.AddScoped<IPhotoMatchRepository, PhotoMatchRepository>();
+
+        // AI Discovery Engine repositories
+        services.AddScoped<IFaceProcessingJobRepository, FaceProcessingJobRepository>();
+        services.AddScoped<IFaceClusterRepository, FaceClusterRepository>();
+        services.AddScoped<IAiSearchAnalyticsRepository, AiSearchAnalyticsRepository>();
 
         // Watermark repository
         services.AddScoped<IWatermarkConfigurationRepository, WatermarkConfigurationRepository>();
@@ -68,6 +73,9 @@ public static class InfrastructureServiceExtensions
 
         // Watermark service
         services.AddScoped<IWatermarkService, WatermarkService>();
+
+        // AI Discovery Engine services
+        services.AddScoped<IFaceQualityService, FaceQualityService>();
 
         // Network & URL services
         services.AddSingleton<INetworkInformationService, NetworkInformationService>();
@@ -115,3 +123,4 @@ public static class InfrastructureServiceExtensions
                 handledEventsAllowedBeforeBreaking: 5,
                 durationOfBreak: TimeSpan.FromSeconds(30));
 }
+

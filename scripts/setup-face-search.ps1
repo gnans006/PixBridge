@@ -14,17 +14,22 @@
 .NOTES
     Run once from an elevated (Administrator) PowerShell terminal:
         Set-ExecutionPolicy Bypass -Scope Process -Force
-        .\scripts\setup-face-search.ps1
+        .\scripts\setup-face-search.ps1            # full install
+        .\scripts\setup-face-search.ps1 -ServiceOnly  # pip + NSSM service only (pgvector already installed)
 #>
+
+param(
+    # Skip pgvector build, PostgreSQL setup, and EF migrations.
+    # Use when those are already configured on this machine.
+    # Installs only Python packages and the Windows service.
+    [switch]$ServiceOnly
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference    = "SilentlyContinue"
 
 # ── Config ────────────────────────────────────────────────────────────────────
-$PGPASSWORD_VAL  = "Gnanavel@2026"
-$PGUSER          = "postgres"
-$PGDATABASE      = "pixbridge_dev"
 
 $REPO_ROOT       = Split-Path $PSScriptRoot -Parent
 $FACE_SVC_SRC    = "$REPO_ROOT\src\PixBridge.FaceRecognition"
@@ -34,7 +39,24 @@ $PGVECTOR_VER    = "0.8.6"
 
 $VS_INSTALLER    = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
 
-# ── Auto-detect PostgreSQL installation ──────────────────────────────────────
+# ── Read secrets from .env ────────────────────────────────────────────────────────
+$dotEnvPath = Join-Path $REPO_ROOT ".env"
+if (-not (Test-Path $dotEnvPath)) {
+    Write-Host "FAIL: .env not found at $dotEnvPath" -ForegroundColor Red
+    Write-Host "  Copy .env.example to .env and set your database password." -ForegroundColor Yellow
+    exit 1
+}
+$envVars = @{}
+Get-Content $dotEnvPath | ForEach-Object {
+    if ($_ -match '^\s*([^#\s][^=]*)=(.*)$') { $envVars[$matches[1].Trim()] = $matches[2].Trim() }
+}
+$PGPASSWORD_VAL = if ($envVars.ContainsKey('DB_PASSWORD')) { $envVars['DB_PASSWORD'] } else { $null }
+$PGUSER         = if ($envVars.ContainsKey('DB_USER'))     { $envVars['DB_USER'] }     else { 'postgres' }
+$PGDATABASE     = if ($envVars.ContainsKey('DB_NAME'))     { $envVars['DB_NAME'] }     else { 'pixbridge_dev' }
+if (-not $ServiceOnly -and -not $PGPASSWORD_VAL) {
+    Write-Host "FAIL: DB_PASSWORD not set in .env" -ForegroundColor Red; exit 1
+}
+if (-not $ServiceOnly) {# ── Auto-detect PostgreSQL installation ──────────────────────────────────────
 $PG_ROOT = $null
 foreach ($searchRoot in @("$env:ProgramFiles\PostgreSQL", "C:\PostgreSQL", "D:\PostgreSQL", "E:\PostgreSQL")) {
     if (Test-Path $searchRoot) {
@@ -51,9 +73,10 @@ foreach ($searchRoot in @("$env:ProgramFiles\PostgreSQL", "C:\PostgreSQL", "D:\P
 if (-not $PG_ROOT) { Write-Host "FAIL: PostgreSQL not found. Install it first." -ForegroundColor Red; exit 1 }
 $PG_BIN       = "$PG_ROOT\bin"
 $PG_LIB       = "$PG_ROOT\lib"
-$PG_SHARE_EXT = "$PG_ROOT\share\extension"
+$PG_SHARE_EXT   = "$PG_ROOT\share\extension"
+$vectorDllDest  = "$PG_LIB\vector.dll"
+$vectorCtrlDest = "$PG_SHARE_EXT\vector.control"
 Write-Host "  Detected PostgreSQL: $PG_ROOT" -ForegroundColor Cyan
-# Add PG bin to session PATH so psql/pg_config are available without full paths
 $env:PATH = "$PG_BIN;$env:PATH"
 
 # ── Auto-detect Visual Studio installation ────────────────────────────────────
@@ -72,6 +95,7 @@ foreach ($ver in $vsVersions) {
 }
 if (-not $VS_PATH) { Write-Host "FAIL: Visual Studio not found (needed to build pgvector). Install VS 2022 or later with C++ tools." -ForegroundColor Red; exit 1 }
 Write-Host "  Detected Visual Studio: $VS_PATH" -ForegroundColor Cyan
+} # end if (-not $ServiceOnly) — PG/VS detection skipped when -ServiceOnly
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 function Step { param([string]$msg) Write-Host "`n==> $msg" -ForegroundColor Cyan }
@@ -146,8 +170,8 @@ if (!$realPython) {
 } else {
     OK "Using existing Python: $realPython"
 }
-
-# ─────────────────────────────────────────────────────────────────────────────
+if (-not $ServiceOnly) {
+# ───────────────────────────────────────────────────────────────────────────
 # STEP 2 — Add MSVC C++ tools to VS18 (needed to build pgvector)
 # ─────────────────────────────────────────────────────────────────────────────
 Step "Checking for MSVC C++ compiler (nmake/cl.exe)"
@@ -356,6 +380,8 @@ WITH (m = 16, ef_construction = 64);
 
 $idxResult = Invoke-Psql $idxSql
 OK "HNSW index: $idxResult"
+
+} # end if (-not $ServiceOnly) — pgvector/PostgreSQL/migrations/HNSW complete
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 8 — Install Python dependencies for FaceRecognition service

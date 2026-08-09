@@ -9,7 +9,7 @@ namespace EventPhoto.Infrastructure.Services.FaceRecognition;
 
 file sealed record IndexPhotoApiRequest(string image_path);
 file sealed record IndexPhotoApiResponse(int face_count, List<FaceApiResult> faces);
-file sealed record FaceApiResult(float[] embedding, string bounding_box, float confidence);
+file sealed record FaceApiResult(float[] embedding, string bounding_box, float confidence, float[]? pose_angles = null);
 file sealed record EmbeddingApiResponse(float[] embedding);
 
 /// <summary>
@@ -62,7 +62,7 @@ public sealed class FaceRecognitionService(
 
         return new IndexPhotoResult(
             result.face_count,
-            result.faces.Select(f => new FaceDetectionResult(f.embedding, f.bounding_box, f.confidence)).ToList());
+            result.faces.Select(f => new FaceDetectionResult(f.embedding, f.bounding_box, f.confidence, f.pose_angles)).ToList());
     }
 
     /// <inheritdoc />
@@ -88,10 +88,34 @@ public sealed class FaceRecognitionService(
         logger.LogDebug("Calling FaceRecognition /generate-embedding for selfie ({Bytes} bytes)", selfieBytes.Length);
 
         using var content = new MultipartFormDataContent();
-        content.Add(new ByteArrayContent(selfieBytes), "selfie", "selfie.jpg");
+        // Detect MIME type from magic bytes so FastAPI's content_type check passes
+        var mimeType = selfieBytes.Length >= 4
+            && selfieBytes[0] == 0x89 && selfieBytes[1] == 0x50 && selfieBytes[2] == 0x4E && selfieBytes[3] == 0x47
+            ? "image/png"
+            : "image/jpeg"; // JPEG / RIFF / GIF all acceptable; opencv decodes from bytes
+        var imageContent = new ByteArrayContent(selfieBytes);
+        imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mimeType);
+        content.Add(imageContent, "selfie", "selfie.jpg");
 
         var response = await Client.PostAsync("/generate-embedding", content, cancellationToken);
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Python returns 422 when no face is detected — surface that as a clear user message
+            if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                try
+                {
+                    using var errDoc = JsonDocument.Parse(errorBody);
+                    if (errDoc.RootElement.TryGetProperty("detail", out var detail))
+                        throw new InvalidOperationException(detail.GetString() ?? "No face detected in the selfie.");
+                }
+                catch (JsonException) { /* fall through to generic message */ }
+                throw new InvalidOperationException("No face detected in the selfie. Please try again with a clearer photo facing the camera.");
+            }
+            response.EnsureSuccessStatusCode();
+        }
 
         var result = await response.Content
             .ReadFromJsonAsync<EmbeddingApiResponse>(JsonOptions, cancellationToken)

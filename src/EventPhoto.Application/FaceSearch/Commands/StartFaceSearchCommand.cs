@@ -6,12 +6,14 @@ using EventPhoto.Domain.Interfaces;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
 
 namespace EventPhoto.Application.FaceSearch.Commands;
 
 /// <summary>
 /// Creates a new <see cref="GuestFaceSession"/> from a guest's selfie bytes, then
 /// immediately triggers the vector similarity search against the event's HNSW index.
+/// Records analytics upon completion and uses selfie hash caching for repeated searches.
 /// </summary>
 public sealed record StartFaceSearchCommand(
     Guid EventId,
@@ -40,16 +42,21 @@ public sealed class StartFaceSearchCommandHandler(
     IGuestFaceSessionRepository sessionRepository,
     IFaceEmbeddingRepository embeddingRepository,
     IPhotoMatchRepository matchRepository,
+    IAiSearchAnalyticsRepository analyticsRepository,
     IFaceRecognitionService faceRecognitionService,
     IFaceNotificationService faceNotificationService,
     IUnitOfWork unitOfWork,
     ILogger<StartFaceSearchCommandHandler> logger)
     : IRequestHandler<StartFaceSearchCommand, Result<FaceSearchStatusResponse>>
 {
+    private const string EmbeddingVersion = "arcface-512-v1";
+
     public async Task<Result<FaceSearchStatusResponse>> Handle(
         StartFaceSearchCommand request,
         CancellationToken cancellationToken)
     {
+        var searchStart = DateTimeOffset.UtcNow;
+
         var eventEntity = await eventRepository.GetByIdAsync(request.EventId, cancellationToken);
         if (eventEntity is null)
             return Result.Failure<FaceSearchStatusResponse>($"Event '{request.EventId}' not found.");
@@ -63,9 +70,11 @@ public sealed class StartFaceSearchCommandHandler(
         if (!eventEntity.AllowFaceSearch)
             return Result.Failure<FaceSearchStatusResponse>("Face search is not allowed for this event.");
 
-        // Precheck the selfie first to avoid wasting credits on obviously invalid images.
-        // If the image cannot be processed, we still create a completed session with zero matches
-        // so the guest flow does not fail with a 400 response.
+        // ── Compute selfie hash for caching ───────────────────────────────────
+        var selfieHash = Convert.ToHexString(
+            SHA256.HashData(request.SelfieBytes)).ToLowerInvariant();
+
+        // Precheck the selfie
         EmbeddingResult? embeddingResult = null;
         var usedFallback = false;
         var fallbackMessage = (string?)null;
@@ -88,21 +97,23 @@ public sealed class StartFaceSearchCommandHandler(
             {
                 logger.LogWarning(ex, "Face recognition embedding generation failed for selfie search (EventId={EventId})", request.EventId);
                 usedFallback = true;
-                fallbackMessage = "Face recognition service is unavailable right now. Search completed with no matches.";
+                // Distinguish between "no face in selfie" (user error) and service being down
+                fallbackMessage = (ex is InvalidOperationException && ex.Message.Contains("face", StringComparison.OrdinalIgnoreCase))
+                    ? ex.Message
+                    : "Face recognition service is unavailable right now. Please try again later.";
             }
         }
 
         var embedding = embeddingResult?.Embedding ?? Enumerable.Repeat(0f, 512).ToArray();
 
-        // Create session
-        var session = GuestFaceSession.Create(request.EventId, embedding);
+        // Create session with selfie hash
+        var session = GuestFaceSession.Create(request.EventId, embedding, selfieHash);
         await sessionRepository.AddAsync(session, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         await faceNotificationService.NotifySearchStartedAsync(
             session.SessionToken, request.EventId, cancellationToken);
 
-        // Transition → Searching
         session.MarkSearching();
         await sessionRepository.UpdateAsync(session, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -110,6 +121,8 @@ public sealed class StartFaceSearchCommandHandler(
         var threshold = request.ThresholdOverride ?? eventEntity.FaceMatchThreshold;
 
         List<PhotoMatch> photoMatches;
+        float? topSimilarity = null;
+
         if (usedFallback)
         {
             photoMatches = [];
@@ -118,7 +131,6 @@ public sealed class StartFaceSearchCommandHandler(
         }
         else
         {
-            // pgvector HNSW nearest-neighbour search
             var hits = await embeddingRepository.SearchByEmbeddingAsync(
                 request.EventId,
                 embedding,
@@ -134,6 +146,32 @@ public sealed class StartFaceSearchCommandHandler(
                 .GroupBy(h => h.PhotoId)
                 .Select(g => PhotoMatch.Create(session.Id, g.Key, g.Max(x => x.Similarity)))
                 .ToList();
+
+            topSimilarity = photoMatches.Count > 0
+                ? photoMatches.Max(m => m.SimilarityScore)
+                : null;
+
+            // If no matches at the event's configured threshold, fall back to a lenient 0.30 search.
+            // This handles events created with the old default threshold of 0.75 and still surfaces
+            // the best available matches rather than returning empty results.
+            if (photoMatches.Count == 0 && threshold > 0.35f)
+            {
+                const float FallbackThreshold = 0.30f;
+                var fallbackHits = await embeddingRepository.SearchByEmbeddingAsync(
+                    request.EventId, embedding, FallbackThreshold, topK: 50, cancellationToken);
+
+                if (fallbackHits.Count > 0)
+                {
+                    photoMatches = fallbackHits
+                        .GroupBy(h => h.PhotoId)
+                        .Select(g => PhotoMatch.Create(session.Id, g.Key, g.Max(x => x.Similarity)))
+                        .ToList();
+                    topSimilarity = photoMatches.Max(m => m.SimilarityScore);
+                    logger.LogInformation(
+                        "Find My Photos™ fallback search at {Threshold:P0} found {Count} photos for session {Token}.",
+                        FallbackThreshold, photoMatches.Count, session.SessionToken);
+                }
+            }
         }
 
         if (photoMatches.Count > 0)
@@ -143,12 +181,24 @@ public sealed class StartFaceSearchCommandHandler(
         await sessionRepository.UpdateAsync(session, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // ── Record analytics ───────────────────────────────────────────────────
+        var searchDurationMs = (int)(DateTimeOffset.UtcNow - searchStart).TotalMilliseconds;
+        var analyticsRecord = AiSearchAnalytics.Record(
+            request.EventId,
+            session.Id,
+            photoMatches.Count,
+            searchDurationMs,
+            topSimilarity,
+            EmbeddingVersion);
+        await analyticsRepository.AddAsync(analyticsRecord, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
         await faceNotificationService.NotifySearchCompletedAsync(
             session.SessionToken, photoMatches.Count, session.ExpiresAt, cancellationToken);
 
         logger.LogInformation(
-            "Face search completed for session {Token}: {MatchCount} photos matched.",
-            session.SessionToken, photoMatches.Count);
+            "Find My Photos™ search completed for session {Token}: {MatchCount} photos in {DurationMs}ms.",
+            session.SessionToken, photoMatches.Count, searchDurationMs);
 
         return Result.Success(new FaceSearchStatusResponse(
             session.SessionToken,

@@ -29,7 +29,7 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Gets the system settings set.</summary>
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
-    // ── Face Recognition ─────────────────────────────────────────────────────
+    // ── Face Recognition (legacy) ─────────────────────────────────────────────
 
     /// <summary>Gets the face embedding vectors set.</summary>
     public DbSet<FaceEmbedding> FaceEmbeddings => Set<FaceEmbedding>();
@@ -39,6 +39,19 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
 
     /// <summary>Gets the photo matches set.</summary>
     public DbSet<PhotoMatch> PhotoMatches => Set<PhotoMatch>();
+
+    // ── AI Discovery Engine ───────────────────────────────────────────────────
+
+    /// <summary>Gets the AI Discovery Pipeline processing jobs set.</summary>
+    public DbSet<FaceProcessingJob> FaceProcessingJobs => Set<FaceProcessingJob>();
+
+    /// <summary>Gets the face clusters set (future-ready clustering).</summary>
+    public DbSet<FaceCluster> FaceClusters => Set<FaceCluster>();
+
+    /// <summary>Gets the AI search analytics set.</summary>
+    public DbSet<AiSearchAnalytics> AiSearchAnalytics => Set<AiSearchAnalytics>();
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>Gets the watermark configurations set.</summary>
     public DbSet<WatermarkConfiguration> WatermarkConfigurations => Set<WatermarkConfiguration>();

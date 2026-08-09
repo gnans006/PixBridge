@@ -4,6 +4,7 @@ import {
   Users,
   QrCode,
   ScanFace,
+  Brain,
   BarChart2,
   Building2,
   Settings,
@@ -93,6 +94,7 @@ export const NAVIGATION: NavSection[] = [
     featureFlag: 'isFaceSearchEnabled',
     items: [
       { label: 'Face Recognition', to: '/admin/ai/face-recognition', icon: ScanFace, minRole: 'StudioManager', featureFlag: 'isFaceSearchEnabled' },
+      { label: 'AI Studio', to: '/admin/ai/studio', icon: Brain, minRole: 'StudioManager', featureFlag: 'isFaceSearchEnabled' },
     ],
     allowedRoles: ['StudioOwner', 'StudioManager', 'Admin'],
   },

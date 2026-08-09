@@ -133,7 +133,7 @@ public sealed class Event : AggregateRoot
     /// Photos with a similarity score at or above this value are returned as matches.
     /// Defaults to <c>0.75</c>.
     /// </summary>
-    public float FaceMatchThreshold { get; private set; } = 0.75f;
+    public float FaceMatchThreshold { get; private set; } = 0.40f;
 
     /// <summary>
     /// Gets the photos associated with this event.

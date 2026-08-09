@@ -26,6 +26,7 @@ import { ConfigurationPage } from './pages/Platform/ConfigurationPage';
 import StudioProfilePage from './pages/Studio/StudioProfilePage';
 import BrandingPage from './pages/Studio/BrandingPage';
 import FaceRecognitionPage from './pages/AI/FaceRecognitionPage';
+import AiStudioPage from './pages/AI/AiStudioPage';
 import { apiError } from './utils/errorHandler';
 
 const queryClient = new QueryClient({
@@ -116,6 +117,7 @@ export default function App() {
             <Route path="experiences/qr" element={<Navigate to="/admin/events" replace />} />
             {/* AI */}
             <Route path="ai/face-recognition" element={<FaceRecognitionPage />} />
+            <Route path="ai/studio" element={<AiStudioPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -59,7 +59,7 @@ function ToggleRow({ id, icon, label, description, checked, onChange, disabled, 
 export function AiFeaturesSection({ watch, setValue, faceSearchRequired }: AiFeaturesSectionProps) {
   const enableFaceRecognition = watch('enableFaceRecognition') as boolean;
   const restrictDownloads = watch('restrictDownloadsToMatchedPhotos') as boolean;
-  const threshold = (watch('faceMatchThreshold') as number) ?? 0.75;
+  const threshold = (watch('faceMatchThreshold') as number) ?? 0.40;
 
   return (
     <SectionCard

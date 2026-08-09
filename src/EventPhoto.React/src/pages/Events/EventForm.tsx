@@ -157,7 +157,7 @@ export default function EventForm() {
       allowGalleryBrowsing: true,
       allowFaceSearch: false,
       restrictDownloadsToMatchedPhotos: false,
-      faceMatchThreshold: 0.75,
+      faceMatchThreshold: 0.40,
     },
   });
 
@@ -174,7 +174,7 @@ export default function EventForm() {
         eventType: 'Wedding',
         galleryRecentCount: 30,
         restrictDownloadsToMatchedPhotos: false,
-        faceMatchThreshold: 0.75,
+        faceMatchThreshold: 0.40,
         ...galleryDefaults,
       },
       { keepDirty: false },

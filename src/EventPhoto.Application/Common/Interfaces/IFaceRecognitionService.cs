@@ -6,7 +6,8 @@ namespace EventPhoto.Application.Common.Interfaces;
 public sealed record FaceDetectionResult(
     float[] Embedding,
     string BoundingBox,
-    float Confidence);
+    float Confidence,
+    float[]? PoseAngles = null);
 
 public sealed record IndexPhotoResult(
     int FaceCount,

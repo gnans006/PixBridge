@@ -29,6 +29,15 @@ public interface IFaceEmbeddingRepository
         int topK = 200,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns the set of photo IDs within an event that already have at least one stored embedding.
+    /// Used by <c>RebuildFaceIndexCommand</c> to skip photos that do not need re-indexing.
+    /// </summary>
+    Task<HashSet<Guid>> GetIndexedPhotoIdsAsync(Guid eventId, CancellationToken cancellationToken = default);
+
     /// <summary>Returns the total number of face embeddings stored for an event.</summary>
     Task<int> CountByEventIdAsync(Guid eventId, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the total number of face embeddings across all events.</summary>
+    Task<int> CountAllAsync(CancellationToken cancellationToken = default);
 }

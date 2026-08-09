@@ -38,10 +38,14 @@ public sealed class ProcessFaceIndexCommandHandler(
         {
             var result = await faceRecognitionService.IndexPhotoAsync(photo.OriginalPath, cancellationToken);
 
+            // Remove any stale embeddings from a previous indexing run before inserting fresh ones
+            await faceEmbeddingRepository.DeleteByPhotoIdAsync(photo.Id, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
             if (result.FaceCount > 0)
             {
                 var embeddings = result.Faces.Select(f =>
-                    FaceEmbedding.Create(photo.EventId, photo.Id, f.Embedding, f.BoundingBox, f.Confidence));
+                    FaceEmbedding.Create(photo.EventId, photo.Id, f.Embedding, f.BoundingBox, f.Confidence, f.PoseAngles != null ? 65f : 50f));
 
                 await faceEmbeddingRepository.AddRangeAsync(embeddings, cancellationToken);
             }

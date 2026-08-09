@@ -35,6 +35,7 @@ export interface FaceSearchResults {
   page: number;
   pageSize: number;
   hasNextPage: boolean;
+  searchDurationMs: number;
 }
 
 export const faceSearchApi = {

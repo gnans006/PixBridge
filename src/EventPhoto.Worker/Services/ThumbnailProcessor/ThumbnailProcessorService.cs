@@ -1,5 +1,7 @@
+using EventPhoto.Application.AiDiscovery.Commands;
 using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Domain.Interfaces;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -8,6 +10,8 @@ namespace EventPhoto.Worker.Services.ThumbnailProcessor;
 
 /// <summary>
 /// Background service that generates thumbnails for photos awaiting processing.
+/// After thumbnail generation completes, enqueues the photo for AI Discovery processing
+/// (Gallery Pipeline → AI Pipeline handoff).
 /// </summary>
 public sealed class ThumbnailProcessorService : BackgroundService
 {
@@ -48,6 +52,7 @@ public sealed class ThumbnailProcessorService : BackgroundService
         var notificationService = scope.ServiceProvider.GetRequiredService<IPhotoNotificationService>();
         var settingRepository = scope.ServiceProvider.GetRequiredService<ISystemSettingRepository>();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
         var maxWidth = int.TryParse(await settingRepository.GetValueAsync("thumbnail.width", cancellationToken), out var widthValue) ? widthValue : 400;
         var maxHeight = int.TryParse(await settingRepository.GetValueAsync("thumbnail.height", cancellationToken), out var heightValue) ? heightValue : 400;
@@ -85,6 +90,19 @@ public sealed class ThumbnailProcessorService : BackgroundService
                 var thumbnailUrl = $"{serverUrl.TrimEnd('/')}/api/photos/{photo.Id}/thumbnail";
                 await notificationService.NotifyPhotoAddedAsync(photo.EventId, photo.Id, photo.FileName, thumbnailUrl, cancellationToken);
 
+                // ── Gallery Pipeline → AI Discovery Pipeline handoff ───────────
+                // Gallery is NOW available. AI indexing runs asynchronously, independently.
+                var enqueueResult = await mediator.Send(
+                    new EnqueuePhotoForAiDiscoveryCommand(photo.EventId, photo.Id, Priority: 2),
+                    cancellationToken);
+
+                if (enqueueResult.IsFailure)
+                {
+                    _logger.LogWarning(
+                        "Failed to enqueue photo {PhotoId} for AI Discovery: {Error}",
+                        photo.Id, enqueueResult.Error);
+                }
+
                 _logger.LogInformation("Generated thumbnail for photo {PhotoId}.", photo.Id);
             }
             catch (Exception ex)
@@ -97,3 +115,4 @@ public sealed class ThumbnailProcessorService : BackgroundService
         }
     }
 }
+

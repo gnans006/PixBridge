@@ -6,6 +6,7 @@ using EventPhoto.Worker.Services;
 using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)

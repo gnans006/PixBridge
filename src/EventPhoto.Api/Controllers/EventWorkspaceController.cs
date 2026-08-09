@@ -183,14 +183,21 @@ public sealed class EventWorkspaceController(IMediator mediator) : ControllerBas
 
     // ── POST face index rebuild ───────────────────────────────────────────────
 
-    /// <summary>Re-queues all event photos for face indexing (background operation).</summary>
+    /// <summary>
+    /// Re-queues event photos for face indexing (background operation).
+    /// By default only photos with no existing embeddings are queued (smart mode).
+    /// Pass <c>?force=true</c> to re-index every photo (use after model upgrades).
+    /// </summary>
     [HttpPost("face-recognition/rebuild")]
     [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> RebuildFaceIndex(Guid eventId, CancellationToken cancellationToken)
+    public async Task<IActionResult> RebuildFaceIndex(
+        Guid eventId,
+        [FromQuery] bool force = false,
+        CancellationToken cancellationToken = default)
     {
-        var result = await mediator.Send(new RebuildFaceIndexCommand(eventId), cancellationToken);
+        var result = await mediator.Send(new RebuildFaceIndexCommand(eventId, force), cancellationToken);
 
         if (result.IsFailure)
         {

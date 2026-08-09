@@ -21,6 +21,15 @@ public interface IGuestFaceSessionRepository
     /// <summary>Returns all sessions that have passed their <c>ExpiresAt</c> timestamp but are not yet marked Expired.</summary>
     Task<List<GuestFaceSession>> GetExpiredSessionsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns expired sessions whose selfie embedding has NOT yet been purged
+    /// and whose expiry timestamp is older than <paramref name="expiredBefore"/>.
+    /// Used by the privacy retention service.
+    /// </summary>
+    Task<List<GuestFaceSession>> GetExpiredWithEmbeddingAsync(
+        DateTimeOffset expiredBefore,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Adds a new session.</summary>
     Task AddAsync(GuestFaceSession session, CancellationToken cancellationToken = default);
 

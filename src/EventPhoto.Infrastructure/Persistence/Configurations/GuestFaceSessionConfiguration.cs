@@ -39,6 +39,11 @@ public sealed class GuestFaceSessionConfiguration : IEntityTypeConfiguration<Gue
             .HasColumnType("vector(512)")
             .IsRequired();
 
+        // SHA-256 hex hash of the raw selfie bytes (64 chars) for cache lookup
+        builder.Property(s => s.SelfieHash)
+            .HasColumnName("selfie_hash")
+            .HasMaxLength(64);
+
         builder.Property(s => s.SearchStartedAt)
             .HasColumnName("search_started_at");
 
@@ -52,6 +57,14 @@ public sealed class GuestFaceSessionConfiguration : IEntityTypeConfiguration<Gue
         builder.Property(s => s.MatchCount)
             .HasColumnName("match_count")
             .IsRequired();
+
+        builder.Property(s => s.SearchDurationMs)
+            .HasColumnName("search_duration_ms")
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        builder.Property(s => s.SelfieDeletedAt)
+            .HasColumnName("selfie_deleted_at");
 
         builder.Property(s => s.CreatedAt)
             .HasColumnName("created_at")
@@ -75,5 +88,14 @@ public sealed class GuestFaceSessionConfiguration : IEntityTypeConfiguration<Gue
 
         builder.HasIndex(s => s.ExpiresAt)
             .HasDatabaseName("IX_guest_face_sessions_expires_at");
+
+        // For retention service: sessions with embedding not yet purged
+        builder.HasIndex(s => new { s.ExpiresAt, s.SelfieDeletedAt })
+            .HasDatabaseName("IX_guest_face_sessions_retention")
+            .HasFilter("selfie_deleted_at IS NULL");
+
+        // Selfie hash index for cache lookup
+        builder.HasIndex(s => new { s.EventId, s.SelfieHash })
+            .HasDatabaseName("IX_guest_face_sessions_event_selfie_hash");
     }
 }

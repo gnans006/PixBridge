@@ -6,7 +6,8 @@ using MediatR;
 namespace EventPhoto.Application.FaceSearch.Queries;
 
 /// <summary>
-/// Returns the paged list of matched photos for a completed guest face-search session.
+/// Returns the paged list of matched photos for a completed "Find My Photos™" session.
+/// Raw similarity scores are converted to human-friendly confidence labels.
 /// </summary>
 public sealed record GetMatchedPhotosQuery(
     string SessionToken,
@@ -49,13 +50,16 @@ public sealed class GetMatchedPhotosQueryHandler(
             .Select(m =>
             {
                 var photo = photoLookup[m.PhotoId];
+                var (label, category) = GetConfidenceDisplay(m.SimilarityScore);
                 return new FaceSearchMatchResponse(
                     photo.Id,
                     $"{baseUrl}/api/photos/{photo.Id}/thumbnail",
                     $"{baseUrl}/api/photos/{photo.Id}/download?sessionToken={request.SessionToken}",
                     m.SimilarityScore,
                     photo.CapturedAt,
-                    photo.FileName);
+                    photo.FileName,
+                    label,
+                    category);
             })
             .ToList();
 
@@ -65,6 +69,20 @@ public sealed class GetMatchedPhotosQueryHandler(
             matchResponses,
             request.Page,
             request.PageSize,
-            request.Page * request.PageSize < total));
+            request.Page * request.PageSize < total,
+            session.SearchDurationMs));
     }
+
+    /// <summary>
+    /// Maps a cosine similarity score to a guest-facing label and CSS category.
+    /// Raw numeric scores are NEVER exposed to guests.
+    /// </summary>
+    private static (string Label, string Category) GetConfidenceDisplay(float similarity)
+        => similarity switch
+        {
+            >= 0.90f => ("Excellent Match", "Excellent"),
+            >= 0.80f => ("Strong Match", "Strong"),
+            _ => ("Possible Match", "Possible")
+        };
 }
+

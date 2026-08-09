@@ -24,6 +24,70 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("EventPhoto.Domain.Entities.AiSearchAnalytics", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EmbeddingVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("embedding_version");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<int>("MatchesFound")
+                        .HasColumnType("integer")
+                        .HasColumnName("matches_found");
+
+                    b.Property<int>("SearchDurationMs")
+                        .HasColumnType("integer")
+                        .HasColumnName("search_duration_ms");
+
+                    b.Property<DateTimeOffset>("SearchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("searched_at");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_id");
+
+                    b.Property<string>("TopMatchCategory")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("top_match_category");
+
+                    b.Property<float?>("TopSimilarityScore")
+                        .HasColumnType("real")
+                        .HasColumnName("top_similarity_score");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<bool>("WasSuccessful")
+                        .HasColumnType("boolean")
+                        .HasColumnName("was_successful");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SearchedAt")
+                        .HasDatabaseName("IX_ai_search_analytics_searched_at");
+
+                    b.HasIndex("EventId", "SearchedAt")
+                        .HasDatabaseName("IX_ai_search_analytics_event_searched_at");
+
+                    b.ToTable("ai_search_analytics", (string)null);
+                });
+
             modelBuilder.Entity("EventPhoto.Domain.Entities.ApplicationSettings", b =>
                 {
                     b.Property<Guid>("Id")
@@ -79,6 +143,18 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("instagram");
+
+                    b.Property<bool>("IsFaceSearchEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_face_search_enabled");
+
+                    b.Property<bool>("IsWatermarkEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_watermark_enabled");
 
                     b.Property<string>("LogoPath")
                         .HasMaxLength(1024)
@@ -374,6 +450,50 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                     b.ToTable("events", (string)null);
                 });
 
+            modelBuilder.Entity("EventPhoto.Domain.Entities.FaceCluster", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<float>("AverageQualityScore")
+                        .HasColumnType("real")
+                        .HasColumnName("average_quality_score");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("label");
+
+                    b.Property<int>("PhotoCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("photo_count");
+
+                    b.Property<Vector>("RepresentativeEmbedding")
+                        .IsRequired()
+                        .HasColumnType("vector(512)")
+                        .HasColumnName("representative_embedding");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .HasDatabaseName("IX_face_clusters_event_id");
+
+                    b.ToTable("face_clusters", (string)null);
+                });
+
             modelBuilder.Entity("EventPhoto.Domain.Entities.FaceEmbedding", b =>
                 {
                     b.Property<Guid>("Id")
@@ -399,13 +519,41 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("vector(512)")
                         .HasColumnName("embedding");
 
+                    b.Property<string>("EmbeddingVersion")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("arcface-512-v1")
+                        .HasColumnName("embedding_version");
+
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")
                         .HasColumnName("event_id");
 
+                    b.Property<int>("FaceCountInPhoto")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("face_count_in_photo");
+
                     b.Property<Guid>("PhotoId")
                         .HasColumnType("uuid")
                         .HasColumnName("photo_id");
+
+                    b.Property<float>("QualityScore")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("real")
+                        .HasDefaultValue(50f)
+                        .HasColumnName("quality_score");
+
+                    b.Property<string>("QualityTier")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Medium")
+                        .HasColumnName("quality_tier");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -419,7 +567,89 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                     b.HasIndex("PhotoId")
                         .HasDatabaseName("IX_face_embeddings_photo_id");
 
+                    b.HasIndex("EventId", "QualityTier")
+                        .HasDatabaseName("IX_face_embeddings_event_quality_tier");
+
                     b.ToTable("face_embeddings", (string)null);
+                });
+
+            modelBuilder.Entity("EventPhoto.Domain.Entities.FaceProcessingJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("FailureType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("failure_type");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTimeOffset?>("NextRetryAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_retry_at");
+
+                    b.Property<Guid>("PhotoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("photo_id");
+
+                    b.Property<int>("Priority")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(2)
+                        .HasColumnName("priority");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("retry_count");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhotoId")
+                        .HasDatabaseName("IX_face_processing_jobs_photo_id");
+
+                    b.HasIndex("EventId", "Status")
+                        .HasDatabaseName("IX_face_processing_jobs_event_status");
+
+                    b.HasIndex("Status", "NextRetryAt")
+                        .HasDatabaseName("IX_face_processing_jobs_retry_eligible")
+                        .HasFilter("status = 'Failed'");
+
+                    b.HasIndex("Status", "Priority", "CreatedAt")
+                        .HasDatabaseName("IX_face_processing_jobs_pending_priority")
+                        .HasFilter("status IN ('Pending', 'Queued')");
+
+                    b.ToTable("face_processing_jobs", (string)null);
                 });
 
             modelBuilder.Entity("EventPhoto.Domain.Entities.GuestFaceSession", b =>
@@ -448,14 +678,29 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("search_completed_at");
 
+                    b.Property<int>("SearchDurationMs")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("search_duration_ms");
+
                     b.Property<DateTimeOffset?>("SearchStartedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("search_started_at");
+
+                    b.Property<DateTimeOffset?>("SelfieDeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("selfie_deleted_at");
 
                     b.Property<Vector>("SelfieEmbedding")
                         .IsRequired()
                         .HasColumnType("vector(512)")
                         .HasColumnName("selfie_embedding");
+
+                    b.Property<string>("SelfieHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("selfie_hash");
 
                     b.Property<string>("SessionToken")
                         .IsRequired()
@@ -482,8 +727,15 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_guest_face_sessions_token");
 
+                    b.HasIndex("EventId", "SelfieHash")
+                        .HasDatabaseName("IX_guest_face_sessions_event_selfie_hash");
+
                     b.HasIndex("EventId", "Status")
                         .HasDatabaseName("IX_guest_face_sessions_event_status");
+
+                    b.HasIndex("ExpiresAt", "SelfieDeletedAt")
+                        .HasDatabaseName("IX_guest_face_sessions_retention")
+                        .HasFilter("selfie_deleted_at IS NULL");
 
                     b.ToTable("guest_face_sessions", (string)null);
                 });
@@ -845,6 +1097,17 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                     b.ToTable("watermark_configurations", (string)null);
                 });
 
+            modelBuilder.Entity("EventPhoto.Domain.Entities.AiSearchAnalytics", b =>
+                {
+                    b.HasOne("EventPhoto.Domain.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+                });
+
             modelBuilder.Entity("EventPhoto.Domain.Entities.DownloadLog", b =>
                 {
                     b.HasOne("EventPhoto.Domain.Entities.Event", "Event")
@@ -864,6 +1127,17 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                     b.Navigation("Photo");
                 });
 
+            modelBuilder.Entity("EventPhoto.Domain.Entities.FaceCluster", b =>
+                {
+                    b.HasOne("EventPhoto.Domain.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+                });
+
             modelBuilder.Entity("EventPhoto.Domain.Entities.FaceEmbedding", b =>
                 {
                     b.HasOne("EventPhoto.Domain.Entities.Photo", "Photo")
@@ -871,6 +1145,25 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasForeignKey("PhotoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Photo");
+                });
+
+            modelBuilder.Entity("EventPhoto.Domain.Entities.FaceProcessingJob", b =>
+                {
+                    b.HasOne("EventPhoto.Domain.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EventPhoto.Domain.Entities.Photo", "Photo")
+                        .WithMany()
+                        .HasForeignKey("PhotoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
 
                     b.Navigation("Photo");
                 });

@@ -1,15 +1,19 @@
-# PixBridge — Detect, stop, and restart any combination of API / Worker / React
+# PixBridge — Detect, stop, and restart any combination of API / Worker / React / Face Recognition
 # Usage: .\restart.ps1                  → stop & restart everything
 #        .\restart.ps1 -ApiOnly         → stop & restart API only
 #        .\restart.ps1 -WorkerOnly      → stop & restart Worker only
 #        .\restart.ps1 -ReactOnly       → stop & restart React dev server only
-#        .\restart.ps1 -NoReact         → restart API + Worker, leave React alone
+#        .\restart.ps1 -FaceOnly        → stop & restart Face Recognition service only
+#        .\restart.ps1 -NoReact         → restart API + Worker + Face, leave React alone
+#        .\restart.ps1 -NoFace          → restart API + Worker + React, leave Face alone
 
 param(
     [switch]$ApiOnly,
     [switch]$WorkerOnly,
     [switch]$ReactOnly,
-    [switch]$NoReact
+    [switch]$FaceOnly,
+    [switch]$NoReact,
+    [switch]$NoFace
 )
 
 $root = $PSScriptRoot
@@ -28,16 +32,20 @@ function Get-RunningDotnetServices {
 
 function Test-ApiRunning   { $null -ne (Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue) }
 function Test-ReactRunning { $null -ne (Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue) }
+function Test-FaceRunning  { $null -ne (Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue) }
 
 function Show-ServiceStatus {
     $apiStatus    = if (Test-ApiRunning)   { "RUNNING :5000" } else { "stopped" }
     $reactStatus  = if (Test-ReactRunning) { "RUNNING :5173" } else { "stopped" }
+    $faceSvc      = Get-Service "PixBridgeFaceRecognition" -ErrorAction SilentlyContinue
+    $faceStatus   = if ($faceSvc -and $faceSvc.Status -eq 'Running') { "RUNNING :8080" } else { "stopped" }
     $dotnetCount  = @(Get-Process -Name "dotnet" -ErrorAction SilentlyContinue).Count
     $nodeCount    = @(Get-Process -Name "node"   -ErrorAction SilentlyContinue).Count
 
     Write-Host "`n  Current state:" -ForegroundColor DarkGray
     Write-Host "    dotnet processes : $dotnetCount  (API=$apiStatus)" -ForegroundColor DarkGray
     Write-Host "    node   processes : $nodeCount    (React=$reactStatus)" -ForegroundColor DarkGray
+    Write-Host "    face recognition : $faceStatus" -ForegroundColor DarkGray
 }
 
 # ──────────────────────────────────────────────
@@ -74,9 +82,45 @@ function Stop-ReactServer {
     }
 }
 
+function Stop-FaceService {
+    $svc = Get-Service "PixBridgeFaceRecognition" -ErrorAction SilentlyContinue
+    if ($svc -and $svc.Status -eq 'Running') {
+        Write-Host "  Stopping Face Recognition service..." -ForegroundColor Yellow
+        Stop-Service "PixBridgeFaceRecognition" -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 1500
+        Write-Host "  Face Recognition service stopped." -ForegroundColor Green
+    } else {
+        Write-Host "  Face Recognition service not running." -ForegroundColor DarkGray
+    }
+}
+
 # ──────────────────────────────────────────────
 # Start functions
 # ──────────────────────────────────────────────
+
+function Start-FaceService {
+    $svc = Get-Service "PixBridgeFaceRecognition" -ErrorAction SilentlyContinue
+    if ($null -eq $svc) {
+        Write-Host "  PixBridgeFaceRecognition service not installed." -ForegroundColor Red
+        Write-Host "  Run: .\scripts\setup-face-search.ps1  to install it." -ForegroundColor Red
+        return
+    }
+    Write-Host "  Starting Face Recognition service  →  http://localhost:8080" -ForegroundColor Cyan
+    Start-Service "PixBridgeFaceRecognition" -ErrorAction SilentlyContinue
+    # Give it a few seconds then check health (model loading can take ~30s on first boot)
+    Start-Sleep -Seconds 4
+    try {
+        $health = Invoke-RestMethod "http://localhost:8080/health" -TimeoutSec 5 -ErrorAction Stop
+        if ($health.model_loaded) {
+            Write-Host "  Face Recognition ready (model loaded)." -ForegroundColor Green
+        } else {
+            Write-Host "  Face Recognition started — model still warming up." -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  Face Recognition started — warming up (model load takes ~30s)." -ForegroundColor Yellow
+        Write-Host "  Check: Invoke-RestMethod http://localhost:8080/health" -ForegroundColor DarkGray
+    }
+}
 
 function Start-Api {
     Write-Host "  Starting API  →  http://localhost:5000" -ForegroundColor Cyan
@@ -124,17 +168,36 @@ if ($ReactOnly) {
     Stop-DotnetServices
     Start-Worker
 
+} elseif ($FaceOnly) {
+    Write-Host "`n[Face Recognition only]" -ForegroundColor Magenta
+    Stop-FaceService
+    Start-FaceService
+
 } elseif ($NoReact) {
-    Write-Host "`n[API + Worker, React unchanged]" -ForegroundColor Magenta
+    Write-Host "`n[API + Worker + Face, React unchanged]" -ForegroundColor Magenta
     Stop-DotnetServices
+    Stop-FaceService
+    Start-FaceService
     Start-Api
     Start-Sleep -Seconds 2
     Start-Worker
 
-} else {
-    Write-Host "`n[Full restart: API + Worker + React]" -ForegroundColor Magenta
+} elseif ($NoFace) {
+    Write-Host "`n[API + Worker + React, Face unchanged]" -ForegroundColor Magenta
     Stop-DotnetServices
     Stop-ReactServer
+    Start-Api
+    Start-Sleep -Seconds 2
+    Start-Worker
+    Start-Sleep -Seconds 1
+    Start-React
+
+} else {
+    Write-Host "`n[Full restart: API + Worker + React + Face Recognition]" -ForegroundColor Magenta
+    Stop-DotnetServices
+    Stop-ReactServer
+    Stop-FaceService
+    Start-FaceService
     Start-Api
     Start-Sleep -Seconds 2
     Start-Worker
@@ -145,3 +208,4 @@ if ($ReactOnly) {
 Write-Host "`n✅  Done. Services are starting in separate windows." -ForegroundColor Green
 Write-Host "   API health  : http://localhost:5000/api/health" -ForegroundColor DarkGray
 Write-Host "   React UI    : http://localhost:5173" -ForegroundColor DarkGray
+Write-Host "   Face health : http://localhost:8080/health" -ForegroundColor DarkGray

@@ -46,7 +46,44 @@ $npmVersion    = npm --version
 Write-Host "  dotnet : $dotnetVersion"
 Write-Host "  node   : $nodeVersion"
 Write-Host "  npm    : $npmVersion"
+# ── Step 0 · Load .env → appsettings.Local.json ───────────────────────────────────────
+Write-Step "Step 0 · Loading local secrets (.env → appsettings.Local.json)"
 
+$dotEnvPath = Join-Path $Root ".env"
+if (-not (Test-Path $dotEnvPath)) {
+    Write-Host "  .env not found — create it from the template:" -ForegroundColor Red
+    Write-Host "    Copy-Item .env.example .env; notepad .env" -ForegroundColor DarkGray
+    exit 1
+}
+$envVars = @{}
+Get-Content $dotEnvPath | ForEach-Object {
+    if ($_ -match '^\s*([^#\s][^=]*)=(.*)$') { $envVars[$matches[1].Trim()] = $matches[2].Trim() }
+}
+$dbHost = if ($envVars.ContainsKey('DB_HOST')) { $envVars['DB_HOST'] } else { 'localhost' }
+$dbPort = if ($envVars.ContainsKey('DB_PORT')) { $envVars['DB_PORT'] } else { '5432' }
+$dbName = if ($envVars.ContainsKey('DB_NAME')) { $envVars['DB_NAME'] } else { 'pixbridge_dev' }
+$dbUser = if ($envVars.ContainsKey('DB_USER')) { $envVars['DB_USER'] } else { 'postgres' }
+$dbPass = if ($envVars.ContainsKey('DB_PASSWORD')) { $envVars['DB_PASSWORD'] } else { $null }
+if (-not $dbPass) {
+    Write-Host "  DB_PASSWORD not set in .env — add: DB_PASSWORD=yourpassword" -ForegroundColor Red; exit 1
+}
+
+$connStr   = "Host=$dbHost;Port=$dbPort;Database=$dbName;Username=$dbUser;Password=$dbPass;"
+$workerDir = Join-Path $Root "src\EventPhoto.Worker"
+$localJsonContent = @"
+{
+  `"ConnectionStrings`": {
+    `"DefaultConnection`": `"$connStr`"
+  }
+}
+"@
+
+foreach ($projectDir in @($Api, $workerDir)) {
+    $localJsonPath = Join-Path $projectDir "appsettings.Local.json"
+    Set-Content -Path $localJsonPath -Value $localJsonContent -Encoding UTF8
+    Write-Host "  Written: appsettings.Local.json  →  $(Split-Path $projectDir -Leaf)" -ForegroundColor Green
+}
+Write-Host "  DB: $dbUser@$dbHost`:$dbPort/$dbName" -ForegroundColor DarkGray
 # ── Step 1 · NuGet restore ───────────────────────────────────────────────────
 Write-Step "Step 1 · Restoring NuGet packages"
 Push-Location $Root
@@ -85,7 +122,7 @@ if (-not $SkipMigration) {
         Write-Host "`nMigration failed. Common causes:" -ForegroundColor Red
         Write-Host "  • PostgreSQL is not running on localhost:5432"
         Write-Host "  • Database 'pixbridge_dev' does not exist"
-        Write-Host "  • Password in appsettings.json does not match"
+        Write-Host "  • Password in .env or appsettings.Local.json does not match"
         Write-Host "`nRe-run with -SkipMigration to skip this step."
         Pop-Location
         exit 1

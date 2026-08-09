@@ -67,6 +67,21 @@ public sealed class FaceEmbeddingRepository(AppDbContext context) : IFaceEmbeddi
     }
 
     /// <inheritdoc />
+    public async Task<HashSet<Guid>> GetIndexedPhotoIdsAsync(Guid eventId, CancellationToken cancellationToken = default)
+    {
+        // Single query: SELECT DISTINCT photo_id FROM face_embeddings WHERE event_id = @eventId
+        var ids = await context.FaceEmbeddings
+            .Where(f => f.EventId == eventId)
+            .Select(f => f.PhotoId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        return ids.ToHashSet();
+    }
+
+    /// <inheritdoc />
     public Task<int> CountByEventIdAsync(Guid eventId, CancellationToken cancellationToken = default)
         => context.FaceEmbeddings.CountAsync(f => f.EventId == eventId, cancellationToken);
+
+    public Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+        => context.FaceEmbeddings.CountAsync(cancellationToken);
 }
