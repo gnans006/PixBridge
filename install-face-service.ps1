@@ -15,10 +15,11 @@ if (!(Test-Path $svcSrc))   { Write-Host "FaceRecognition source not found at $s
 
 New-Item -ItemType Directory -Force -Path "$svcSrc\logs" | Out-Null
 
-$existing = & $nssmExe status $svcName 2>&1
-if ($existing -match "SERVICE_STOPPED|SERVICE_RUNNING") {
-    Write-Host "$svcName already registered (status: $existing). Stopping and removing..." -ForegroundColor Yellow
-    & $nssmExe stop $svcName 2>&1 | Out-Null
+# Use Get-Service instead of parsing NSSM output — NSSM writes to the console
+# directly so 2>&1 captures nothing reliable.
+if ($null -ne (Get-Service $svcName -ErrorAction SilentlyContinue)) {
+    Write-Host "$svcName already exists. Stopping and removing to re-register..." -ForegroundColor Yellow
+    & $nssmExe stop   $svcName 2>&1 | Out-Null
     Start-Sleep -Seconds 2
     & $nssmExe remove $svcName confirm 2>&1 | Out-Null
     Start-Sleep -Seconds 1
@@ -38,10 +39,11 @@ Write-Host "Starting $svcName..." -ForegroundColor Cyan
 & $nssmExe start $svcName 2>&1 | Out-Null
 Start-Sleep -Seconds 5
 
-$status = & $nssmExe status $svcName 2>&1
-Write-Host "Service status: $status" -ForegroundColor $(if ($status -match "RUNNING") { "Green" } else { "Yellow" })
+$svcObj = Get-Service $svcName -ErrorAction SilentlyContinue
+$status  = $svcObj?.Status
+Write-Host "Service status: $status" -ForegroundColor $(if ($status -eq 'Running') { 'Green' } else { 'Yellow' })
 
-if ($status -match "RUNNING") {
+if ($status -eq 'Running') {
     try {
         $health = Invoke-RestMethod "http://localhost:8080/health" -TimeoutSec 10
         Write-Host "Health check: model_loaded=$($health.model_loaded)" -ForegroundColor Green

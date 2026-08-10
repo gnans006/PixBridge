@@ -547,24 +547,32 @@ if (!$nssmExe) {
 }
 
 $svcName = "PixBridgeFaceRecognition"
-$existing = & $nssmExe status $svcName 2>&1
-if ($existing -notmatch "SERVICE_STOPPED|SERVICE_RUNNING|does not exist") {
-    WARN "Could not determine service status: $existing"
+
+# Use Get-Service (reliable) rather than parsing NSSM console output —
+# NSSM writes directly to the Windows console, so 2>&1 often captures nothing.
+$svcExists = $null -ne (Get-Service $svcName -ErrorAction SilentlyContinue)
+
+if ($svcExists) {
+    Write-Host "    Service '$svcName' already exists — stopping and removing to re-register..." -ForegroundColor Yellow
+    & $nssmExe stop   $svcName 2>&1 | Out-Null
+    Start-Sleep -Seconds 2
+    & $nssmExe remove $svcName confirm 2>&1 | Out-Null
+    Start-Sleep -Seconds 1
+    $svcExists = $false
+    OK "Old service removed"
 }
 
-if ($existing -match "does not exist") {
-    Write-Host "    Registering service $svcName..."
+if (-not $svcExists) {
+    Write-Host "    Registering service '$svcName'..."
     & $nssmExe install $svcName $realPython "$FACE_SVC_SRC\run.py"
-    & $nssmExe set $svcName AppDirectory $FACE_SVC_SRC
-    & $nssmExe set $svcName AppStdout "$FACE_SVC_SRC\logs\nssm-stdout.log"
-    & $nssmExe set $svcName AppStderr "$FACE_SVC_SRC\logs\nssm-stderr.log"
+    & $nssmExe set $svcName AppDirectory   $FACE_SVC_SRC
+    & $nssmExe set $svcName AppStdout      "$FACE_SVC_SRC\logs\nssm-stdout.log"
+    & $nssmExe set $svcName AppStderr      "$FACE_SVC_SRC\logs\nssm-stderr.log"
     & $nssmExe set $svcName AppRotateFiles 1
     & $nssmExe set $svcName AppRotateSeconds 86400
-    & $nssmExe set $svcName Start SERVICE_AUTO_START
-    & $nssmExe set $svcName Description "PixBridge Face Recognition FastAPI service (InsightFace ArcFace)"
+    & $nssmExe set $svcName Start          SERVICE_AUTO_START
+    & $nssmExe set $svcName Description    "PixBridge Face Recognition FastAPI service (InsightFace ArcFace)"
     OK "Service registered"
-} else {
-    OK "Service already registered (status: $existing)"
 }
 
 # Create logs folder
@@ -573,9 +581,9 @@ New-Item -ItemType Directory -Force -Path "$FACE_SVC_SRC\logs" | Out-Null
 # Start the service
 Write-Host "    Starting $svcName..."
 & $nssmExe start $svcName 2>&1 | Out-Null
-Start-Sleep -Seconds 3
-$status = & $nssmExe status $svcName 2>&1
-OK "Service status: $status"
+Start-Sleep -Seconds 4
+$svcStatus = (Get-Service $svcName -ErrorAction SilentlyContinue)?.Status
+OK "Service status: $svcStatus"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DONE
