@@ -399,7 +399,7 @@ if (!$pgSvc) {
 }
 if ($pgSvc) {
     Restart-Service $pgSvc.Name -Force
-    Start-Sleep -Seconds 3
+    Start-Sleep -Seconds 5
     $pgSvc.Refresh()
     OK "PostgreSQL service '$($pgSvc.Name)' restarted — status: $($pgSvc.Status)"
 } else {
@@ -419,13 +419,54 @@ if ($pgSvc) {
 Step "Verifying pgvector availability in PostgreSQL"
 
 $env:PGPASSWORD = $PGPASSWORD_VAL
-$available = & "$PG_BIN\psql.exe" -U $PGUSER -d postgres `
-    -c "SELECT name, default_version FROM pg_available_extensions WHERE name = 'vector';" 2>&1
+
+# Self-repair: if vector.control is present but the version-named SQL is missing,
+# create it from vector.sql (covers partial installs where only those two files existed)
+$ctrlFile = "$PG_SHARE_EXT\vector.control"
+if (Test-Path $ctrlFile) {
+    $ctrlVer = (Get-Content $ctrlFile | Select-String "default_version\s*=\s*'([^']+)'").Matches.Groups[1].Value
+    if ($ctrlVer) {
+        $versionSql = "$PG_SHARE_EXT\vector--$ctrlVer.sql"
+        if (!(Test-Path $versionSql)) {
+            $srcSql = "$PG_SHARE_EXT\vector.sql"
+            if (Test-Path $srcSql) {
+                Copy-Item $srcSql $versionSql -Force
+                WARN "Auto-created missing version SQL: vector--$ctrlVer.sql (copied from vector.sql)"
+            } else {
+                # Last resort: pull it from the repo bundle
+                $fallbackSql = Join-Path $REPO_ROOT "tools\pgvector\pg$pgMajor\vector--0.8.0.sql"
+                if (!(Test-Path $fallbackSql)) {
+                    $fallbackSql = Get-ChildItem (Join-Path $REPO_ROOT "tools\pgvector") -Recurse -Filter "vector--*.sql" |
+                        Where-Object { $_.Name -notmatch '--' -or $_.Name -match "^vector--[0-9]" } |
+                        Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
+                }
+                if ($fallbackSql -and (Test-Path $fallbackSql)) {
+                    Copy-Item $fallbackSql $versionSql -Force
+                    WARN "Auto-created missing version SQL from repo bundle: vector--$ctrlVer.sql"
+                }
+            }
+        }
+    }
+}
+
+# Retry up to 3 times with increasing wait — PostgreSQL may need a moment after restart
+$available = $null
+for ($attempt = 1; $attempt -le 3; $attempt++) {
+    $available = & "$PG_BIN\psql.exe" -U $PGUSER -d postgres `
+        -c "SELECT name, default_version FROM pg_available_extensions WHERE name = 'vector';" 2>&1
+    if ($available -match "vector") { break }
+    if ($attempt -lt 3) {
+        Write-Host "    PostgreSQL not ready yet (attempt $attempt/3) — waiting 4s..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 4
+    }
+}
+
 if ($available -notmatch "vector") {
-    Write-Host "`n  Installed files:" -ForegroundColor Yellow
-    Get-ChildItem "$PG_LIB" -Filter "vector.dll" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "    $($_.FullName)" }
-    Get-ChildItem "$PG_SHARE_EXT" -Filter "vector*" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "    $($_.Name)" }
-    FAIL "pgvector not visible to PostgreSQL after install.`n`n  Likely cause: SQL upgrade scripts are missing from $PG_SHARE_EXT`n  Fix: Delete any partial vector.dll / vector.control from that folder and re-run this script."
+    Write-Host "`n  Files in $($PG_SHARE_EXT):" -ForegroundColor Yellow
+    Get-ChildItem "$PG_SHARE_EXT" -Filter "vector*" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "    $($_.Name)  ($($_.Length) bytes)" }
+    Write-Host "`n  Files in $($PG_LIB):" -ForegroundColor Yellow
+    Get-ChildItem "$PG_LIB" -Filter "vector*" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "    $($_.Name)  ($($_.Length) bytes)" }
+    FAIL "pgvector not visible to PostgreSQL after install.`n`n  The files above must include vector.dll, vector.control, AND a version SQL file (e.g. vector--0.8.0.sql).`n  If the version SQL file is missing, delete all partial vector* files from the two folders above and re-run."
 }
 OK "pgvector available: $($available -join ' ')"
 
