@@ -1,5 +1,6 @@
 import logging
 from fastapi import APIRouter, HTTPException, UploadFile, File, status
+from fastapi.responses import JSONResponse
 
 from app.models.schemas import (
     IndexPhotoRequest,
@@ -16,14 +17,26 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get("/health", response_model=HealthResponse, tags=["Health"])
+def _require_model() -> None:
+    """Raise 503 if InsightFace model is still loading."""
+    if not is_model_loaded():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Face recognition model is still loading. Please retry in a moment.",
+        )
+
+
+@router.get("/health", tags=["Health"])
 async def health_check():
-    """Returns service health and model status."""
-    return HealthResponse(
-        status="ok" if is_model_loaded() else "model_not_loaded",
-        model_loaded=is_model_loaded(),
+    """Returns 200 + model status when ready, 503 while the model is still loading."""
+    loaded = is_model_loaded()
+    payload = HealthResponse(
+        status="ok" if loaded else "model_not_loaded",
+        model_loaded=loaded,
         version=settings.app_version,
     )
+    http_status = status.HTTP_200_OK if loaded else status.HTTP_503_SERVICE_UNAVAILABLE
+    return JSONResponse(content=payload.model_dump(), status_code=http_status)
 
 
 @router.post(
@@ -39,6 +52,7 @@ async def index_photo_endpoint(request: IndexPhotoRequest):
     generates a 512-dim ArcFace embedding per face, and returns them.
     Called by the .NET FaceIndexingService worker.
     """
+    _require_model()
     try:
         faces = index_photo(request.image_path)
         return IndexPhotoResponse(face_count=len(faces), faces=faces)
@@ -61,6 +75,7 @@ async def generate_embedding_endpoint(selfie: UploadFile = File(...)):
     Accepts a selfie as multipart/form-data and returns a 512-dim ArcFace embedding.
     Called when a guest uploads their selfie to start a face-search session.
     """
+    _require_model()
     if not selfie.content_type or not selfie.content_type.startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

@@ -99,6 +99,13 @@ public static class InfrastructureServiceExtensions
         .AddPolicyHandler(GetRetryPolicy())
         .AddPolicyHandler(GetCircuitBreakerPolicy());
 
+        // Lightweight health-check client — no Polly, short timeout for live status checks
+        services.AddHttpClient("FaceRecognitionHealth", client =>
+        {
+            client.BaseAddress = new Uri(faceRecognitionBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(4);
+        });
+
         services.AddScoped<IFaceRecognitionService, FaceRecognitionService>();
 
         // Audit logging

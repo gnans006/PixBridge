@@ -17,6 +17,9 @@ public sealed record EmbeddingResult(float[] Embedding);
 
 public sealed record FaceSearchPrecheckResult(bool IsValid, string? Message = null);
 
+/// <summary>Snapshot of the Python face-recognition service health.</summary>
+public sealed record FaceServiceStatus(bool Reachable, bool ModelLoaded, string? Version);
+
 /// <summary>
 /// Contract for the local Python InsightFace service.
 /// Implemented in Infrastructure by <c>FaceRecognitionService</c> (HttpClient-based).
@@ -50,4 +53,10 @@ public interface IFaceRecognitionService
     /// Returns <c>true</c> when the service is online and ready.
     /// </summary>
     Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns current Python service reachability and model-load status.
+    /// Uses a short-timeout, no-retry client so the result reflects the true live state.
+    /// </summary>
+    Task<FaceServiceStatus> GetServiceStatusAsync(CancellationToken cancellationToken = default);
 }

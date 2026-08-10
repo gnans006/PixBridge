@@ -51,4 +51,14 @@ export const dashboardApi = {
     );
     return res.data;
   },
+
+  async getFaceServiceHealth() {
+    const res = await apiClient.get<{
+      reachable: boolean;
+      modelLoaded: boolean;
+      version: string | null;
+      status: 'ready' | 'loading' | 'offline';
+    }>('/ai-studio/service-health');
+    return res.data;
+  },
 };

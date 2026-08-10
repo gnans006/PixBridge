@@ -11,6 +11,7 @@ file sealed record IndexPhotoApiRequest(string image_path);
 file sealed record IndexPhotoApiResponse(int face_count, List<FaceApiResult> faces);
 file sealed record FaceApiResult(float[] embedding, string bounding_box, float confidence, float[]? pose_angles = null);
 file sealed record EmbeddingApiResponse(float[] embedding);
+file sealed record HealthApiResponse(string status, bool model_loaded, string? version);
 
 /// <summary>
 /// HTTP client wrapper for the local Python PixBridge.FaceRecognition FastAPI service.
@@ -28,6 +29,7 @@ public sealed class FaceRecognitionService(
     };
 
     private HttpClient Client => httpClientFactory.CreateClient("FaceRecognition");
+    private HttpClient HealthClient => httpClientFactory.CreateClient("FaceRecognitionHealth");
 
     private static bool IsLikelyImage(byte[] bytes)
     {
@@ -136,6 +138,28 @@ public sealed class FaceRecognitionService(
         {
             logger.LogWarning(ex, "FaceRecognition service health check failed.");
             return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<FaceServiceStatus> GetServiceStatusAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Use the lightweight no-Polly client so we get the true live state instantly.
+            var response = await HealthClient.GetAsync("/health", cancellationToken);
+            var body = await response.Content
+                .ReadFromJsonAsync<HealthApiResponse>(JsonOptions, cancellationToken);
+
+            // 200 = ok, 503 = model still loading (both mean the process is reachable)
+            bool reachable = response.StatusCode is System.Net.HttpStatusCode.OK
+                                                  or System.Net.HttpStatusCode.ServiceUnavailable;
+            return new FaceServiceStatus(reachable, body?.model_loaded ?? false, body?.version);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "FaceRecognition service unreachable during status check.");
+            return new FaceServiceStatus(false, false, null);
         }
     }
 }

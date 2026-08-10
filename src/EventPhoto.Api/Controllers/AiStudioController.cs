@@ -1,5 +1,6 @@
 using EventPhoto.Application.AiDiscovery.Commands;
 using EventPhoto.Application.AiDiscovery.Queries;
+using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Contracts.Common;
 using EventPhoto.Contracts.Responses.AiDiscovery;
 using MediatR;
@@ -18,8 +19,29 @@ namespace EventPhoto.Api.Controllers;
 [ApiController]
 [Route("api/ai-studio")]
 [Authorize]
-public sealed class AiStudioController(IMediator mediator) : ControllerBase
+public sealed class AiStudioController(IMediator mediator, IFaceRecognitionService faceRecognitionService) : ControllerBase
 {
+    /// <summary>
+    /// Returns the live status of the Python face-recognition service.
+    /// Reports whether the process is reachable and whether the InsightFace model has finished loading.
+    /// The model can take up to 60 s to load on first startup.
+    /// </summary>
+    [HttpGet("service-health")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetServiceHealth(CancellationToken ct)
+    {
+        var s = await faceRecognitionService.GetServiceStatusAsync(ct);
+        return Ok(new
+        {
+            reachable   = s.Reachable,
+            modelLoaded = s.ModelLoaded,
+            version     = s.Version,
+            status      = !s.Reachable ? "offline"
+                        : !s.ModelLoaded ? "loading"
+                        : "ready",
+        });
+    }
+
     /// <summary>
     /// Returns the aggregated overview metrics for the AI Studio header panel.
     /// Includes queue depth, success rate, pipeline health, and 24-hour search stats.

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ScanFace, Brain, Clock, Layers } from 'lucide-react';
+import { ScanFace, Brain, Clock, Layers, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { dashboardApi } from '../../api/dashboard';
 import { PageShell } from '../../components/UI/PageShell';
 import { Card } from '../../components/UI/Card';
@@ -27,6 +27,35 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   );
 }
 
+function ServiceStatusBadge() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['face-service-health'],
+    queryFn: () => dashboardApi.getFaceServiceHealth(),
+    refetchInterval: 15_000,
+    retry: false,
+  });
+
+  if (isLoading) return null;
+
+  const status = data?.status ?? 'offline';
+  const configs = {
+    ready:   { icon: Wifi,    label: 'AI Service Ready',   cls: 'text-pds-success bg-pds-success/10 border-pds-success/30' },
+    loading: { icon: Loader2, label: 'Model Loading…',     cls: 'text-pds-warning bg-pds-warning/10 border-pds-warning/30' },
+    offline: { icon: WifiOff, label: 'AI Service Offline', cls: 'text-pds-danger  bg-pds-danger/10  border-pds-danger/30'  },
+  } as const;
+  const { icon: Icon, label, cls } = configs[status];
+
+  return (
+    <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${cls}`}>
+      <Icon className={`h-3.5 w-3.5 ${status === 'loading' ? 'animate-spin' : ''}`} />
+      {label}
+      {data?.version && status === 'ready' && (
+        <span className="opacity-60">v{data.version}</span>
+      )}
+    </span>
+  );
+}
+
 export default function FaceRecognitionPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['face-analytics'],
@@ -40,13 +69,16 @@ export default function FaceRecognitionPage() {
       title="Face Recognition"
       description="AI-powered face indexing status and per-production analytics."
       actions={
-        <button
-          onClick={() => refetch()}
-          className="flex items-center gap-2 rounded-lg border border-pds-border bg-pds-elevated px-3 py-2 text-sm font-medium text-pds-text-2 hover:bg-pds-card hover:text-pds-text transition-colors"
-        >
-          <ScanFace className="h-4 w-4" />
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <ServiceStatusBadge />
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-2 rounded-lg border border-pds-border bg-pds-elevated px-3 py-2 text-sm font-medium text-pds-text-2 hover:bg-pds-card hover:text-pds-text transition-colors"
+          >
+            <ScanFace className="h-4 w-4" />
+            Refresh
+          </button>
+        </div>
       }
     >
       {isLoading ? (
