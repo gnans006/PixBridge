@@ -524,26 +524,43 @@ OK "Python dependencies installed"
 Step "Installing PixBridgeFaceRecognition Windows Service via NSSM"
 
 $nssmExe = Get-Command nssm -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+
 if (!$nssmExe) {
-    # Try common install paths
-    foreach ($p in @("C:\nssm\win64\nssm.exe","C:\tools\nssm\nssm.exe","C:\ProgramData\chocolatey\lib\nssm\tools\nssm.exe")) {
+    # 1. Repo bundle (tools\nssm\nssm.exe) — works fully offline
+    $bundled = Join-Path $PSScriptRoot "..\tools\nssm\nssm.exe"
+    if (Test-Path $bundled) {
+        # Copy to a writable permanent location so NSSM can manage services normally
+        New-Item -ItemType Directory -Force -Path "C:\nssm" | Out-Null
+        Copy-Item $bundled "C:\nssm\nssm.exe" -Force
+        $nssmExe = "C:\nssm\nssm.exe"
+        OK "NSSM installed from repo bundle → $nssmExe"
+    }
+}
+
+if (!$nssmExe) {
+    # 2. Common install paths left by previous installs / Chocolatey
+    foreach ($p in @("C:\nssm\nssm.exe","C:\nssm\win64\nssm.exe","C:\tools\nssm\nssm.exe","C:\ProgramData\chocolatey\lib\nssm\tools\nssm.exe")) {
         if (Test-Path $p) { $nssmExe = $p; break }
     }
 }
 
 if (!$nssmExe) {
-    Write-Host "    NSSM not found. Downloading portable nssm 2.24..."
-    $nssmZip = "$env:TEMP\nssm.zip"
-    Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" -OutFile $nssmZip -UseBasicParsing
-    Expand-Archive $nssmZip -DestinationPath "$env:TEMP\nssm-pkg" -Force
-    $nssmExe = Get-ChildItem "$env:TEMP\nssm-pkg" -Filter "nssm.exe" -Recurse |
-        Where-Object { $_.FullName -match "win64" } | Select-Object -ExpandProperty FullName -First 1
-    if (!$nssmExe) { FAIL "Could not locate nssm.exe after download." }
-    # Copy to a permanent location
-    New-Item -ItemType Directory -Force -Path "C:\nssm" | Out-Null
-    Copy-Item $nssmExe "C:\nssm\nssm.exe" -Force
-    $nssmExe = "C:\nssm\nssm.exe"
-    OK "NSSM downloaded to $nssmExe"
+    # 3. Last resort: download from nssm.cc
+    Write-Host "    NSSM not found. Downloading portable nssm 2.24..." -ForegroundColor Yellow
+    try {
+        $nssmZip = "$env:TEMP\nssm.zip"
+        Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" -OutFile $nssmZip -UseBasicParsing -ErrorAction Stop
+        Expand-Archive $nssmZip -DestinationPath "$env:TEMP\nssm-pkg" -Force
+        $nssmExe = Get-ChildItem "$env:TEMP\nssm-pkg" -Filter "nssm.exe" -Recurse |
+            Where-Object { $_.FullName -match "win64" } | Select-Object -ExpandProperty FullName -First 1
+        if (!$nssmExe) { throw "nssm.exe not found in archive" }
+        New-Item -ItemType Directory -Force -Path "C:\nssm" | Out-Null
+        Copy-Item $nssmExe "C:\nssm\nssm.exe" -Force
+        $nssmExe = "C:\nssm\nssm.exe"
+        OK "NSSM downloaded to $nssmExe"
+    } catch {
+        FAIL "Could not obtain NSSM: $_`nManual fix: copy tools\nssm\nssm.exe to C:\nssm\nssm.exe and re-run."
+    }
 }
 
 $svcName = "PixBridgeFaceRecognition"
