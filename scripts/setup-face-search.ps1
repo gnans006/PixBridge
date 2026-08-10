@@ -186,49 +186,73 @@ $vectorCount = (& "$PG_BIN\psql.exe" -U $PGUSER -d postgres -tAc `
 $pgvectorVisible = ($vectorCount -eq "1")
 
 if ($pgvectorVisible) {
-    Step "pgvector already visible to PostgreSQL — skipping build"
+    Step "pgvector already visible to PostgreSQL — skipping install"
     OK "vector extension confirmed in pg_available_extensions"
 } else {
 
-# ── Attempt 1: Download pre-built Windows binaries (no MSVC required) ────────
-Step "Installing pgvector $PGVECTOR_VER"
-
-$pgMajor       = ($PG_ROOT | Select-String '\d+$').Matches.Value
-$prebuiltZip   = "$env:TEMP\pgvector-prebuilt.zip"
-$prebuiltDir   = "$env:TEMP\pgvector-prebuilt"
-$prebuiltUrl   = "https://github.com/pgvector/pgvector/releases/download/v$PGVECTOR_VER/pgvector-v$PGVECTOR_VER-pg$pgMajor-windows-x86_64.zip"
+Step "Installing pgvector"
+$pgMajor              = (Split-Path $PG_ROOT -Leaf)
 $installedViaPrebuilt = $false
 
-Write-Host "    Trying pre-built binaries (no compiler required)..."
-Write-Host "    URL: $prebuiltUrl"
-try {
-    Invoke-WebRequest -Uri $prebuiltUrl -OutFile $prebuiltZip -UseBasicParsing -ErrorAction Stop
-    Remove-Item $prebuiltDir -Recurse -Force -ErrorAction SilentlyContinue
-    Expand-Archive $prebuiltZip -DestinationPath $prebuiltDir -Force
+# ── Attempt 1: Bundled pre-built files shipped with the repo (fastest, zero deps) ──
+$bundleDir  = Join-Path $REPO_ROOT "tools\pgvector\pg$pgMajor"
+$bundleDll  = Join-Path $bundleDir "vector.dll"
+$bundleCtrl = Join-Path $bundleDir "vector.control"
 
-    # Layout varies by release — search for vector.dll and vector.control
-    $prebuiltDll  = Get-ChildItem $prebuiltDir -Recurse -Filter "vector.dll"  | Select-Object -First 1
-    $prebuiltCtrl = Get-ChildItem $prebuiltDir -Recurse -Filter "vector.control" | Select-Object -First 1
-    $prebuiltSql  = Get-ChildItem $prebuiltDir -Recurse -Filter "vector--*.sql"
-
-    if ($prebuiltDll -and $prebuiltCtrl -and $prebuiltSql) {
-        Copy-Item $prebuiltDll.FullName  $PG_LIB       -Force
-        Copy-Item $prebuiltCtrl.FullName $PG_SHARE_EXT -Force
-        $prebuiltSql | ForEach-Object { Copy-Item $_.FullName $PG_SHARE_EXT -Force }
-        OK "Pre-built binaries installed (DLL + $($prebuiltSql.Count) SQL file(s))"
-        $installedViaPrebuilt = $true
-    } else {
-        WARN "Pre-built zip missing expected files — will build from source."
+if ((Test-Path $bundleDll) -and (Test-Path $bundleCtrl)) {
+    Write-Host "    Installing from repo bundle (tools\pgvector\pg$pgMajor)..." -ForegroundColor Cyan
+    Copy-Item $bundleDll  $PG_LIB       -Force
+    Copy-Item $bundleCtrl $PG_SHARE_EXT -Force
+    Get-ChildItem $bundleDir -Filter "*.sql" | ForEach-Object {
+        Copy-Item $_.FullName $PG_SHARE_EXT -Force
     }
-} catch {
-    WARN "Pre-built download failed ($_). Will build from source."
+    $sqlCount = (Get-ChildItem $bundleDir -Filter "*.sql").Count
+    OK "Bundled pgvector installed (DLL + $sqlCount SQL files)"
+    $installedViaPrebuilt = $true
+} else {
+    WARN "No repo bundle at $bundleDir — trying GitHub download..."
 }
 
-# ── Attempt 2: Build from source (requires MSVC) ─────────────────────────────
+# ── Attempt 2: Download pre-built Windows binaries from GitHub ────────────────
+if (-not $installedViaPrebuilt) {
+    $prebuiltZip  = "$env:TEMP\pgvector-prebuilt.zip"
+    $prebuiltDir  = "$env:TEMP\pgvector-prebuilt"
+    $prebuiltUrls = @(
+        "https://github.com/pgvector/pgvector/releases/download/v$PGVECTOR_VER/pgvector-v$PGVECTOR_VER-pg$pgMajor-windows-x64.zip",
+        "https://github.com/pgvector/pgvector/releases/download/v$PGVECTOR_VER/pgvector-v$PGVECTOR_VER-pg$pgMajor-windows-x86_64.zip"
+    )
+    foreach ($url in $prebuiltUrls) {
+        if ($installedViaPrebuilt) { break }
+        Write-Host "    Trying: $url"
+        try {
+            Invoke-WebRequest -Uri $url -OutFile $prebuiltZip -UseBasicParsing -ErrorAction Stop
+            Remove-Item $prebuiltDir -Recurse -Force -ErrorAction SilentlyContinue
+            Expand-Archive $prebuiltZip -DestinationPath $prebuiltDir -Force
+            $pdll  = Get-ChildItem $prebuiltDir -Recurse -Filter "vector.dll"    | Select-Object -First 1
+            $pctrl = Get-ChildItem $prebuiltDir -Recurse -Filter "vector.control" | Select-Object -First 1
+            $psql  = Get-ChildItem $prebuiltDir -Recurse -Filter "vector--*.sql"
+            if ($pdll -and $pctrl -and $psql) {
+                Copy-Item $pdll.FullName  $PG_LIB       -Force
+                Copy-Item $pctrl.FullName $PG_SHARE_EXT -Force
+                $psql | ForEach-Object { Copy-Item $_.FullName $PG_SHARE_EXT -Force }
+                $mainSql = Get-ChildItem $prebuiltDir -Recurse -Filter "vector.sql" | Select-Object -First 1
+                if ($mainSql) { Copy-Item $mainSql.FullName $PG_SHARE_EXT -Force }
+                OK "Downloaded pgvector installed (DLL + $($psql.Count) SQL files)"
+                $installedViaPrebuilt = $true
+            } else {
+                WARN "Zip missing files (dll=$($null -ne $pdll) ctrl=$($null -ne $pctrl) sql=$($psql.Count))"
+            }
+        } catch {
+            WARN "Download failed: $_"
+        }
+    }
+}
+
+# ── Attempt 3: Build from source (requires MSVC) ─────────────────────────────
 if (-not $installedViaPrebuilt) {
 
 if (-not $VS_PATH) {
-    FAIL "Pre-built pgvector download failed AND Visual Studio is not installed.`n`n  Options:`n  A) Install VS 2022 with 'Desktop development with C++' workload, then re-run.`n  B) Download pgvector manually from https://github.com/pgvector/pgvector/releases`n     and copy vector.dll to $PG_LIB and all vector*.sql + vector.control to $PG_SHARE_EXT`n     then restart PostgreSQL and re-run this script."
+    FAIL "pgvector install failed — all automatic methods failed.`n`n  Fix options:`n  A) Commit tools\pgvector\pg$pgMajor from the working machine and pull here, then re-run.`n  B) Install VS 2022 with 'Desktop development with C++' workload and re-run.`n  C) Manually copy vector.dll to $PG_LIB`n     and vector.control + vector--*.sql to $PG_SHARE_EXT, then re-run."
 }
 
 $PGVECTOR_DIR = "$env:TEMP\pgvector-build"
@@ -345,6 +369,13 @@ if ($proc.ExitCode -ne 0) {
     Copy-Item "$PGVECTOR_SRC\vector.control" "$PG_SHARE_EXT\vector.control" -Force
     Get-ChildItem "$PGVECTOR_SRC\sql" -Filter "*.sql" | ForEach-Object {
         Copy-Item $_.FullName "$PG_SHARE_EXT\$($_.Name)" -Force
+    }
+    # PostgreSQL needs a version-named file matching default_version in vector.control
+    # nmake install creates it; our fallback must too.
+    $ctrlVersion = (Get-Content "$PGVECTOR_SRC\vector.control" | Select-String "default_version\s*=\s*'([^']+)'").Matches.Groups[1].Value
+    if ($ctrlVersion) {
+        Copy-Item "$PGVECTOR_SRC\sql\vector.sql" "$PG_SHARE_EXT\vector--$ctrlVersion.sql" -Force
+        OK "Version-named SQL created: vector--$ctrlVersion.sql"
     }
     OK "Manual copy completed"
 } else {
