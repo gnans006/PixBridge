@@ -42,18 +42,28 @@ if ($wifi.NetworkCategory -eq 'Public') {
 netsh advfirewall firewall add rule `
     name="PixBridge API" `
     dir=in action=allow protocol=TCP localport=5000 `
-    profile=private | Out-Null
-Write-Host "  ✅  Firewall rule added: port 5000 (Private)" -ForegroundColor Green
+    profile=any | Out-Null
+Write-Host "  ✅  Firewall rule added: port 5000 (all profiles)" -ForegroundColor Green
 
-# 5. Get current WiFi IP
-$lanIp = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias $wifi.InterfaceAlias).IPAddress
-Write-Host "`n  Your WiFi IP   : $lanIp" -ForegroundColor Cyan
-Write-Host "  Guest gallery  : http://$($lanIp):5000/gallery/<eventId>" -ForegroundColor Cyan
-Write-Host "  Admin UI       : http://$($lanIp):5000" -ForegroundColor Cyan
+# 5. Get current WiFi IP (prefer the adapter we already found, skip virtual adapters)
+$wifiIp = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias $wifi.InterfaceAlias -ErrorAction SilentlyContinue).IPAddress
+if (-not $wifiIp) {
+    $wifiIp = (Get-NetIPAddress -AddressFamily IPv4 |
+        Where-Object { $_.IPAddress -match '^192\.168\.' -or $_.IPAddress -match '^10\.' } |
+        Where-Object { (Get-NetAdapter -InterfaceIndex $_.InterfaceIndex -ErrorAction SilentlyContinue).PhysicalMediaType -ne '' } |
+        Select-Object -First 1).IPAddress
+}
+$publicBaseUrl = "http://$($wifiIp):5000"
 
-Write-Host "`n  NEXT STEPS:"
-Write-Host "  1. In Settings → set app.serverUrl to  http://$($lanIp):5000"
-Write-Host "  2. Click Refresh QR on each event"
-Write-Host "  3. Scan QR from phone (same WiFi)" -ForegroundColor Green
+Write-Host "`n  Your WiFi IP     : $wifiIp" -ForegroundColor Cyan
+Write-Host "  Public Base URL  : $publicBaseUrl" -ForegroundColor Green
+Write-Host "  Guest gallery    : $publicBaseUrl/gallery/<eventId>" -ForegroundColor Cyan
+Write-Host "  Admin UI         : $publicBaseUrl/admin" -ForegroundColor Cyan
+
+Write-Host "`n  ⚠️  IMPORTANT — QR codes will stay wrong until you do this:" -ForegroundColor Yellow
+Write-Host "  1. Open  $publicBaseUrl/admin" -ForegroundColor White
+Write-Host "  2. Go to  Platform → Network" -ForegroundColor White
+Write-Host "  3. Set 'Public Base URL' to  $publicBaseUrl" -ForegroundColor White
+Write-Host "  4. Save — QR codes regenerate automatically" -ForegroundColor White
 
 Write-Host "`n━━━  Done  ━━━`n" -ForegroundColor Cyan

@@ -58,6 +58,16 @@ public sealed class NetworkInformationService : INetworkInformationService
 
     // ── Private ───────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Virtual-adapter name fragments to deprioritise (Hyper-V, VMware, VirtualBox, etc.).
+    /// These are moved to the end of the list so physical adapters are always preferred.
+    /// </summary>
+    private static readonly string[] VirtualAdapterKeywords =
+    [
+        "hyper-v", "vmware", "virtualbox", "vethernet", "tap adapter",
+        "tap-windows", "microsoft wi-fi direct", "virtual", "loopback",
+    ];
+
     private static List<string> DiscoverLanIpAddresses()
     {
         return NetworkInterface.GetAllNetworkInterfaces()
@@ -65,15 +75,30 @@ public sealed class NetworkInformationService : INetworkInformationService
                 nic.OperationalStatus == OperationalStatus.Up &&
                 nic.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
                 nic.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
-            .SelectMany(nic => nic.GetIPProperties().UnicastAddresses)
-            .Where(addr =>
-                addr.Address.AddressFamily == AddressFamily.InterNetwork &&
-                !IPAddress.IsLoopback(addr.Address) &&
-                !addr.Address.ToString().StartsWith("169.254") && // link-local
-                IsPrivateIp(addr.Address))
-            .Select(addr => addr.Address.ToString())
+            .SelectMany(nic => nic.GetIPProperties().UnicastAddresses
+                .Where(addr =>
+                    addr.Address.AddressFamily == AddressFamily.InterNetwork &&
+                    !IPAddress.IsLoopback(addr.Address) &&
+                    !addr.Address.ToString().StartsWith("169.254") &&
+                    IsPrivateIp(addr.Address))
+                .Select(addr => (Ip: addr.Address.ToString(), Nic: nic)))
+            // Physical WiFi → Ethernet → other physical → virtual (last resort)
+            .OrderBy(x => IsVirtualAdapter(x.Nic) ? 1 : 0)
+            .ThenBy(x => x.Nic.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 ? 0 :
+                         x.Nic.NetworkInterfaceType is NetworkInterfaceType.Ethernet
+                                                     or NetworkInterfaceType.GigabitEthernet
+                                                     or NetworkInterfaceType.FastEthernetT
+                                                     or NetworkInterfaceType.FastEthernetFx ? 1 : 2)
+            .Select(x => x.Ip)
             .Distinct()
             .ToList();
+    }
+
+    private static bool IsVirtualAdapter(NetworkInterface nic)
+    {
+        var desc = nic.Description.ToLowerInvariant();
+        var name = nic.Name.ToLowerInvariant();
+        return VirtualAdapterKeywords.Any(kw => desc.Contains(kw) || name.Contains(kw));
     }
 
     private static bool IsPrivateIp(IPAddress address)
