@@ -98,10 +98,19 @@ using (var scope = app.Services.CreateScope())
         var appSettings = await appSettingsRepo.GetOrCreateDefaultAsync();
         var networkInfo = networkSvc.GetCurrentNetworkInformation(appSettings.ServerPort);
 
+        // Also treat "localhost" and "127.0.0.1" as IP-based defaults that must be corrected
+        // on fresh installs (IsIpBasedUrl only matches numeric IPs, not "localhost").
+        var isLocalhostDefault =
+            appSettings.PublicBaseUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase) ||
+            appSettings.PublicBaseUrl.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+
         if (networkInfo.PrimaryIpAddress is not "127.0.0.1"
-            && networkSvc.IsIpBasedUrl(appSettings.PublicBaseUrl))
+            && (networkSvc.IsIpBasedUrl(appSettings.PublicBaseUrl) || isLocalhostDefault))
         {
-            var newBaseUrl = networkSvc.ReplaceIpInUrl(appSettings.PublicBaseUrl, networkInfo.PrimaryIpAddress);
+            // For localhost defaults, ReplaceIpInUrl won't match; build the URL manually instead.
+            var newBaseUrl = isLocalhostDefault && !networkSvc.IsIpBasedUrl(appSettings.PublicBaseUrl)
+                ? $"http://{networkInfo.PrimaryIpAddress}:{appSettings.ServerPort}"
+                : networkSvc.ReplaceIpInUrl(appSettings.PublicBaseUrl, networkInfo.PrimaryIpAddress);
             if (newBaseUrl != appSettings.PublicBaseUrl)
             {
                 var oldBaseUrl = appSettings.PublicBaseUrl;

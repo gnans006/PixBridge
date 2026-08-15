@@ -6,7 +6,7 @@ using MediatR;
 namespace EventPhoto.Application.Events.Commands;
 
 /// <summary>
-/// Command that regenerates the QR code for an event using the current server URL.
+/// Command that regenerates the QR code for an event using the current <c>PublicBaseUrl</c>.
 /// </summary>
 /// <param name="EventId">The event identifier.</param>
 public sealed record RefreshQrCodeCommand(Guid EventId) : IRequest<Result>;
@@ -16,7 +16,7 @@ public sealed record RefreshQrCodeCommand(Guid EventId) : IRequest<Result>;
 /// </summary>
 public sealed class RefreshQrCodeCommandHandler(
     IEventRepository eventRepository,
-    ISystemSettingRepository settingRepository,
+    IUrlGenerationService urlGenerationService,
     IQrCodeService qrCodeService,
     IUnitOfWork unitOfWork)
     : IRequestHandler<RefreshQrCodeCommand, Result>
@@ -28,10 +28,8 @@ public sealed class RefreshQrCodeCommandHandler(
         if (eventEntity is null)
             return Result.Failure($"Event '{request.EventId}' was not found.");
 
-        var serverUrl = await settingRepository.GetValueAsync("app.serverUrl", cancellationToken)
-                        ?? "http://localhost:5000";
-
-        var galleryUrl = $"{serverUrl}/gallery/{eventEntity.Id}";
+        // Always read from ApplicationSettings.PublicBaseUrl — never from legacy app.serverUrl
+        var galleryUrl = await urlGenerationService.GenerateGalleryUrlAsync(eventEntity.Id, cancellationToken);
 
         // Reuse the existing QR path or derive a default one
         var qrPath = !string.IsNullOrWhiteSpace(eventEntity.QrCodePath)

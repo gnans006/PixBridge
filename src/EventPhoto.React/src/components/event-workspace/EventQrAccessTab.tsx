@@ -5,6 +5,7 @@ import { Check, Copy, Download, ExternalLink, Loader2, QrCode, RefreshCw } from 
 import toast from 'react-hot-toast';
 import { eventsApi } from '../../api/events';
 import { apiError } from '../../utils/errorHandler';
+import { useApplicationSettings } from '../../hooks/useApplicationSettings';
 import type { EventWorkspaceResponse } from '../../types';
 
 interface EventQrAccessTabProps {
@@ -15,6 +16,7 @@ export function EventQrAccessTab({ workspace }: EventQrAccessTabProps) {
   const qc = useQueryClient();
   const [qrBust, setQrBust] = useState<number | undefined>(undefined);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const { data: appSettings } = useApplicationSettings();
 
   const refreshMutation = useMutation({
     mutationFn: () => eventsApi.refreshQr(workspace.id),
@@ -28,7 +30,9 @@ export function EventQrAccessTab({ workspace }: EventQrAccessTabProps) {
   });
 
   const qrImageUrl = eventsApi.getQrCodeUrl(workspace.id, qrBust);
-  const origin = window.location.origin;
+  // Use PublicBaseUrl from ApplicationSettings so the URL shown to admins matches what
+  // guests see (router IP / custom domain), not the admin's local LAN address.
+  const origin = appSettings?.publicBaseUrl?.replace(/\/$/, '') ?? window.location.origin;
   const galleryUrl = `${origin}/gallery/${workspace.id}`;
   const faceSearchUrl = workspace.enableFaceRecognition
     ? `${origin}/gallery/${workspace.id}/find`

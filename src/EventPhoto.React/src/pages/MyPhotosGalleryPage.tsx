@@ -72,16 +72,22 @@ export default function MyPhotosGalleryPage() {
               <p className="text-slate-500 text-sm mt-2">
                 Tap any photo to download. Tap "Download All" to save everything at once.
               </p>
-              {/* Download all */}
+              {/* Download all — opens each matched photo in a new tab.
+                   /api/photos/bulk-download does not exist; use per-photo download links. */}
               {allMatches.length > 0 && (
                 <div className="mt-4 flex justify-center gap-3">
-                  <a
-                    href={`/api/photos/bulk-download?sessionToken=${sessionToken}`}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      allMatches.forEach((m) => {
+                        window.open(m.downloadUrl, '_blank', 'noopener,noreferrer');
+                      });
+                    }}
                     className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors"
                   >
                     <Download className="h-4 w-4" />
                     Download All
-                  </a>
+                  </button>
                 </div>
               )}
             </>

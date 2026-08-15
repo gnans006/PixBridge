@@ -6,6 +6,7 @@ import { Eye, Globe, Loader2, Lock, RotateCcw, Save, Users } from 'lucide-react'
 import toast from 'react-hot-toast';
 import { workspaceApi } from '../../api/workspace';
 import { apiError } from '../../utils/errorHandler';
+import { useApplicationSettings } from '../../hooks/useApplicationSettings';
 import type { EventWorkspaceResponse, UpdateGallerySettingsRequest } from '../../types';
 
 interface EventGalleryTabProps {
@@ -15,6 +16,7 @@ interface EventGalleryTabProps {
 export function EventGalleryTab({ workspace }: EventGalleryTabProps) {
   const qc = useQueryClient();
   const [dirty, setDirty] = useState(false);
+  const { data: appSettings } = useApplicationSettings();
 
   const defaults: UpdateGallerySettingsRequest = {
     allowGalleryBrowsing: workspace.allowGalleryBrowsing,
@@ -62,8 +64,10 @@ export function EventGalleryTab({ workspace }: EventGalleryTabProps) {
   if (allowGalleryBrowsing && allowFaceSearch) mode = 'Hybrid (Gallery + Face Search)';
   else if (!allowGalleryBrowsing && allowFaceSearch) mode = 'Face Search Only';
 
-  // Gallery URL
-  const galleryUrl = `${window.location.origin}/gallery/${workspace.id}`;
+  // Gallery URL — use PublicBaseUrl so the displayed link matches what guests see
+  // (router IP / custom domain), not the admin's local LAN address.
+  const origin = appSettings?.publicBaseUrl?.replace(/\/$/, '') ?? window.location.origin;
+  const galleryUrl = `${origin}/gallery/${workspace.id}`;
 
   return (
     <div className="space-y-6">

@@ -16,13 +16,13 @@ namespace EventPhoto.Api.Controllers;
 [Produces("application/json")]
 public sealed class NetworkController : ControllerBase
 {
-    private readonly ISystemSettingRepository _settings;
+    private readonly IApplicationSettingsRepository _appSettingsRepo;
     private readonly IConfiguration _config;
 
     /// <summary>Initializes a new instance of <see cref="NetworkController"/>.</summary>
-    public NetworkController(ISystemSettingRepository settings, IConfiguration config)
+    public NetworkController(IApplicationSettingsRepository appSettingsRepo, IConfiguration config)
     {
-        _settings = settings;
+        _appSettingsRepo = appSettingsRepo;
         _config = config;
     }
 
@@ -51,14 +51,14 @@ public sealed class NetworkController : ControllerBase
         var primaryIp = lanAddresses.FirstOrDefault() ?? "127.0.0.1";
 
         // Read port from Kestrel configuration (fallback to 5000)
-        var kestrelUrl = _config["Kestrel:Endpoints:Http:Url"] ?? $"http://0.0.0.0:5000";
+        var kestrelUrl = _config["Kestrel:Endpoints:Http:Url"] ?? "http://0.0.0.0:5000";
         var port = Uri.TryCreate(kestrelUrl.Replace("0.0.0.0", "127.0.0.1"), UriKind.Absolute, out var kestrelUri)
             ? kestrelUri.Port
             : 5000;
 
-        // Read publicBaseUrl from the persisted system setting
-        var serverUrlSetting = await _settings.GetByKeyAsync("app.serverUrl", cancellationToken);
-        var publicBaseUrl = serverUrlSetting?.Value ?? $"http://{primaryIp}:{port}";
+        // Read publicBaseUrl from ApplicationSettings (authoritative source)
+        var appSettings = await _appSettingsRepo.GetOrCreateDefaultAsync(cancellationToken);
+        var publicBaseUrl = appSettings.PublicBaseUrl;
 
         return Ok(new
         {

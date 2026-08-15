@@ -148,7 +148,7 @@ public sealed class PhotosController : ControllerBase
         var userAgent = Request.Headers.UserAgent.ToString();
 
         var result = await _mediator.Send(
-            new DownloadPhotoQuery(id, ipAddress, userAgent),
+            new DownloadPhotoQuery(id, ipAddress, userAgent, sessionToken),
             cancellationToken);
 
         if (result.IsFailure)

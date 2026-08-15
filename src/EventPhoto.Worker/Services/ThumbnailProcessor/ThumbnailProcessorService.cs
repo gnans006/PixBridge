@@ -57,7 +57,6 @@ public sealed class ThumbnailProcessorService : BackgroundService
         var maxWidth = int.TryParse(await settingRepository.GetValueAsync("thumbnail.width", cancellationToken), out var widthValue) ? widthValue : 400;
         var maxHeight = int.TryParse(await settingRepository.GetValueAsync("thumbnail.height", cancellationToken), out var heightValue) ? heightValue : 400;
         var quality = int.TryParse(await settingRepository.GetValueAsync("thumbnail.quality", cancellationToken), out var qualityValue) ? qualityValue : 85;
-        var serverUrl = await settingRepository.GetValueAsync("app.serverUrl", cancellationToken) ?? "http://localhost:5000";
 
         var pendingPhotos = await photoRepository.GetPendingThumbnailsAsync(BatchSize, cancellationToken);
         if (pendingPhotos.Count == 0)
@@ -87,7 +86,9 @@ public sealed class ThumbnailProcessorService : BackgroundService
                 await photoRepository.UpdateAsync(photo, cancellationToken);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
 
-                var thumbnailUrl = $"{serverUrl.TrimEnd('/')}/api/photos/{photo.Id}/thumbnail";
+                // Use a root-relative URL so the notification works from any network topology
+                // (router IP, custom domain, LAN IP). The React client resolves it same-origin.
+                var thumbnailUrl = $"/api/photos/{photo.Id}/thumbnail";
                 await notificationService.NotifyPhotoAddedAsync(photo.EventId, photo.Id, photo.FileName, thumbnailUrl, cancellationToken);
 
                 // ── Gallery Pipeline → AI Discovery Pipeline handoff ───────────
