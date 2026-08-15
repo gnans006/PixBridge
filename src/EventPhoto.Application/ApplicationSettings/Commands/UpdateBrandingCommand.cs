@@ -10,6 +10,8 @@ public sealed record UpdateBrandingCommand(
     string PrimaryColor,
     string SecondaryColor,
     string BrandTheme,
+    string GalleryTheme,
+    string QrTheme,
     Guid? DefaultWatermarkProfileId) : IRequest<Result>;
 
 /// <summary>Handles <see cref="UpdateBrandingCommand"/>.</summary>
@@ -28,6 +30,8 @@ public sealed class UpdateBrandingCommandHandler(
                 request.PrimaryColor,
                 request.SecondaryColor,
                 request.BrandTheme,
+                request.GalleryTheme,
+                request.QrTheme,
                 request.DefaultWatermarkProfileId);
         }
         catch (DomainException ex)

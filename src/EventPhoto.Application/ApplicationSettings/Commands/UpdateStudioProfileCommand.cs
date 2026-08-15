@@ -14,7 +14,8 @@ public sealed record UpdateStudioProfileCommand(
     string? Instagram,
     string? Facebook,
     string? WhatsApp,
-    string? LogoPath) : IRequest<Result>;
+    string? LogoPath,
+    string? GstNumber) : IRequest<Result>;
 
 /// <summary>Handles <see cref="UpdateStudioProfileCommand"/>.</summary>
 public sealed class UpdateStudioProfileCommandHandler(
@@ -36,7 +37,8 @@ public sealed class UpdateStudioProfileCommandHandler(
                 request.Instagram,
                 request.Facebook,
                 request.WhatsApp,
-                request.LogoPath);
+                request.LogoPath,
+                request.GstNumber);
         }
         catch (DomainException ex)
         {

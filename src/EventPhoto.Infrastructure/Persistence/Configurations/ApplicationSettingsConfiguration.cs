@@ -95,6 +95,10 @@ public sealed class ApplicationSettingsConfiguration : IEntityTypeConfiguration<
             .HasColumnName("logo_path")
             .HasMaxLength(1024);
 
+        builder.Property(a => a.GstNumber)
+            .HasColumnName("gst_number")
+            .HasMaxLength(50);
+
         // Phase 7 — Branding
         builder.Property(a => a.PrimaryColor)
             .HasColumnName("primary_color")
@@ -113,6 +117,18 @@ public sealed class ApplicationSettingsConfiguration : IEntityTypeConfiguration<
             .HasMaxLength(20)
             .IsRequired()
             .HasDefaultValue("dark");
+
+        builder.Property(a => a.GalleryTheme)
+            .HasColumnName("gallery_theme")
+            .HasMaxLength(30)
+            .IsRequired()
+            .HasDefaultValue("minimal");
+
+        builder.Property(a => a.QrTheme)
+            .HasColumnName("qr_theme")
+            .HasMaxLength(30)
+            .IsRequired()
+            .HasDefaultValue("standard");
 
         builder.Property(a => a.DefaultWatermarkProfileId)
             .HasColumnName("default_watermark_profile_id");

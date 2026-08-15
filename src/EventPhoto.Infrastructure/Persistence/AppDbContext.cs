@@ -62,6 +62,19 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Gets the audit log entries set.</summary>
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    // ── Phase 4 — Guest Experience ────────────────────────────────────────────
+
+    /// <summary>Gets the guest upload sessions set.</summary>
+    public DbSet<GuestUploadSession> GuestUploadSessions => Set<GuestUploadSession>();
+
+    /// <summary>Gets the guest uploads (photos submitted by guests) set.</summary>
+    public DbSet<GuestUpload> GuestUploads => Set<GuestUpload>();
+
+    // ── Phase 5 — Subscription Engine ────────────────────────────────────────
+
+    /// <summary>Gets the subscription singleton record.</summary>
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

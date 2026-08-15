@@ -30,10 +30,13 @@ public sealed record ApplicationSettingsDto(
     string? Facebook,
     string? WhatsApp,
     string? LogoPath,
+    string? GstNumber,
     // Phase 7
     string PrimaryColor,
     string SecondaryColor,
     string BrandTheme,
+    string GalleryTheme,
+    string QrTheme,
     Guid? DefaultWatermarkProfileId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
@@ -71,9 +74,12 @@ public sealed class GetApplicationSettingsQueryHandler(
         s.Facebook,
         s.WhatsApp,
         s.LogoPath,
+        s.GstNumber,
         s.PrimaryColor,
         s.SecondaryColor,
         s.BrandTheme,
+        s.GalleryTheme,
+        s.QrTheme,
         s.DefaultWatermarkProfileId,
         s.CreatedAt,
         s.UpdatedAt);

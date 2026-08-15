@@ -22,10 +22,13 @@ public sealed record ApplicationSettingsResponse(
     string? Facebook,
     string? WhatsApp,
     string? LogoPath,
+    string? GstNumber,
     // Phase 7 — Branding
     string PrimaryColor,
     string SecondaryColor,
     string BrandTheme,
+    string GalleryTheme,
+    string QrTheme,
     Guid? DefaultWatermarkProfileId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);

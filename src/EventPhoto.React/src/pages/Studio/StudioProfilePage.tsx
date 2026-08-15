@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Building2, Globe, Phone, Mail, MapPin, AtSign, Share2, MessageCircle, Save, Loader2 } from 'lucide-react';
+import { Building2, Globe, Phone, Mail, MapPin, AtSign, Share2, MessageCircle, Save, Loader2, Receipt } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { applicationSettingsApi, type UpdateStudioProfileRequest } from '../../api/applicationSettings';
 import { useUpdateApplicationSettings } from '../../hooks/useApplicationSettings';
@@ -38,7 +38,7 @@ export default function StudioProfilePage() {
   const [studioName, setStudioName] = useState('');
   const [form, setForm] = useState<UpdateStudioProfileRequest>({
     phone: '', email: '', website: '', address: '',
-    instagram: '', facebook: '', whatsApp: '', logoPath: '',
+    instagram: '', facebook: '', whatsApp: '', logoPath: '', gstNumber: '',
   });
 
   useEffect(() => {
@@ -53,6 +53,7 @@ export default function StudioProfilePage() {
         facebook:  settings.facebook  ?? '',
         whatsApp:  settings.whatsApp  ?? '',
         logoPath:  settings.logoPath  ?? '',
+        gstNumber: settings.gstNumber ?? '',
       });
     }
   }, [settings]);
@@ -86,8 +87,7 @@ export default function StudioProfilePage() {
         instagram: form.instagram || undefined,
         facebook:  form.facebook  || undefined,
         whatsApp:  form.whatsApp  || undefined,
-        logoPath:  form.logoPath  || undefined,
-      });
+        logoPath:  form.logoPath  || undefined,        gstNumber: form.gstNumber || undefined,      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['application-settings'] });
@@ -173,6 +173,13 @@ export default function StudioProfilePage() {
         <Field label="Instagram" icon={AtSign} value={form.instagram ?? ''} onChange={f('instagram')} placeholder="https://instagram.com/yourstudio" />
         <Field label="Facebook" icon={Share2} value={form.facebook ?? ''} onChange={f('facebook')} placeholder="https://facebook.com/yourstudio" />
         <Field label="WhatsApp" icon={MessageCircle} value={form.whatsApp ?? ''} onChange={f('whatsApp')} type="tel" placeholder="+91 98765 43210" />
+      </div>
+
+      {/* Business / Legal */}
+      <div className="rounded-xl border border-gray-800 bg-gray-900 p-6 space-y-4">
+        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Business &amp; Legal</h2>
+        <Field label="GST Number" icon={Receipt} value={form.gstNumber ?? ''} onChange={f('gstNumber')} placeholder="22AAAAA0000A1Z5" />
+        <p className="text-xs text-gray-500">GST registration number printed on invoices and receipts.</p>
       </div>
     </div>
   );

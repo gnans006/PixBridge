@@ -28,6 +28,8 @@ import StudioProfilePage from './pages/Studio/StudioProfilePage';
 import BrandingPage from './pages/Studio/BrandingPage';
 import FaceRecognitionPage from './pages/AI/FaceRecognitionPage';
 import AiStudioPage from './pages/AI/AiStudioPage';
+import GuestUploadsPage from './pages/Experiences/GuestUploadsPage';
+import SubscriptionPage from './pages/Platform/SubscriptionPage';
 import { apiError } from './utils/errorHandler';
 
 const queryClient = new QueryClient({
@@ -117,6 +119,9 @@ export default function App() {
             <Route path="deployment" element={<DeploymentCenterPage />} />
             {/* Experiences */}
             <Route path="experiences/qr" element={<Navigate to="/admin/events" replace />} />
+            <Route path="experiences/guest-uploads/:eventId" element={<GuestUploadsPage />} />
+            {/* Platform */}
+            <Route path="platform/subscription" element={<SubscriptionPage />} />
             {/* AI */}
             <Route path="ai/face-recognition" element={<FaceRecognitionPage />} />
             <Route path="ai/studio" element={<AiStudioPage />} />

@@ -48,9 +48,12 @@ public sealed class ApplicationSettingsController(IMediator mediator) : Controll
             dto.Facebook,
             dto.WhatsApp,
             dto.LogoPath,
+            dto.GstNumber,
             dto.PrimaryColor,
             dto.SecondaryColor,
             dto.BrandTheme,
+            dto.GalleryTheme,
+            dto.QrTheme,
             dto.DefaultWatermarkProfileId,
             dto.CreatedAt,
             dto.UpdatedAt);
@@ -108,7 +111,8 @@ public sealed class ApplicationSettingsController(IMediator mediator) : Controll
             request.Instagram,
             request.Facebook,
             request.WhatsApp,
-            request.LogoPath);
+            request.LogoPath,
+            request.GstNumber);
 
         var result = await mediator.Send(command, cancellationToken);
         return result.IsSuccess
@@ -130,6 +134,8 @@ public sealed class ApplicationSettingsController(IMediator mediator) : Controll
             request.PrimaryColor,
             request.SecondaryColor,
             request.BrandTheme,
+            request.GalleryTheme,
+            request.QrTheme,
             request.DefaultWatermarkProfileId);
 
         var result = await mediator.Send(command, cancellationToken);

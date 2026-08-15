@@ -22,10 +22,13 @@ export interface ApplicationSettings {
   facebook?: string;
   whatsApp?: string;
   logoPath?: string;
+  gstNumber?: string;
   // Phase 7 — Branding
   primaryColor: string;
   secondaryColor: string;
   brandTheme: string;
+  galleryTheme: string;
+  qrTheme: string;
   defaultWatermarkProfileId?: string;
   createdAt: string;
   updatedAt: string;
@@ -69,12 +72,15 @@ export interface UpdateStudioProfileRequest {
   facebook?: string;
   whatsApp?: string;
   logoPath?: string;
+  gstNumber?: string;
 }
 
 export interface UpdateBrandingRequest {
   primaryColor: string;
   secondaryColor: string;
   brandTheme: string;
+  galleryTheme: string;
+  qrTheme: string;
   defaultWatermarkProfileId?: string | null;
 }
 

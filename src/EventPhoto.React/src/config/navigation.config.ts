@@ -18,6 +18,8 @@ import {
   Palette,
   SlidersHorizontal,
   Rocket,
+  Upload,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -84,7 +86,8 @@ export const NAVIGATION: NavSection[] = [
     id: 'experiences',
     label: 'Experiences',
     items: [
-      { label: 'QR Center', to: '/admin/experiences/qr', icon: QrCode },
+      { label: 'QR Center',      to: '/admin/experiences/qr',            icon: QrCode  },
+      { label: 'Guest Uploads',  to: '/admin/experiences/guest-uploads',  icon: Upload  },
     ],
   },
 
@@ -136,6 +139,7 @@ export const NAVIGATION: NavSection[] = [
       { label: 'Audit Logs',       to: '/admin/platform/audit',         icon: Shield,            minRole: 'StudioOwner' },
       { label: 'Logs',             to: '/admin/logs',                   icon: ScrollText,        minRole: 'StudioOwner' },
       { label: 'Health Monitor',   to: '/admin/health',                 icon: Activity,          minRole: 'StudioOwner' },
+      { label: 'Subscription',     to: '/admin/platform/subscription',  icon: CreditCard,        minRole: 'StudioOwner' },
     ],
     allowedRoles: ['StudioOwner', 'Admin'],
   },

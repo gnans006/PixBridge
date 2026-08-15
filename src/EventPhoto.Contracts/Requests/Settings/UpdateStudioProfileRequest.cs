@@ -9,4 +9,5 @@ public sealed record UpdateStudioProfileRequest(
     string? Instagram,
     string? Facebook,
     string? WhatsApp,
-    string? LogoPath);
+    string? LogoPath,
+    string? GstNumber);

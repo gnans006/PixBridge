@@ -75,6 +75,9 @@ public sealed class ApplicationSettings : AggregateRoot
     /// <summary>Gets the file-system path of the studio logo.</summary>
     public string? LogoPath { get; private set; }
 
+    /// <summary>Gets the studio's GST / tax registration number.</summary>
+    public string? GstNumber { get; private set; }
+
     // ── Phase 7 — Branding ────────────────────────────────────────────────────
 
     /// <summary>Gets the primary brand colour (hex, e.g. "#6366f1").</summary>
@@ -83,8 +86,14 @@ public sealed class ApplicationSettings : AggregateRoot
     /// <summary>Gets the secondary brand colour (hex).</summary>
     public string SecondaryColor { get; private set; } = "#8b5cf6";
 
-    /// <summary>Gets the preferred UI theme: "dark", "light", or "system".</summary>
+    /// <summary>Gets the preferred UI theme: "dark", "light", "midnight", or "system".</summary>
     public string BrandTheme { get; private set; } = "dark";
+
+    /// <summary>Gets the gallery page theme variant (e.g. "minimal", "masonry", "cinematic").</summary>
+    public string GalleryTheme { get; private set; } = "minimal";
+
+    /// <summary>Gets the QR code visual theme (e.g. "standard", "branded", "elegant").</summary>
+    public string QrTheme { get; private set; } = "standard";
 
     /// <summary>Gets the default watermark profile applied to new events.</summary>
     public Guid? DefaultWatermarkProfileId { get; private set; }
@@ -176,12 +185,15 @@ public sealed class ApplicationSettings : AggregateRoot
         string? instagram,
         string? facebook,
         string? whatsApp,
-        string? logoPath)
+        string? logoPath,
+        string? gstNumber)
     {
         if (email is not null && email.Length > 200)
             throw new DomainException("Email must not exceed 200 characters.");
         if (website is not null && website.Length > 2048)
             throw new DomainException("Website URL must not exceed 2048 characters.");
+        if (gstNumber is not null && gstNumber.Length > 50)
+            throw new DomainException("GST number must not exceed 50 characters.");
 
         Phone = phone?.Trim();
         Email = email?.Trim();
@@ -191,6 +203,7 @@ public sealed class ApplicationSettings : AggregateRoot
         Facebook = facebook?.Trim();
         WhatsApp = whatsApp?.Trim();
         LogoPath = logoPath;
+        GstNumber = gstNumber?.Trim();
         Touch();
     }
 
@@ -201,6 +214,8 @@ public sealed class ApplicationSettings : AggregateRoot
         string primaryColor,
         string secondaryColor,
         string brandTheme,
+        string galleryTheme,
+        string qrTheme,
         Guid? defaultWatermarkProfileId)
     {
         static bool IsHex(string? s) =>
@@ -210,12 +225,14 @@ public sealed class ApplicationSettings : AggregateRoot
             throw new DomainException("Primary color must be a valid hex color (e.g. #6366f1).");
         if (!IsHex(secondaryColor))
             throw new DomainException("Secondary color must be a valid hex color.");
-        if (brandTheme is not ("dark" or "light" or "system"))
-            throw new DomainException("Brand theme must be 'dark', 'light', or 'system'.");
+        if (brandTheme is not ("dark" or "light" or "midnight" or "system"))
+            throw new DomainException("Brand theme must be 'dark', 'light', 'midnight', or 'system'.");
 
         PrimaryColor = primaryColor;
         SecondaryColor = secondaryColor;
         BrandTheme = brandTheme;
+        GalleryTheme = galleryTheme?.Trim() ?? "minimal";
+        QrTheme = qrTheme?.Trim() ?? "standard";
         DefaultWatermarkProfileId = defaultWatermarkProfileId;
         Touch();
     }

@@ -1,13 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Save, Loader2, Monitor, Sun, Moon } from 'lucide-react';
+import { Sparkles, Save, Loader2, Monitor, Sun, Moon, MoonStar, Image, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { applicationSettingsApi, type UpdateBrandingRequest } from '../../api/applicationSettings';
 
 const THEMES = [
-  { value: 'dark',   label: 'Dark',   icon: Moon  },
-  { value: 'light',  label: 'Light',  icon: Sun   },
-  { value: 'system', label: 'System', icon: Monitor },
+  { value: 'dark',     label: 'Studio Dark',     icon: Moon     },
+  { value: 'light',    label: 'Studio Light',    icon: Sun      },
+  { value: 'midnight', label: 'Studio Midnight', icon: MoonStar },
+  { value: 'system',   label: 'System',          icon: Monitor  },
+] as const;
+
+const GALLERY_THEMES = [
+  { value: 'minimal',   label: 'Minimal',   description: 'Clean grid, full focus on photos' },
+  { value: 'masonry',   label: 'Masonry',   description: 'Pinterest-style variable-height grid' },
+  { value: 'cinematic', label: 'Cinematic', description: 'Wide hero shots, dark background' },
+] as const;
+
+const QR_THEMES = [
+  { value: 'standard', label: 'Standard', description: 'Clean black & white QR code' },
+  { value: 'branded',  label: 'Branded',  description: 'QR with studio primary color' },
+  { value: 'elegant',  label: 'Elegant',  description: 'Rounded corners, minimal framing' },
 ] as const;
 
 function ColorSwatch({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
@@ -55,15 +68,19 @@ export default function BrandingPage() {
     primaryColor:   '#6366f1',
     secondaryColor: '#8b5cf6',
     brandTheme:     'dark',
+    galleryTheme:   'minimal',
+    qrTheme:        'standard',
     defaultWatermarkProfileId: undefined,
   });
 
   useEffect(() => {
     if (settings) {
       setForm({
-        primaryColor:             settings.primaryColor   || '#6366f1',
-        secondaryColor:           settings.secondaryColor || '#8b5cf6',
-        brandTheme:               settings.brandTheme     || 'dark',
+        primaryColor:              settings.primaryColor   || '#6366f1',
+        secondaryColor:            settings.secondaryColor || '#8b5cf6',
+        brandTheme:                settings.brandTheme     || 'dark',
+        galleryTheme:              settings.galleryTheme   || 'minimal',
+        qrTheme:                   settings.qrTheme        || 'standard',
         defaultWatermarkProfileId: settings.defaultWatermarkProfileId ?? undefined,
       });
     }
@@ -146,7 +163,7 @@ export default function BrandingPage() {
       {/* Theme */}
       <div className="rounded-xl border border-gray-800 bg-gray-900 p-6 space-y-4">
         <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">UI Theme</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {THEMES.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
@@ -159,6 +176,60 @@ export default function BrandingPage() {
             >
               <Icon className="h-5 w-5" />
               <span className="text-xs font-medium">{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Gallery Theme */}
+      <div className="rounded-xl border border-gray-800 bg-gray-900 p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Image className="h-4 w-4 text-gray-400" />
+          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Gallery Theme</h2>
+        </div>
+        <p className="text-xs text-gray-500">Controls the layout of the guest photo gallery page.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {GALLERY_THEMES.map(({ value, label, description }) => (
+            <button
+              key={value}
+              onClick={() => setForm(p => ({ ...p, galleryTheme: value }))}
+              className={`rounded-xl border-2 p-4 text-left transition-colors ${
+                form.galleryTheme === value
+                  ? 'border-primary-500 bg-primary-500/10'
+                  : 'border-gray-700 hover:border-gray-600'
+              }`}
+            >
+              <p className={`text-sm font-semibold ${
+                form.galleryTheme === value ? 'text-primary-400' : 'text-gray-300'
+              }`}>{label}</p>
+              <p className="text-xs text-gray-500 mt-1">{description}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* QR Theme */}
+      <div className="rounded-xl border border-gray-800 bg-gray-900 p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <QrCode className="h-4 w-4 text-gray-400" />
+          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">QR Code Theme</h2>
+        </div>
+        <p className="text-xs text-gray-500">Visual style applied to generated QR code images.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {QR_THEMES.map(({ value, label, description }) => (
+            <button
+              key={value}
+              onClick={() => setForm(p => ({ ...p, qrTheme: value }))}
+              className={`rounded-xl border-2 p-4 text-left transition-colors ${
+                form.qrTheme === value
+                  ? 'border-primary-500 bg-primary-500/10'
+                  : 'border-gray-700 hover:border-gray-600'
+              }`}
+            >
+              <p className={`text-sm font-semibold ${
+                form.qrTheme === value ? 'text-primary-400' : 'text-gray-300'
+              }`}>{label}</p>
+              <p className="text-xs text-gray-500 mt-1">{description}</p>
             </button>
           ))}
         </div>

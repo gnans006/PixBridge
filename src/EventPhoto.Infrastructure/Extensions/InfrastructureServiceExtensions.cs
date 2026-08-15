@@ -63,6 +63,12 @@ public static class InfrastructureServiceExtensions
         // Application settings repository
         services.AddScoped<IApplicationSettingsRepository, ApplicationSettingsRepository>();
 
+        // Phase 4 — Guest Experience
+        services.AddScoped<IGuestUploadRepository, GuestUploadRepository>();
+
+        // Phase 5 — Subscription Engine
+        services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+
         // Existing services
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
