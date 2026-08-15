@@ -22,6 +22,7 @@ import StudioUsersPage from './pages/Studio/StudioUsersPage';
 import AuditLogsPage from './pages/Platform/AuditLogsPage';
 import NetworkPage from './pages/Platform/NetworkPage';
 import AppearancePage from './pages/Platform/AppearancePage';
+import DeploymentCenterPage from './pages/Platform/DeploymentCenterPage';
 import { ConfigurationPage } from './pages/Platform/ConfigurationPage';
 import StudioProfilePage from './pages/Studio/StudioProfilePage';
 import BrandingPage from './pages/Studio/BrandingPage';
@@ -113,6 +114,7 @@ export default function App() {
             <Route path="platform/network" element={<NetworkPage />} />
             <Route path="platform/appearance" element={<AppearancePage />} />
             <Route path="platform/configuration" element={<ConfigurationPage />} />
+            <Route path="deployment" element={<DeploymentCenterPage />} />
             {/* Experiences */}
             <Route path="experiences/qr" element={<Navigate to="/admin/events" replace />} />
             {/* AI */}

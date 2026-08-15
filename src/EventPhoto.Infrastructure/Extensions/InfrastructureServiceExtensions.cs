@@ -79,6 +79,8 @@ public static class InfrastructureServiceExtensions
 
         // Network & URL services
         services.AddSingleton<INetworkInformationService, NetworkInformationService>();
+        services.AddSingleton<IDeploymentInfoService, DeploymentInfoService>();
+        services.AddScoped<IAiServiceHealthChecker, AiServiceHealthChecker>();
         services.AddScoped<IUrlGenerationService, UrlGenerationService>();
         services.AddScoped<IUrlReachabilityService, UrlReachabilityService>();
 

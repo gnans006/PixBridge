@@ -7,6 +7,7 @@ using EventPhoto.Application.Extensions;
 using EventPhoto.Domain.Interfaces;
 using EventPhoto.Infrastructure.Extensions;
 using EventPhoto.Infrastructure.Persistence;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Serilog;
 using System.Threading.RateLimiting;
@@ -159,6 +160,17 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// ── Reverse-proxy support ─────────────────────────────────────────────────────
+// Required for Caddy, nginx, IIS ARR, and Cloudflare deployments so that
+// X-Forwarded-Proto / X-Forwarded-For headers are trusted and forwarded correctly.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    // Trust all proxies — restrict to known proxy IPs in production if needed
+    KnownNetworks = { },
+    KnownProxies  = { },
+});
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>

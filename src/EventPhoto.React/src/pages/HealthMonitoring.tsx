@@ -1,17 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, XCircle, RefreshCw, Server, Database, HardDrive, Cpu } from 'lucide-react';
+import { CheckCircle2, XCircle, RefreshCw, Server, Database, HardDrive, Cpu, ExternalLink } from 'lucide-react';
 import { apiClient } from '../api/client';
-import { settingsApi } from '../api/settings';
+import { useApplicationSettings } from '../hooks/useApplicationSettings';
 import { Card } from '../components/UI/Card';
 import { Badge } from '../components/UI/Badge';
 import { Spinner } from '../components/UI/Spinner';
 import { Button } from '../components/UI/Button';
-
-interface HealthStatus {
-  status: string;
-  server: string;
-  timestamp: string;
-}
 
 interface HealthStatus {
   status: string;
@@ -67,31 +61,25 @@ function MetricCard({ icon: Icon, label, value, sub, color = 'blue' }: {
 }
 
 function NetworkConfig() {
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: async () => {
-      const response = await settingsApi.getAll();
-      return response.data ?? [];
-    },
-  });
+  // Read from ApplicationSettings (authoritative source) instead of legacy app.serverUrl
+  const { data: settings } = useApplicationSettings();
+  const publicBaseUrl = settings?.publicBaseUrl ?? '—';
 
-  const serverUrl = settings?.find(s => s.key === 'app.serverUrl')?.value ?? '—';
-
-  let lanIp = '—';
-  let port = '—';
+  let lanDisplay = '—';
+  let portDisplay = '—';
   try {
-    const u = new URL(serverUrl);
-    lanIp = u.hostname;
-    port = `:${u.port || (u.protocol === 'https:' ? '443' : '80')} (${u.protocol.replace(':', '').toUpperCase()})`;
-  } catch { /* ignore */ }
+    const u = new URL(publicBaseUrl);
+    lanDisplay  = u.hostname;
+    portDisplay = `${u.port || (u.protocol === 'https:' ? '443' : '80')} (${u.protocol.replace(':', '').toUpperCase()})`;
+  } catch { /* ignore — malformed URL */ }
 
   const items = [
-    { label: 'Server LAN IP', value: lanIp },
-    { label: 'API Port', value: port },
-    { label: 'Guest Gallery URL', value: serverUrl },
-    { label: 'Admin Panel', value: serverUrl ? `${serverUrl}/admin` : '—' },
-    { label: 'SignalR Hub', value: '/hubs/photos' },
-    { label: 'Network Type', value: 'LAN only (WiFi)' },
+    { label: 'Public Base URL',   value: publicBaseUrl },
+    { label: 'Host',              value: lanDisplay },
+    { label: 'Port',              value: portDisplay },
+    { label: 'Guest Gallery',     value: publicBaseUrl !== '—' ? `${publicBaseUrl}/gallery/…` : '—' },
+    { label: 'SignalR Hub',       value: '/hubs/photos (relative)' },
+    { label: 'Admin Panel',       value: '/admin' },
   ];
 
   return (
@@ -126,9 +114,18 @@ export default function HealthMonitoring() {
             {dataUpdatedAt ? ` · Last check: ${new Date(dataUpdatedAt).toLocaleTimeString()}` : ''}
           </p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" /> Check Now
-        </Button>
+        <div className="flex items-center gap-2">
+          <a
+            href="/admin/deployment"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:border-gray-300 hover:text-gray-900 transition-colors"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Deployment Center
+          </a>
+          <Button variant="secondary" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4" /> Check Now
+          </Button>
+        </div>
       </div>
 
       {/* Overall status banner */}
@@ -179,11 +176,11 @@ export default function HealthMonitoring() {
           <h2 className="text-base font-semibold text-gray-900 mb-4">Endpoints</h2>
           <div className="space-y-2 text-sm">
             {[
-              { method: 'GET', path: '/api/health', desc: 'Health check' },
+              { method: 'GET', path: '/api/health', desc: 'Liveness probe' },
+              { method: 'GET', path: '/api/health/services', desc: 'Deep service health' },
+              { method: 'GET', path: '/api/deployment/status', desc: 'Deployment mode' },
               { method: 'GET', path: '/api/events', desc: 'Event list' },
-              { method: 'GET', path: '/api/photos/event/:id', desc: 'Gallery photos' },
-              { method: 'WS', path: '/hubs/photos', desc: 'SignalR hub' },
-              { method: 'GET', path: '/swagger', desc: 'API docs (dev only)' },
+              { method: 'WS',  path: '/hubs/photos', desc: 'SignalR hub' },
             ].map(ep => (
               <div key={ep.path} className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
                 <span className={`text-xs font-bold rounded px-1.5 py-0.5 ${ep.method === 'WS' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -191,7 +188,7 @@ export default function HealthMonitoring() {
                 </span>
                 <code className="text-gray-700 flex-1">{ep.path}</code>
                 <span className="text-gray-400 text-xs">{ep.desc}</span>
-                {isHealthy && ep.method !== 'WS' && ep.path !== '/swagger' && (
+                {isHealthy && ep.method !== 'WS' && (
                   <CheckCircle2 className="h-3 w-3 text-green-500" />
                 )}
               </div>
@@ -202,13 +199,13 @@ export default function HealthMonitoring() {
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard icon={Server} label="API Server" value={data?.server ?? '—'} sub="Kestrel on :5000" color="blue" />
-        <MetricCard icon={Database} label="Database" value="PostgreSQL" sub="Local instance" color="green" />
-        <MetricCard icon={Cpu} label="Runtime" value=".NET 8" sub="Self-contained" color="purple" />
-        <MetricCard icon={HardDrive} label="Storage" value="Local Disk" sub="Photo + thumbnails" color="orange" />
+        <MetricCard icon={Server}   label="API Server"  value={data?.server ?? '—'} sub="Kestrel on :5000"   color="blue"   />
+        <MetricCard icon={Database} label="Database"    value="PostgreSQL"           sub="Local instance"    color="green"  />
+        <MetricCard icon={Cpu}      label="Runtime"     value=".NET 8"               sub="Self-contained"    color="purple" />
+        <MetricCard icon={HardDrive} label="Storage"   value="Local Disk"            sub="Photos + QR codes" color="orange" />
       </div>
 
-      {/* Network info */}
+      {/* Network info — reads from PublicBaseUrl, not legacy app.serverUrl */}
       <Card className="p-5">
         <h2 className="text-base font-semibold text-gray-900 mb-4">Network Configuration</h2>
         <NetworkConfig />

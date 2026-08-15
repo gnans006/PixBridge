@@ -1,9 +1,11 @@
+using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Enums;
 using EventPhoto.Domain.Exceptions;
 using EventPhoto.Domain.Interfaces;
 using FluentValidation;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace EventPhoto.Application.ApplicationSettings.Commands;
 
@@ -50,7 +52,11 @@ public sealed class UpdateApplicationSettingsCommandValidator : AbstractValidato
 /// <summary>Handles <see cref="UpdateApplicationSettingsCommand"/>.</summary>
 public sealed class UpdateApplicationSettingsCommandHandler(
     IApplicationSettingsRepository repository,
-    IUnitOfWork unitOfWork)
+    IEventRepository eventRepository,
+    IQrCodeService qrCodeService,
+    IUrlGenerationService urlGenerationService,
+    IUnitOfWork unitOfWork,
+    ILogger<UpdateApplicationSettingsCommandHandler> logger)
     : IRequestHandler<UpdateApplicationSettingsCommand, Result>
 {
     /// <inheritdoc />
@@ -59,6 +65,7 @@ public sealed class UpdateApplicationSettingsCommandHandler(
         CancellationToken cancellationToken)
     {
         var settings = await repository.GetOrCreateDefaultAsync(cancellationToken);
+        var previousUrl = settings.PublicBaseUrl;
 
         try
         {
@@ -80,6 +87,40 @@ public sealed class UpdateApplicationSettingsCommandHandler(
 
         await repository.UpdateAsync(settings, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // ── Auto-regenerate QR codes when PublicBaseUrl changes ──────────────
+        if (!string.Equals(previousUrl, request.PublicBaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation(
+                "PublicBaseUrl changed from {Old} to {New} — regenerating all QR codes.",
+                previousUrl, request.PublicBaseUrl);
+
+            var events = await eventRepository.GetAllAsync(cancellationToken);
+            var count = 0;
+
+            foreach (var ev in events.Where(e => !e.IsDeleted && !string.IsNullOrWhiteSpace(e.QrCodePath)))
+            {
+                try
+                {
+                    var galleryUrl = await urlGenerationService.GenerateGalleryUrlAsync(ev.Id, cancellationToken);
+                    await qrCodeService.GenerateAsync(galleryUrl, ev.QrCodePath!, ev.Name, cancellationToken);
+                    ev.SetQrCode(ev.QrCodePath!, galleryUrl);
+                    await eventRepository.UpdateAsync(ev, cancellationToken);
+                    count++;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "QR regeneration failed for event {EventId}", ev.Id);
+                }
+            }
+
+            if (count > 0)
+            {
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("QR codes regenerated for {Count} event(s).", count);
+            }
+        }
+
         return Result.Success();
     }
 }
