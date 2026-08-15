@@ -48,7 +48,10 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("OperatorOrAbove", policy =>
         policy.RequireRole("StudioOwner", "StudioManager", "Operator", "Admin", "Viewer"));
 });
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddSwaggerWithJwt();
 builder.Services.AddCors(options =>
 {
