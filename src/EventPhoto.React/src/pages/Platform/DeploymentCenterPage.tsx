@@ -49,7 +49,6 @@ function HealthDot({ status }: { status: HealthStatus }) {
 
 function ServiceCard({ health }: { health: ComponentHealth }) {
   const meta = HEALTH_META[health.status];
-  const Icon = meta.icon;
 
   const iconMap: Record<string, typeof Database> = {
     PostgreSQL:          Database,
