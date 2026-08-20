@@ -1,6 +1,7 @@
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Entities;
 using EventPhoto.Domain.Interfaces;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace EventPhoto.Infrastructure.Persistence;
@@ -8,10 +9,25 @@ namespace EventPhoto.Infrastructure.Persistence;
 /// <summary>Entity Framework Core DbContext for PixBridge.</summary>
 public sealed class AppDbContext : DbContext, IUnitOfWork
 {
-    /// <summary>Initializes a new instance of <see cref="AppDbContext"/>.</summary>
+    private readonly IPublisher? _publisher;
+
+    /// <summary>
+    /// Design-time / migration constructor. Domain events are collected but not dispatched.
+    /// Used by <see cref="AppDbContextFactory"/> and EF Core CLI tools.
+    /// </summary>
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
+    }
+
+    /// <summary>
+    /// Runtime constructor used by DI. Domain events are dispatched through MediatR
+    /// after each successful <see cref="SaveChangesAsync"/> call.
+    /// </summary>
+    public AppDbContext(DbContextOptions<AppDbContext> options, IPublisher publisher)
+        : base(options)
+    {
+        _publisher = publisher;
     }
 
     /// <summary>Gets the events set.</summary>
@@ -84,16 +100,50 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
         base.OnModelCreating(modelBuilder);
     }
 
-    /// <summary>Dispatches domain events and saves changes atomically.</summary>
+    /// <summary>
+    /// Saves all changes and dispatches any domain events raised by aggregates.
+    ///
+    /// <para>Order of operations:</para>
+    /// <list type="number">
+    ///   <item>Collect domain events from all tracked aggregates (snapshot before save).</item>
+    ///   <item>Persist changes to the database via <c>base.SaveChangesAsync</c>.</item>
+    ///   <item>Dispatch each domain event through MediatR (only on successful save).</item>
+    ///   <item>Clear domain events from aggregates after successful dispatch.</item>
+    /// </list>
+    ///
+    /// <para>If the database save fails, events are NOT dispatched — the aggregate retains
+    /// its events so callers can observe the failure without phantom side effects.</para>
+    /// <para>Event handlers MUST be idempotent: if a handler throws after partial dispatch,
+    /// the next retry re-dispatches all events for that aggregate.</para>
+    /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var aggregates = ChangeTracker.Entries<AggregateRoot>()
-            .Where(entry => entry.Entity.DomainEvents.Count != 0)
-            .Select(entry => entry.Entity)
+        // 1. Snapshot events BEFORE save — if save fails we dispatch nothing
+        var aggregatesWithEvents = ChangeTracker.Entries<AggregateRoot>()
+            .Where(e => e.Entity.DomainEvents.Count != 0)
+            .Select(e => e.Entity)
             .ToList();
 
-        aggregates.ForEach(aggregate => aggregate.ClearDomainEvents());
-        return await base.SaveChangesAsync(cancellationToken);
+        var domainEvents = aggregatesWithEvents
+            .SelectMany(a => a.DomainEvents)
+            .ToList();
+
+        // 2. Persist to database — throws on failure, events remain on aggregates
+        var result = await base.SaveChangesAsync(cancellationToken);
+
+        // 3. Dispatch domain events through MediatR only after successful save
+        if (_publisher is not null && domainEvents.Count > 0)
+        {
+            foreach (var domainEvent in domainEvents)
+            {
+                await _publisher.Publish(domainEvent, cancellationToken);
+            }
+        }
+
+        // 4. Clear events only after successful dispatch
+        aggregatesWithEvents.ForEach(a => a.ClearDomainEvents());
+
+        return result;
     }
 
     /// <inheritdoc />

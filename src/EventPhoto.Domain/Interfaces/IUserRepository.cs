@@ -72,4 +72,11 @@ public interface IUserRepository
     /// Returns the count of active StudioOwner (or Admin) accounts.
     /// </summary>
     Task<int> CountOwnerAccountsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the total count of active (non-deleted, non-deactivated) studio user accounts.
+    /// Used by <see cref="EventPhoto.Infrastructure.Services.Subscription.FeatureManager"/>
+    /// to enforce per-plan user limits.
+    /// </summary>
+    Task<int> CountActiveAsync(CancellationToken cancellationToken = default);
 }

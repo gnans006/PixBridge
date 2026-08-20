@@ -49,6 +49,20 @@ public sealed class SubscriptionController(IMediator mediator) : ControllerBase
         return Ok(ApiResponse<SubscriptionResponse>.Ok(ToResponse(current.Value!)));
     }
 
+    /// <summary>Grants the one-time 15-day trial extension.</summary>
+    [HttpPost("extend-trial")]
+    [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<string>), 400)]
+    public async Task<IActionResult> ExtendTrial(CancellationToken ct)
+    {
+        var result = await mediator.Send(new ExtendTrialCommand(), ct);
+
+        if (!result.IsSuccess)
+            return BadRequest(ApiResponse<string>.Fail(result.Error!));
+
+        return Ok(ApiResponse<string>.Ok("Trial extended by 15 days."));
+    }
+
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     private static SubscriptionResponse ToResponse(Domain.Entities.Subscription s) => new(

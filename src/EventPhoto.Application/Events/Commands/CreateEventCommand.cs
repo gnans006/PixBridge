@@ -1,5 +1,6 @@
 using AutoMapper;
 using EventPhoto.Application.Common.Interfaces;
+using EventPhoto.Application.Common.Models;
 using EventPhoto.Contracts.Responses.Events;
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Enums;
@@ -24,7 +25,11 @@ public sealed record CreateEventCommand(
     bool AllowGalleryBrowsing = true,
     bool AllowFaceSearch = false,
     bool RestrictDownloadsToMatchedPhotos = false,
-    float FaceMatchThreshold = 0.75f) : IRequest<Result<EventResponse>>;
+    float FaceMatchThreshold = 0.75f) : IRequest<Result<EventResponse>>, IRequiresFeature
+{
+    /// <inheritdoc />
+    public string FeatureKey => Common.Models.FeatureKey.Events;
+}
 
 /// <summary>Handles event creation, watch folder setup, QR code generation, and directory initialization.</summary>
 public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Result<EventResponse>>

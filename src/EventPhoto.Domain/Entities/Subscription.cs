@@ -45,6 +45,12 @@ public sealed class Subscription : AggregateRoot
     /// <summary>Gets optional internal notes about the subscription.</summary>
     public string? Notes { get; private set; }
 
+    /// <summary>
+    /// Whether the one-time 15-day trial extension has already been consumed.
+    /// Set to <c>true</c> by <see cref="ExtendTrial"/>; prevents a second extension.
+    /// </summary>
+    public bool HasUsedTrialExtension { get; private set; }
+
     // ── Factory ──────────────────────────────────────────────────────────────
 
     /// <summary>Creates the default trial subscription seeded on first run.</summary>
@@ -52,13 +58,14 @@ public sealed class Subscription : AggregateRoot
     {
         return new Subscription
         {
-            Id                 = SingletonId,
-            Plan               = SubscriptionPlan.Trial,
-            State              = SubscriptionState.Trial,
-            MaxEvents          = 5,
-            MaxUsersPerStudio  = 2,
-            CreatedAt          = DateTimeOffset.UtcNow,
-            UpdatedAt          = DateTimeOffset.UtcNow,
+            Id                    = SingletonId,
+            Plan                  = SubscriptionPlan.Trial,
+            State                 = SubscriptionState.Trial,
+            MaxEvents             = 5,
+            MaxUsersPerStudio     = 3,
+            HasUsedTrialExtension = false,
+            CreatedAt             = DateTimeOffset.UtcNow,
+            UpdatedAt             = DateTimeOffset.UtcNow,
         };
     }
 
@@ -110,6 +117,27 @@ public sealed class Subscription : AggregateRoot
     }
 
     /// <summary>
+    /// Grants a one-time 15-day trial extension. Transitions the plan to
+    /// <see cref="SubscriptionPlan.ExtendedTrial"/> and updates the expiry.
+    /// </summary>
+    /// <exception cref="DomainException">
+    /// Thrown if the extension has already been used or the subscription is not in Trial state.
+    /// </exception>
+    public void ExtendTrial()
+    {
+        if (HasUsedTrialExtension)
+            throw new DomainException("The trial extension has already been used. Only one extension is allowed.");
+
+        if (State != SubscriptionState.Trial)
+            throw new DomainException("Trial extension is only available while the subscription is in Trial state.");
+
+        Plan                  = SubscriptionPlan.ExtendedTrial;
+        HasUsedTrialExtension = true;
+        (MaxEvents, MaxUsersPerStudio) = PlanLimits(SubscriptionPlan.ExtendedTrial);
+        Touch();
+    }
+
+    /// <summary>
     /// Returns whether an operation is currently allowed.
     /// During grace period everything is still allowed; only fully Expired / Cancelled is restricted.
     /// </summary>
@@ -128,10 +156,10 @@ public sealed class Subscription : AggregateRoot
 
     private static (int maxEvents, int maxUsers) PlanLimits(SubscriptionPlan plan) => plan switch
     {
-        SubscriptionPlan.Trial        => (5, 2),
-        SubscriptionPlan.Starter      => (20, 5),
-        SubscriptionPlan.Professional => (100, 0),
-        SubscriptionPlan.Enterprise   => (0, 0),
-        _                             => (5, 2),
+        SubscriptionPlan.Trial         => (5, 3),
+        SubscriptionPlan.ExtendedTrial => (5, 3),
+        SubscriptionPlan.Professional  => (100, 0),
+        SubscriptionPlan.Premium       => (0, 0),
+        _                              => (5, 3),
     };
 }

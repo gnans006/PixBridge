@@ -76,16 +76,6 @@ public sealed class PhotoRepository(AppDbContext context) : IPhotoRepository
     }
 
     /// <inheritdoc />
-    public Task<List<Photo>> GetPendingFaceIndexAsync(
-        int batchSize,
-        CancellationToken cancellationToken = default)
-        => context.Photos
-            .Where(p => p.FaceIndexStatus == Domain.Enums.FaceIndexStatus.Pending && !p.IsDeleted)
-            .OrderBy(p => p.CapturedAt)
-            .Take(batchSize)
-            .ToListAsync(cancellationToken);
-
-    /// <inheritdoc />
     public Task<int> CountPendingThumbnailsAsync(CancellationToken cancellationToken = default)
         => context.Photos.CountAsync(
             p => p.ThumbnailStatus == Domain.Enums.ThumbnailStatus.Pending && !p.IsDeleted,

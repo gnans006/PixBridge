@@ -58,4 +58,11 @@ public interface IEventRepository
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> when the event exists; otherwise <see langword="false"/>.</returns>
     Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the total count of non-deleted events owned by the studio.
+    /// Used by <see cref="EventPhoto.Infrastructure.Services.Subscription.FeatureManager"/>
+    /// to enforce per-plan event limits.
+    /// </summary>
+    Task<int> CountAsync(CancellationToken cancellationToken = default);
 }

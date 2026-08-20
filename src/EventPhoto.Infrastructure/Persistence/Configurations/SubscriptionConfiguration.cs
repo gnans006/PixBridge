@@ -46,6 +46,11 @@ public sealed class SubscriptionConfiguration : IEntityTypeConfiguration<Subscri
 
         builder.Property(s => s.Notes).HasColumnName("notes").HasMaxLength(2000);
 
+        builder.Property(s => s.HasUsedTrialExtension)
+            .HasColumnName("has_used_trial_extension")
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(s => s.UpdatedAt).HasColumnName("updated_at").IsRequired();
     }

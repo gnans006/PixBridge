@@ -8,6 +8,7 @@ using EventPhoto.Infrastructure.Services.FaceRecognition;
 using EventPhoto.Infrastructure.Services.FileSystem;
 using EventPhoto.Infrastructure.Services.Network;
 using EventPhoto.Infrastructure.Services.QrCode;
+using EventPhoto.Infrastructure.Services.Subscription;
 using EventPhoto.Infrastructure.Services.Thumbnails;
 using EventPhoto.Infrastructure.Services.Watermark;
 using Microsoft.EntityFrameworkCore;
@@ -68,6 +69,7 @@ public static class InfrastructureServiceExtensions
 
         // Phase 5 — Subscription Engine
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+        services.AddScoped<IFeatureManager, FeatureManager>();
 
         // Existing services
         services.AddScoped<IJwtTokenService, JwtTokenService>();

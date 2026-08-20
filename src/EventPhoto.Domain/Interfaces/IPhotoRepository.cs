@@ -68,12 +68,6 @@ public interface IPhotoRepository
     /// </summary>
     Task<List<Photo>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Returns a batch of photos whose <c>FaceIndexStatus</c> is <c>Pending</c>.
-    /// Used by <see cref="Worker.Services.FaceIndexing.FaceIndexingService"/>.
-    /// </summary>
-    Task<List<Photo>> GetPendingFaceIndexAsync(int batchSize, CancellationToken cancellationToken = default);
-
     /// <summary>Returns the count of photos with pending thumbnail generation.</summary>
     Task<int> CountPendingThumbnailsAsync(CancellationToken cancellationToken = default);
 

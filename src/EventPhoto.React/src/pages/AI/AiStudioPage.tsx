@@ -97,11 +97,26 @@ function MetricCard({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function OverviewTab() {
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['ai-studio-overview'],
     queryFn: aiStudioApi.getOverview,
     refetchInterval: 15_000,
   });
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+        <AlertTriangle className="h-8 w-8 mb-2 text-amber-500/60" />
+        <p className="text-sm">Failed to load AI Studio overview.</p>
+        <button
+          onClick={() => refetch()}
+          className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading || !data) {
     return (
@@ -205,7 +220,7 @@ function DeadLetterTab() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError: dlError } = useQuery({
     queryKey: ['ai-studio-dead-letter', page],
     queryFn: () => aiStudioApi.getDeadLetterQueue(page),
   });
@@ -231,6 +246,15 @@ function DeadLetterTab() {
 
   if (isLoading) {
     return <div className="text-slate-500 text-sm">Loading dead-letter queue…</div>;
+  }
+
+  if (dlError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+        <AlertTriangle className="h-8 w-8 mb-2 text-amber-500/60" />
+        <p className="text-sm">Failed to load failed jobs.</p>
+      </div>
+    );
   }
 
   if (!data || data.items.length === 0) {
@@ -334,13 +358,25 @@ function DeadLetterTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function EventHealthTab() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['ai-studio-event-health'],
     queryFn: () => aiStudioApi.getEventHealth(),
     refetchInterval: 30_000,
   });
 
   if (isLoading) return <div className="text-slate-500 text-sm">Loading event health…</div>;
+  if (isError) return (
+    <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+      <AlertTriangle className="h-8 w-8 mb-2 text-amber-500/60" />
+      <p className="text-sm">Failed to load event health data.</p>
+      <button
+        onClick={() => refetch()}
+        className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+      >
+        Retry
+      </button>
+    </div>
+  );
   if (!data || data.length === 0) {
     return <div className="text-slate-500 text-sm py-8 text-center">No events found.</div>;
   }
@@ -409,12 +445,27 @@ function EventHealthTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AnalyticsTab() {
-  const [window, setWindow] = useState(24);
-  const { data, isLoading } = useQuery({
-    queryKey: ['ai-studio-analytics', window],
-    queryFn: () => aiStudioApi.getAnalytics(window),
+  const [windowHours, setWindowHours] = useState(24);
+  const { data, isLoading, isError: analyticsError, refetch: refetchAnalytics } = useQuery({
+    queryKey: ['ai-studio-analytics', windowHours],
+    queryFn: () => aiStudioApi.getAnalytics(windowHours),
     refetchInterval: 60_000,
   });
+
+  if (analyticsError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+        <AlertTriangle className="h-8 w-8 mb-2 text-amber-500/60" />
+        <p className="text-sm">Failed to load analytics.</p>
+        <button
+          onClick={() => refetchAnalytics()}
+          className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading || !data) return <div className="text-slate-500 text-sm">Loading analytics…</div>;
 
@@ -425,9 +476,9 @@ function AnalyticsTab() {
         {[6, 24, 48, 168].map(h => (
           <button
             key={h}
-            onClick={() => setWindow(h)}
+            onClick={() => setWindowHours(h)}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              window === h
+              windowHours === h
                 ? 'bg-indigo-600 text-white'
                 : 'border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200'
             }`}

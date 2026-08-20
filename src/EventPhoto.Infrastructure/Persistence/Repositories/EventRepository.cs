@@ -49,4 +49,8 @@ public sealed class EventRepository(AppDbContext context) : IEventRepository
     /// <inheritdoc />
     public Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
         => context.Events.AnyAsync(e => e.Id == id && !e.IsDeleted, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<int> CountAsync(CancellationToken cancellationToken = default)
+        => context.Events.CountAsync(e => !e.IsDeleted, cancellationToken);
 }

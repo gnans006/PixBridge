@@ -59,4 +59,8 @@ public sealed class UserRepository(AppDbContext context) : IUserRepository
         context.Users.Update(user);
         return Task.CompletedTask;
     }
+
+    /// <inheritdoc />
+    public Task<int> CountActiveAsync(CancellationToken cancellationToken = default)
+        => context.Users.CountAsync(u => u.IsActive, cancellationToken);
 }

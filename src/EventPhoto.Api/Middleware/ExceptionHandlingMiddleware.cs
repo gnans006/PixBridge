@@ -3,7 +3,6 @@ using EventPhoto.Domain.Exceptions;
 using FluentValidation;
 using System.Net;
 using System.Text.Json;
-
 namespace EventPhoto.Api.Middleware;
 
 /// <summary>
@@ -55,6 +54,14 @@ public sealed class ExceptionHandlingMiddleware
                         .GroupBy(error => error.PropertyName)
                         .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).ToArray())
                 });
+        }
+        catch (SubscriptionEnforcementException ex)
+        {
+            _logger.LogWarning(
+                "Subscription enforcement blocked feature '{Feature}': {Reason}",
+                ex.FeatureKey,
+                ex.Message);
+            await WriteResponseAsync(context, HttpStatusCode.PaymentRequired, ApiResponse.Fail(ex.Message));
         }
         catch (NotFoundException ex)
         {

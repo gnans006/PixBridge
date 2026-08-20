@@ -3,15 +3,15 @@ namespace EventPhoto.Domain.Enums;
 /// <summary>Commercial subscription plan tier.</summary>
 public enum SubscriptionPlan
 {
-    /// <summary>Free trial — limited to 5 events and 2 users.</summary>
+    /// <summary>Free 30-day trial — 5 events, 3 users, unlimited face searches.</summary>
     Trial = 0,
 
-    /// <summary>Starter plan — 20 events, 5 users.</summary>
-    Starter = 1,
+    /// <summary>Extended trial — 15 additional days granted one time only.</summary>
+    ExtendedTrial = 1,
 
     /// <summary>Professional plan — 100 events, unlimited users.</summary>
     Professional = 2,
 
-    /// <summary>Enterprise plan — unlimited everything.</summary>
-    Enterprise = 3,
+    /// <summary>Premium plan — unlimited everything, all features.</summary>
+    Premium = 3,
 }

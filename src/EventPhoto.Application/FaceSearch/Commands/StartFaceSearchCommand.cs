@@ -1,4 +1,5 @@
 using EventPhoto.Application.Common.Interfaces;
+using EventPhoto.Application.Common.Models;
 using EventPhoto.Contracts.Responses.FaceSearch;
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Entities;
@@ -18,7 +19,11 @@ namespace EventPhoto.Application.FaceSearch.Commands;
 public sealed record StartFaceSearchCommand(
     Guid EventId,
     byte[] SelfieBytes,
-    float? ThresholdOverride = null) : IRequest<Result<FaceSearchStatusResponse>>;
+    float? ThresholdOverride = null) : IRequest<Result<FaceSearchStatusResponse>>, IRequiresFeature
+{
+    /// <inheritdoc />
+    public string FeatureKey => Common.Models.FeatureKey.FaceSearchSessions;
+}
 
 /// <summary>Validates <see cref="StartFaceSearchCommand"/>.</summary>
 public sealed class StartFaceSearchCommandValidator : AbstractValidator<StartFaceSearchCommand>

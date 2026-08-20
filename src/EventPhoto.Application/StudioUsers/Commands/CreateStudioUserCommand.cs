@@ -1,4 +1,5 @@
 using EventPhoto.Application.Common.Interfaces;
+using EventPhoto.Application.Common.Models;
 using EventPhoto.Contracts.Responses.Users;
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Entities;
@@ -17,7 +18,11 @@ public sealed record CreateStudioUserCommand(
     string Email,
     string? Phone,
     string Role,
-    string Password) : IRequest<Result<StudioUserResponse>>;
+    string Password) : IRequest<Result<StudioUserResponse>>, IRequiresFeature
+{
+    /// <inheritdoc />
+    public string FeatureKey => Common.Models.FeatureKey.Users;
+}
 
 public sealed class CreateStudioUserCommandValidator : AbstractValidator<CreateStudioUserCommand>
 {
