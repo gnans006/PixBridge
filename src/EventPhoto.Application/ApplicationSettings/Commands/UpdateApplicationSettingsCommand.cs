@@ -55,6 +55,7 @@ public sealed class UpdateApplicationSettingsCommandHandler(
     IEventRepository eventRepository,
     IQrCodeService qrCodeService,
     IUrlGenerationService urlGenerationService,
+    IWatermarkCacheService watermarkCache,
     IUnitOfWork unitOfWork,
     ILogger<UpdateApplicationSettingsCommandHandler> logger)
     : IRequestHandler<UpdateApplicationSettingsCommand, Result>
@@ -66,6 +67,7 @@ public sealed class UpdateApplicationSettingsCommandHandler(
     {
         var settings = await repository.GetOrCreateDefaultAsync(cancellationToken);
         var previousUrl = settings.PublicBaseUrl;
+        var previousStudioName = settings.StudioName;
 
         try
         {
@@ -87,6 +89,17 @@ public sealed class UpdateApplicationSettingsCommandHandler(
 
         await repository.UpdateAsync(settings, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // ── Invalidate watermark cache when StudioName changes ───────────────
+        // StudioName is baked into cached watermarked files for branding modes.
+        // Clearing the entire cache ensures guests get freshly branded images
+        // on the next download rather than seeing the old studio name.
+        if (!string.Equals(previousStudioName, request.StudioName, StringComparison.Ordinal))
+        {
+            logger.LogInformation(
+                "StudioName changed — invalidating entire watermark cache.");
+            watermarkCache.InvalidateAll();
+        }
 
         // ── Auto-regenerate QR codes when PublicBaseUrl changes ──────────────
         if (!string.Equals(previousUrl, request.PublicBaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))

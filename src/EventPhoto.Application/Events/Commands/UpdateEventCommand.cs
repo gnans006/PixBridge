@@ -1,4 +1,5 @@
 using AutoMapper;
+using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Contracts.Responses.Events;
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Enums;
@@ -29,13 +30,19 @@ public sealed class UpdateEventCommandHandler : IRequestHandler<UpdateEventComma
     private readonly IEventRepository _eventRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly IWatermarkCacheService _watermarkCache;
 
     /// <summary>Initializes a new instance of <see cref="UpdateEventCommandHandler"/>.</summary>
-    public UpdateEventCommandHandler(IEventRepository eventRepository, IUnitOfWork unitOfWork, IMapper mapper)
+    public UpdateEventCommandHandler(
+        IEventRepository eventRepository,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        IWatermarkCacheService watermarkCache)
     {
         _eventRepository = eventRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _watermarkCache = watermarkCache;
     }
 
     /// <inheritdoc />
@@ -52,6 +59,8 @@ public sealed class UpdateEventCommandHandler : IRequestHandler<UpdateEventComma
             return Result.Failure<EventResponse>($"Invalid event type: {request.EventType}");
         }
 
+        var previousName = eventEntity.Name;
+
         eventEntity.Update(
             request.Name, eventType, request.EventDate,
             request.Description, request.VenueName, request.ClientName,
@@ -62,6 +71,14 @@ public sealed class UpdateEventCommandHandler : IRequestHandler<UpdateEventComma
 
         await _eventRepository.UpdateAsync(eventEntity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // ── Invalidate watermark cache when event name changes ───────────────
+        // EventName is baked into cached watermark files for EventBranding and
+        // StudioAndEvent modes. Invalidating only this event's cache is enough.
+        if (!string.Equals(previousName, request.Name, StringComparison.Ordinal))
+        {
+            _watermarkCache.InvalidateEvent(request.EventId);
+        }
 
         return Result.Success(_mapper.Map<EventResponse>(eventEntity));
     }
