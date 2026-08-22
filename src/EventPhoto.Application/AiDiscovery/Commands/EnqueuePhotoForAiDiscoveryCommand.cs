@@ -31,10 +31,18 @@ public sealed class EnqueuePhotoForAiDiscoveryCommandHandler(
         EnqueuePhotoForAiDiscoveryCommand request,
         CancellationToken cancellationToken)
     {
-        // Only enqueue when the event has AI Discovery enabled
+        // Only enqueue when the event has AI Discovery enabled and is still active
         var eventEntity = await eventRepository.GetByIdAsync(request.EventId, cancellationToken);
         if (eventEntity is null)
             return Result.Failure($"Event '{request.EventId}' not found.");
+
+        if (!eventEntity.IsActive || eventEntity.IsDeleted)
+        {
+            logger.LogDebug(
+                "Skipping AI enqueue for photo {PhotoId} — event {EventId} is inactive or deleted.",
+                request.PhotoId, request.EventId);
+            return Result.Success();
+        }
 
         if (!eventEntity.EnableFaceRecognition)
         {

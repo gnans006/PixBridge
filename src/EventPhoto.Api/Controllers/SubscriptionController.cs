@@ -37,9 +37,7 @@ public sealed class SubscriptionController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new ActivateSubscriptionCommand(
             request.LicenseKey,
-            request.StudioEmail,
-            request.Plan,
-            request.ExpiresAt), ct);
+            request.StudioEmail), ct);
 
         if (!result.IsSuccess)
             return BadRequest(ApiResponse<string>.Fail(result.Error!));
@@ -77,5 +75,8 @@ public sealed class SubscriptionController(IMediator mediator) : ControllerBase
         s.MaxUsersPerStudio,
         s.IsOperational,
         s.GracePeriodDaysRemaining,
-        s.Notes);
+        s.Notes,
+        s.DaysRemaining,
+        s.DurationDays,
+        s.HasUsedTrialExtension);
 }

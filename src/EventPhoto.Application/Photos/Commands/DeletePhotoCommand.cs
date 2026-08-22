@@ -15,6 +15,7 @@ public sealed record DeletePhotoCommand(Guid PhotoId) : IRequest<Result>;
 public sealed class DeletePhotoCommandHandler(
     IPhotoRepository photoRepository,
     IEventRepository eventRepository,
+    IWatermarkCacheService watermarkCache,
     IUnitOfWork unitOfWork)
     : IRequestHandler<DeletePhotoCommand, Result>
 {
@@ -40,6 +41,10 @@ public sealed class DeletePhotoCommandHandler(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Remove any cached watermarked files for this photo.
+        watermarkCache.InvalidatePhoto(photo.Id, photo.EventId);
+
         return Result.Success();
     }
 }

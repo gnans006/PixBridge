@@ -13,7 +13,6 @@ public sealed record GetEventAiHealthQuery(
 /// <summary>Handles <see cref="GetEventAiHealthQuery"/>.</summary>
 public sealed class GetEventAiHealthQueryHandler(
     IEventRepository eventRepository,
-    IPhotoRepository photoRepository,
     IFaceEmbeddingRepository embeddingRepository,
     IFaceProcessingJobRepository jobRepository,
     IAiSearchAnalyticsRepository analyticsRepository)

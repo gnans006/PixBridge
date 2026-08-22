@@ -51,6 +51,26 @@ public sealed class SubscriptionConfiguration : IEntityTypeConfiguration<Subscri
             .IsRequired()
             .HasDefaultValue(false);
 
+        // ── Licensing Foundation fields ────────────────────────────────────────
+        builder.Property(s => s.DurationDays)
+            .HasColumnName("duration_days")
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        builder.Property(s => s.InstallationId)
+            .HasColumnName("installation_id");
+
+        builder.Property(s => s.MachineFingerprintHash)
+            .HasColumnName("machine_fingerprint_hash")
+            .HasMaxLength(128);
+
+        builder.Property(s => s.LastValidatedAtUtc)
+            .HasColumnName("last_validated_at_utc");
+
+        builder.Property(s => s.LicenseIntegrityHash)
+            .HasColumnName("license_integrity_hash")
+            .HasMaxLength(128);
+
         builder.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(s => s.UpdatedAt).HasColumnName("updated_at").IsRequired();
     }

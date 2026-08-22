@@ -14,6 +14,7 @@ public sealed class PhotoRepository(AppDbContext context) : IPhotoRepository
     /// <inheritdoc />
     public Task<Photo?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => context.Photos
+            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, cancellationToken);
 
     /// <inheritdoc />
@@ -23,6 +24,7 @@ public sealed class PhotoRepository(AppDbContext context) : IPhotoRepository
         int pageSize,
         CancellationToken cancellationToken = default)
         => context.Photos
+            .AsNoTracking()
             .Where(p => p.EventId == eventId && !p.IsDeleted)
             .OrderByDescending(p => p.CapturedAt)
             .Skip((page - 1) * pageSize)
@@ -34,7 +36,10 @@ public sealed class PhotoRepository(AppDbContext context) : IPhotoRepository
         int batchSize,
         CancellationToken cancellationToken = default)
         => context.Photos
-            .Where(p => p.ThumbnailStatus == ThumbnailStatus.Pending && !p.IsDeleted)
+            .AsNoTracking()
+            .Where(p => p.ThumbnailStatus == ThumbnailStatus.Pending
+                     && !p.IsDeleted
+                     && context.Events.Any(e => e.Id == p.EventId && e.IsActive && !e.IsDeleted))
             .OrderBy(p => p.CapturedAt)
             .Take(batchSize)
             .ToListAsync(cancellationToken);
@@ -71,6 +76,7 @@ public sealed class PhotoRepository(AppDbContext context) : IPhotoRepository
     {
         var idList = ids.ToList();
         return context.Photos
+            .AsNoTracking()
             .Where(p => idList.Contains(p.Id) && !p.IsDeleted)
             .ToListAsync(cancellationToken);
     }

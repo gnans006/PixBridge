@@ -48,7 +48,9 @@ public sealed class FeatureManager(
             if (subscription.MaxEvents == 0)
                 return FeatureCheckResult.Allow();
 
-            var currentCount = await eventRepository.CountAsync(cancellationToken);
+            // Count ALL events including soft-deleted ones — prevents gaming the trial
+            // limit by deleting and re-creating events to reset the counter.
+            var currentCount = await eventRepository.CountAllAsync(cancellationToken);
 
             if (currentCount >= subscription.MaxEvents)
             {
@@ -158,11 +160,106 @@ public sealed class FeatureManager(
                     "Guest uploads are not available — the studio's subscription has expired.");
             }
 
+            // Guest uploads require Professional or Premium plan
+            if (subscription.Plan is SubscriptionPlan.Trial or SubscriptionPlan.ExtendedTrial)
+            {
+                return FeatureCheckResult.Deny(
+                    FeatureDenialCode.FeatureNotInPlan,
+                    "Guest uploads are not available on the Trial plan. Upgrade to Professional or Premium to enable guest uploads.");
+            }
+
             return FeatureCheckResult.Allow();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "FeatureManager: unexpected error evaluating CanCreateGuestUploadSession; allowing (fail-open).");
+            return FeatureCheckResult.Allow();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<FeatureCheckResult> CanUseBrandingAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var subscription = await subscriptionRepository.GetAsync(cancellationToken);
+            if (subscription is null)
+            {
+                logger.LogWarning("FeatureManager: subscription record not found; allowing Branding (fail-open).");
+                return FeatureCheckResult.Allow();
+            }
+
+            if (!subscription.IsOperational)
+            {
+                return FeatureCheckResult.Deny(
+                    FeatureDenialCode.SubscriptionExpired,
+                    BuildExpiredMessage(subscription.State));
+            }
+
+            // Branding is available on all plans (Trial included)
+            return FeatureCheckResult.Allow();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "FeatureManager: unexpected error evaluating CanUseBranding; allowing (fail-open).");
+            return FeatureCheckResult.Allow();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<FeatureCheckResult> CanUseAiStudioAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var subscription = await subscriptionRepository.GetAsync(cancellationToken);
+            if (subscription is null)
+            {
+                logger.LogWarning("FeatureManager: subscription record not found; allowing AiStudio (fail-open).");
+                return FeatureCheckResult.Allow();
+            }
+
+            if (!subscription.IsOperational)
+            {
+                return FeatureCheckResult.Deny(
+                    FeatureDenialCode.SubscriptionExpired,
+                    BuildExpiredMessage(subscription.State));
+            }
+
+            // AI Studio available on all plans (Trial included)
+            return FeatureCheckResult.Allow();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "FeatureManager: unexpected error evaluating CanUseAiStudio; allowing (fail-open).");
+            return FeatureCheckResult.Allow();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<FeatureCheckResult> CanUseDeploymentCenterAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var subscription = await subscriptionRepository.GetAsync(cancellationToken);
+            if (subscription is null)
+            {
+                logger.LogWarning("FeatureManager: subscription record not found; allowing DeploymentCenter (fail-open).");
+                return FeatureCheckResult.Allow();
+            }
+
+            if (!subscription.IsOperational)
+            {
+                return FeatureCheckResult.Deny(
+                    FeatureDenialCode.SubscriptionExpired,
+                    BuildExpiredMessage(subscription.State));
+            }
+
+            // Deployment Center available on all plans (Trial included)
+            return FeatureCheckResult.Allow();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "FeatureManager: unexpected error evaluating CanUseDeploymentCenter; allowing (fail-open).");
             return FeatureCheckResult.Allow();
         }
     }
@@ -175,6 +272,9 @@ public sealed class FeatureManager(
             FeatureKey.Users               => CanCreateUserAsync(cancellationToken),
             FeatureKey.FaceSearchSessions  => CanStartFaceSearchAsync(cancellationToken),
             FeatureKey.GuestUploadSessions => CanCreateGuestUploadSessionAsync(cancellationToken),
+            FeatureKey.Branding            => CanUseBrandingAsync(cancellationToken),
+            FeatureKey.AiStudio            => CanUseAiStudioAsync(cancellationToken),
+            FeatureKey.DeploymentCenter    => CanUseDeploymentCenterAsync(cancellationToken),
             _ => Task.FromResult(FeatureCheckResult.Allow()), // unknown keys are allowed — forward compat
         };
 

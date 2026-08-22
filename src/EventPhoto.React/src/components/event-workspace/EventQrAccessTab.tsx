@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { eventsApi } from '../../api/events';
 import { apiError } from '../../utils/errorHandler';
 import { useApplicationSettings } from '../../hooks/useApplicationSettings';
+import { useConfirm } from '../../hooks/useConfirm';
 import type { EventWorkspaceResponse } from '../../types';
 
 interface EventQrAccessTabProps {
@@ -14,6 +15,7 @@ interface EventQrAccessTabProps {
 
 export function EventQrAccessTab({ workspace }: EventQrAccessTabProps) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [qrBust, setQrBust] = useState<number | undefined>(undefined);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const { data: appSettings } = useApplicationSettings();
@@ -81,7 +83,16 @@ export function EventQrAccessTab({ workspace }: EventQrAccessTabProps) {
 
             <div className="flex flex-wrap justify-center gap-2">
               <button
-                onClick={() => refreshMutation.mutate()}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'Regenerate QR Code?',
+                    message: 'The current QR code will stop working immediately. Any printed materials using this QR will need to be reprinted.',
+                    confirmLabel: 'Regenerate',
+                    variant: 'warning',
+                  });
+                  if (!ok) return;
+                  refreshMutation.mutate();
+                }}
                 disabled={refreshMutation.isPending}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-indigo-500 hover:text-white disabled:opacity-50"
               >
@@ -101,7 +112,16 @@ export function EventQrAccessTab({ workspace }: EventQrAccessTabProps) {
             <QrCode className="h-12 w-12 opacity-30" />
             <p className="text-sm">No QR code generated yet.</p>
             <button
-              onClick={() => refreshMutation.mutate()}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Generate QR Code?',
+                  message: 'This will generate a new QR code for this event.',
+                  confirmLabel: 'Generate',
+                  variant: 'info',
+                });
+                if (!ok) return;
+                refreshMutation.mutate();
+              }}
               className="text-sm text-indigo-400 hover:text-indigo-300"
             >
               Generate now

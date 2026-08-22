@@ -31,4 +31,11 @@ public interface IPhotoMatchRepository
 
     /// <summary>Bulk-inserts all matches for a completed search session.</summary>
     Task AddRangeAsync(IEnumerable<PhotoMatch> matches, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes all <see cref="PhotoMatch"/> rows whose <c>SessionId</c> is in
+    /// <paramref name="sessionIds"/>. Used during retention cleanup after sessions
+    /// expire and their associated search results are no longer needed.
+    /// </summary>
+    Task<int> DeleteBySessionIdsAsync(IEnumerable<Guid> sessionIds, CancellationToken cancellationToken = default);
 }

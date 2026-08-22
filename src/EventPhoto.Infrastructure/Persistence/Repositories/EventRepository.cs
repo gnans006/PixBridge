@@ -13,11 +13,13 @@ public sealed class EventRepository(AppDbContext context) : IEventRepository
     /// <inheritdoc />
     public Task<Event?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => context.Events
+            .AsNoTracking()
             .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted, cancellationToken);
 
     /// <inheritdoc />
     public Task<List<Event>> GetAllActiveAsync(CancellationToken cancellationToken = default)
         => context.Events
+            .AsNoTracking()
             .Where(e => e.IsActive && !e.IsDeleted)
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -25,6 +27,7 @@ public sealed class EventRepository(AppDbContext context) : IEventRepository
     /// <inheritdoc />
     public Task<List<Event>> GetAllAsync(CancellationToken cancellationToken = default)
         => context.Events
+            .AsNoTracking()
             .Where(e => !e.IsDeleted)
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -53,4 +56,21 @@ public sealed class EventRepository(AppDbContext context) : IEventRepository
     /// <inheritdoc />
     public Task<int> CountAsync(CancellationToken cancellationToken = default)
         => context.Events.CountAsync(e => !e.IsDeleted, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+        => context.Events.CountAsync(_ => true, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<(Guid Id, string Name, string WatchFolder)>> GetWatchFoldersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        // SELECT only the three columns needed — no full entity load.
+        var rows = await context.Events
+            .Where(e => !e.IsDeleted)
+            .Select(e => new { e.Id, e.Name, e.WatchFolder })
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(r => (r.Id, r.Name, r.WatchFolder)).ToList();
+    }
 }

@@ -66,4 +66,15 @@ public static class AuditAction
     public const string PasswordReset   = "PasswordReset";
     public const string QrGenerated     = "QrGenerated";
     public const string SettingsUpdated = "SettingsUpdated";
+
+    // ── Licensing ──────────────────────────────────────────────────────────
+    public const string TrialStarted                = "TrialStarted";
+    public const string LicenseActivated            = "LicenseActivated";
+    public const string TrialExtended               = "TrialExtended";
+    public const string SubscriptionExpired         = "SubscriptionExpired";
+    public const string SubscriptionGracePeriod     = "SubscriptionGracePeriod";
+    public const string ClockRollbackDetected       = "ClockRollbackDetected";
+    public const string MachineFingerprintChanged   = "MachineFingerprintChanged";
+    public const string LicenseIntegrityMismatch    = "LicenseIntegrityMismatch";
+    public const string FeatureAccessDenied         = "FeatureAccessDenied";
 }

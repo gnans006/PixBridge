@@ -896,6 +896,43 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                     b.ToTable("guest_upload_sessions", (string)null);
                 });
 
+            modelBuilder.Entity("EventPhoto.Domain.Entities.InstallationRegistry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
+                    b.Property<DateTimeOffset>("LastValidatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_validated_at_utc");
+
+                    b.Property<string>("MachineFingerprintHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("machine_fingerprint_hash");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("installation_registry", (string)null);
+                });
+
             modelBuilder.Entity("EventPhoto.Domain.Entities.Photo", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1053,6 +1090,12 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("DurationDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("duration_days");
+
                     b.Property<DateTimeOffset?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
@@ -1067,10 +1110,28 @@ namespace EventPhoto.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("has_used_trial_extension");
 
+                    b.Property<Guid?>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
+                    b.Property<DateTimeOffset?>("LastValidatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_validated_at_utc");
+
+                    b.Property<string>("LicenseIntegrityHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("license_integrity_hash");
+
                     b.Property<string>("LicenseKey")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("license_key");
+
+                    b.Property<string>("MachineFingerprintHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("machine_fingerprint_hash");
 
                     b.Property<int>("MaxEvents")
                         .HasColumnType("integer")

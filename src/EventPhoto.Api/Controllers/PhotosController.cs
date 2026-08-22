@@ -54,6 +54,7 @@ public sealed class PhotosController : ControllerBase
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
+        pageSize = Math.Clamp(pageSize, 1, 200);
         var result = await _mediator.Send(new GetPhotosByEventQuery(eventId, page, pageSize), cancellationToken);
         return result.IsSuccess
             ? Ok(ApiResponse<PagedResult<PhotoResponse>>.Ok(result.Value))
@@ -85,8 +86,8 @@ public sealed class PhotosController : ControllerBase
         if (!System.IO.File.Exists(photo.ThumbnailPath))
             return NotFound(ApiResponse.Fail("Thumbnail not yet available."));
 
-        var bytes = await System.IO.File.ReadAllBytesAsync(photo.ThumbnailPath, cancellationToken);
-        return File(bytes, photo.MimeType ?? "image/jpeg");
+        var stream = new System.IO.FileStream(photo.ThumbnailPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read, 65536, useAsync: true);
+        return File(stream, photo.MimeType ?? "image/jpeg");
     }
 
     /// <summary>Views the full-resolution photo without recording a download.</summary>
@@ -154,7 +155,14 @@ public sealed class PhotosController : ControllerBase
         if (result.IsFailure)
             return NotFound(ApiResponse.Fail(result.Error));
 
-        return File(result.Value.Data, result.Value.MimeType, result.Value.FileName);
+        var download = result.Value;
+
+        // Prefer streaming directly from disk (PhysicalFile) — zero RAM allocation.
+        // Fall back to in-memory bytes only if no file path is available.
+        if (download.FilePath is not null)
+            return PhysicalFile(download.FilePath, download.MimeType, download.FileName);
+
+        return File(download.Data!, download.MimeType, download.FileName);
     }
 
     /// <summary>Deletes a photo and its associated files.</summary>

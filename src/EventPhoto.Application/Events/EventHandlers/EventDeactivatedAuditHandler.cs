@@ -27,7 +27,7 @@ public sealed class EventDeactivatedAuditHandler(
                 entityId: notification.EventId.ToString());
 
             await auditLogRepository.AddAsync(entry, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveAuditAsync(cancellationToken);
         }
         catch (Exception ex)
         {

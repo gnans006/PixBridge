@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
 import { useEffect } from 'react';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface EventActionsDropdownProps {
   eventId: string;
@@ -30,6 +31,7 @@ export function EventActionsDropdown({ eventId, isActive }: EventActionsDropdown
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['workspace', eventId] });
@@ -106,7 +108,17 @@ export function EventActionsDropdown({ eventId, isActive }: EventActionsDropdown
               label="Refresh QR Code"
               loading={refreshQrMutation.isPending}
               disabled={isBusy}
-              onClick={() => { refreshQrMutation.mutate(); setOpen(false); }}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Regenerate QR Code?',
+                  message: 'The current QR code will stop working immediately. Any printed materials using this QR will need to be reprinted.',
+                  confirmLabel: 'Regenerate',
+                  variant: 'warning',
+                });
+                if (!ok) return;
+                refreshQrMutation.mutate();
+                setOpen(false);
+              }}
             />
             <MenuItem
               icon={<ScanFace className="h-4 w-4" />}

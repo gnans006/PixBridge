@@ -6,6 +6,7 @@ using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Enums;
 using EventPhoto.Domain.Interfaces;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace EventPhoto.Application.Events.Commands;
@@ -39,7 +40,9 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
     private readonly IFileStorageService _fileStorageService;
     private readonly IQrCodeService _qrCodeService;
     private readonly IUrlGenerationService _urlGenerationService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IMapper _mapper;
+    private readonly ILogger<CreateEventCommandHandler> _logger;
 
     /// <summary>Initializes a new instance of <see cref="CreateEventCommandHandler"/>.</summary>
     public CreateEventCommandHandler(
@@ -48,14 +51,18 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
         IFileStorageService fileStorageService,
         IQrCodeService qrCodeService,
         IUrlGenerationService urlGenerationService,
-        IMapper mapper)
+        IServiceScopeFactory scopeFactory,
+        IMapper mapper,
+        ILogger<CreateEventCommandHandler> logger)
     {
         _eventRepository = eventRepository;
         _unitOfWork = unitOfWork;
         _fileStorageService = fileStorageService;
         _qrCodeService = qrCodeService;
         _urlGenerationService = urlGenerationService;
+        _scopeFactory = scopeFactory;
         _mapper = mapper;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -70,7 +77,6 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
         var thumbnailFolder = Path.Combine(request.WatchFolder, ".thumbnails");
         var qrFolder = Path.Combine(request.WatchFolder, ".qrcodes");
 
-        // Create entity first so we have the ID available for paths/QR URL.
         var eventEntity = Domain.Entities.Event.Create(
             request.Name,
             eventType,
@@ -91,24 +97,45 @@ public sealed class CreateEventCommandHandler : IRequestHandler<CreateEventComma
         var galleryUrl = $"{serverUrl}/gallery/{eventEntity.Id}";
         var qrPath = Path.Combine(qrFolder, $"qr-{eventEntity.Id}.png");
 
-        // Initialise directories and generate QR code BEFORE persisting to the database.
-        // This ensures no orphaned DB record is created if file-system operations fail.
+        // Create directories synchronously — fast local disk op.
         try
         {
             _fileStorageService.EnsureDirectoryExists(request.WatchFolder);
             _fileStorageService.EnsureDirectoryExists(thumbnailFolder);
             _fileStorageService.EnsureDirectoryExists(qrFolder);
-            await _qrCodeService.GenerateAsync(galleryUrl, qrPath, eventEntity.Name, cancellationToken);
         }
         catch (Exception ex)
         {
             return Result.Failure<EventResponse>($"Failed to initialise event folders: {ex.Message}");
         }
 
+        // Persist the event immediately — do NOT block on QR generation.
+        // QR code is generated in the background after the HTTP response is returned.
+        // The gallery URL is stored now so the QR path is deterministic.
         eventEntity.SetQrCode(qrPath, galleryUrl);
 
         await _eventRepository.AddAsync(eventEntity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Fire-and-forget QR generation on a background thread with its own DI scope.
+        // Failures are logged but never propagate to the caller.
+        var capturedId   = eventEntity.Id;
+        var capturedName = eventEntity.Name;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope   = _scopeFactory.CreateScope();
+                var qrService     = scope.ServiceProvider.GetRequiredService<IQrCodeService>();
+                await qrService.GenerateAsync(galleryUrl, qrPath, capturedName, CancellationToken.None);
+                _logger.LogInformation("QR code generated for event {EventId}.", capturedId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Background QR generation failed for event {EventId}. " +
+                    "Use the Refresh QR action in the event workspace to retry.", capturedId);
+            }
+        });
 
         return Result.Success(_mapper.Map<EventResponse>(eventEntity));
     }

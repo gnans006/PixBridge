@@ -39,6 +39,7 @@ public sealed class FaceSearchController(IMediator mediator) : ControllerBase
     [HttpPost("events/{eventId:guid}/search")]
     [Consumes("multipart/form-data", "application/octet-stream", "image/jpeg", "image/png", "image/webp")]
     [RequestSizeLimit(10 * 1024 * 1024)]  // 10 MB — hard ceiling for selfie uploads
+    [EnableRateLimiting("facesearch")]
     [ProducesResponseType(typeof(ApiResponse<FaceSearchStatusResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]

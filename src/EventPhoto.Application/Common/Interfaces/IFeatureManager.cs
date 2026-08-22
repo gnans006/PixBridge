@@ -27,6 +27,15 @@ public interface IFeatureManager
     /// <summary>Returns whether a guest can open a new upload session.</summary>
     Task<FeatureCheckResult> CanCreateGuestUploadSessionAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Returns whether the studio can use the branding module.</summary>
+    Task<FeatureCheckResult> CanUseBrandingAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Returns whether the studio can use the AI Studio module.</summary>
+    Task<FeatureCheckResult> CanUseAiStudioAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Returns whether the studio can use the Deployment Center module.</summary>
+    Task<FeatureCheckResult> CanUseDeploymentCenterAsync(CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Generic entry point used by <see cref="Behaviors.SubscriptionEnforcementBehavior{TRequest,TResponse}"/>.
     /// Routes to the appropriate typed check based on <paramref name="featureKey"/>.

@@ -27,7 +27,7 @@ public sealed class PhotoDeletedAuditHandler(
                 entityId: notification.PhotoId.ToString());
 
             await auditLogRepository.AddAsync(entry, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveAuditAsync(cancellationToken);
         }
         catch (Exception ex)
         {

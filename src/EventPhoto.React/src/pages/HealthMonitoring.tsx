@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, XCircle, RefreshCw, Server, Database, HardDrive, Cpu, ExternalLink } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, RefreshCw, Server, Database, HardDrive, ExternalLink, Brain } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { useApplicationSettings } from '../hooks/useApplicationSettings';
 import { Card } from '../components/UI/Card';
@@ -13,20 +13,74 @@ interface HealthStatus {
   timestamp: string;
 }
 
+type HealthState = 'Healthy' | 'Degraded' | 'Offline';
+
+interface ComponentHealth {
+  name: string;
+  status: HealthState;
+  responseMs: number | null;
+  detail: string | null;
+}
+
+interface ServiceHealthResult {
+  database: ComponentHealth;
+  aiService: ComponentHealth;
+  storage: ComponentHealth;
+  qrService: ComponentHealth;
+  checkedAt: string;
+}
+
 async function fetchHealth(): Promise<HealthStatus> {
   const res = await apiClient.get<HealthStatus>('/health');
   return res.data;
 }
 
-function StatusIndicator({ ok, label }: { ok: boolean; label: string }) {
+async function fetchDeepHealth(): Promise<ServiceHealthResult> {
+  const res = await apiClient.get<{ data: ServiceHealthResult }>('/health/services');
+  return res.data.data;
+}
+
+function StatusIndicator({ ok, degraded, label }: { ok: boolean; degraded?: boolean; label: string }) {
   return (
     <div className="flex items-center gap-2">
       {ok ? (
         <CheckCircle2 className="h-5 w-5 text-green-500" />
+      ) : degraded ? (
+        <AlertTriangle className="h-5 w-5 text-yellow-500" />
       ) : (
         <XCircle className="h-5 w-5 text-red-500" />
       )}
-      <span className={`text-sm font-medium ${ok ? 'text-green-700' : 'text-red-700'}`}>{label}</span>
+      <span className={`text-sm font-medium ${ok ? 'text-green-700' : degraded ? 'text-yellow-700' : 'text-red-700'}`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function ComponentHealthRow({ component }: { component: ComponentHealth | undefined }) {
+  if (!component) return null;
+  const ok = component.status === 'Healthy';
+  const degraded = component.status === 'Degraded';
+  return (
+    <div className="flex items-start gap-2">
+      {ok ? (
+        <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+      ) : degraded ? (
+        <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+      ) : (
+        <XCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+      )}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium ${ok ? 'text-green-700' : degraded ? 'text-yellow-700' : 'text-red-700'}`}>
+          {component.name}
+          {component.responseMs != null && (
+            <span className="ml-2 text-xs font-normal text-gray-400">{component.responseMs}ms</span>
+          )}
+        </p>
+        {component.detail && (
+          <p className="text-xs text-gray-500 mt-0.5 break-words">{component.detail}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -43,6 +97,7 @@ function MetricCard({ icon: Icon, label, value, sub, color = 'blue' }: {
     green: 'bg-green-500',
     orange: 'bg-orange-500',
     purple: 'bg-purple-500',
+    indigo: 'bg-indigo-500',
   };
   return (
     <Card className="p-5">
@@ -61,7 +116,6 @@ function MetricCard({ icon: Icon, label, value, sub, color = 'blue' }: {
 }
 
 function NetworkConfig() {
-  // Read from ApplicationSettings (authoritative source) instead of legacy app.serverUrl
   const { data: settings } = useApplicationSettings();
   const publicBaseUrl = settings?.publicBaseUrl ?? '—';
 
@@ -102,7 +156,19 @@ export default function HealthMonitoring() {
     retry: 1,
   });
 
+  const { data: deep, isLoading: deepLoading } = useQuery({
+    queryKey: ['health-services'],
+    queryFn: fetchDeepHealth,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+
   const isHealthy = !isLoading && !isError && data?.status === 'healthy';
+
+  const allComponents = deep ? [deep.database, deep.aiService, deep.storage, deep.qrService] : [];
+  const hasOffline = allComponents.some(c => c.status === 'Offline');
+  const hasDegraded = !hasOffline && allComponents.some(c => c.status === 'Degraded');
+  const deepStatus = !deep ? null : hasOffline ? 'Offline' : hasDegraded ? 'Degraded' : 'Healthy';
 
   return (
     <div className="space-y-6">
@@ -110,7 +176,7 @@ export default function HealthMonitoring() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Health Monitoring</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            System status · Auto-refreshes every 15 seconds
+            System status · Auto-refreshes every 15s
             {dataUpdatedAt ? ` · Last check: ${new Date(dataUpdatedAt).toLocaleTimeString()}` : ''}
           </p>
         </div>
@@ -122,7 +188,7 @@ export default function HealthMonitoring() {
             <ExternalLink className="h-3.5 w-3.5" />
             Deployment Center
           </a>
-          <Button variant="secondary" size="sm" onClick={() => refetch()}>
+          <Button variant="secondary" size="sm" onClick={() => { refetch(); }}>
             <RefreshCw className="h-4 w-4" /> Check Now
           </Button>
         </div>
@@ -140,72 +206,103 @@ export default function HealthMonitoring() {
           )}
           <div>
             <p className={`text-lg font-bold ${isLoading ? 'text-gray-500' : isHealthy ? 'text-green-800' : 'text-red-800'}`}>
-              {isLoading ? 'Checking...' : isHealthy ? 'All Systems Operational' : 'Service Degraded'}
+              {isLoading ? 'Checking...' : isHealthy ? 'API Online' : 'Service Degraded'}
             </p>
             <p className="text-sm text-gray-500">
               {data ? `Server: ${data.server} · ${new Date(data.timestamp).toLocaleString()}` : '—'}
             </p>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             <Badge
               label={isLoading ? 'Checking' : isHealthy ? 'Healthy' : 'Unhealthy'}
               color={isLoading ? 'gray' : isHealthy ? 'green' : 'red'}
             />
+            {deepStatus && (
+              <Badge
+                label={`Deep: ${deepStatus}`}
+                color={deepStatus === 'Healthy' ? 'green' : deepStatus === 'Degraded' ? 'yellow' : 'red'}
+              />
+            )}
           </div>
         </div>
       </Card>
 
       {/* Component checks */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Basic service checks */}
         <Card className="p-5">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Service Status</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Core Services</h2>
           {isLoading ? (
             <Spinner size="sm" />
           ) : (
             <div className="space-y-3">
               <StatusIndicator ok={isHealthy} label="PixBridge API" />
               <StatusIndicator ok={isHealthy} label="SignalR Hub (/hubs/photos)" />
-              <StatusIndicator ok={isHealthy} label="File Storage Service" />
-              <StatusIndicator ok={isHealthy} label="Thumbnail Processor" />
               <StatusIndicator ok={isHealthy} label="File Watcher Service" />
+              <StatusIndicator ok={isHealthy} label="Thumbnail Processor" />
             </div>
           )}
         </Card>
 
+        {/* Deep health (requires auth) */}
         <Card className="p-5">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Endpoints</h2>
-          <div className="space-y-2 text-sm">
-            {[
-              { method: 'GET', path: '/api/health', desc: 'Liveness probe' },
-              { method: 'GET', path: '/api/health/services', desc: 'Deep service health' },
-              { method: 'GET', path: '/api/deployment/status', desc: 'Deployment mode' },
-              { method: 'GET', path: '/api/events', desc: 'Event list' },
-              { method: 'WS',  path: '/hubs/photos', desc: 'SignalR hub' },
-            ].map(ep => (
-              <div key={ep.path} className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
-                <span className={`text-xs font-bold rounded px-1.5 py-0.5 ${ep.method === 'WS' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                  {ep.method}
-                </span>
-                <code className="text-gray-700 flex-1">{ep.path}</code>
-                <span className="text-gray-400 text-xs">{ep.desc}</span>
-                {isHealthy && ep.method !== 'WS' && (
-                  <CheckCircle2 className="h-3 w-3 text-green-500" />
-                )}
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-gray-900">Infrastructure Health</h2>
+            {deepLoading && <Spinner size="sm" />}
           </div>
+          {!deep && !deepLoading ? (
+            <p className="text-xs text-gray-400">Deep health check requires StudioOwner access.</p>
+          ) : (
+            <div className="space-y-3">
+              <ComponentHealthRow component={deep?.database} />
+              <ComponentHealthRow component={deep?.aiService} />
+              <ComponentHealthRow component={deep?.storage} />
+              <ComponentHealthRow component={deep?.qrService} />
+            </div>
+          )}
         </Card>
       </div>
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard icon={Server}   label="API Server"  value={data?.server ?? '—'} sub="Kestrel on :5000"   color="blue"   />
-        <MetricCard icon={Database} label="Database"    value="PostgreSQL"           sub="Local instance"    color="green"  />
-        <MetricCard icon={Cpu}      label="Runtime"     value=".NET 8"               sub="Self-contained"    color="purple" />
-        <MetricCard icon={HardDrive} label="Storage"   value="Local Disk"            sub="Photos + QR codes" color="orange" />
+        <MetricCard icon={Server}   label="API Server"   value={data?.server ?? '—'} sub="Kestrel :5000"      color="blue"   />
+        <MetricCard icon={Database} label="Database"     value={deep?.database.status ?? 'PostgreSQL'}
+          sub={deep?.database.responseMs != null ? `${deep.database.responseMs}ms` : 'Local instance'}
+          color={deep?.database.status === 'Healthy' ? 'green' : 'orange'} />
+        <MetricCard icon={Brain}    label="AI Face Recog" value={deep?.aiService.status ?? '—'}
+          sub={deep?.aiService.responseMs != null ? `${deep.aiService.responseMs}ms` : 'Python :5001'}
+          color={deep?.aiService.status === 'Healthy' ? 'indigo' : 'orange'} />
+        <MetricCard icon={HardDrive} label="Storage"     value={deep?.storage.detail?.split(' free')[0] ?? '—'}
+          sub="Application drive"
+          color={deep?.storage.status === 'Healthy' ? 'green' : 'orange'} />
       </div>
 
-      {/* Network info — reads from PublicBaseUrl, not legacy app.serverUrl */}
+      {/* Endpoints reference */}
+      <Card className="p-5">
+        <h2 className="text-base font-semibold text-gray-900 mb-4">Endpoint Reference</h2>
+        <div className="space-y-2 text-sm">
+          {[
+            { method: 'GET', path: '/api/health',           desc: 'Liveness probe (anonymous)' },
+            { method: 'GET', path: '/api/health/services',  desc: 'Deep health (OwnerOnly)' },
+            { method: 'GET', path: '/api/deployment/status', desc: 'Deployment mode' },
+            { method: 'GET', path: '/api/events',           desc: 'Event list' },
+            { method: 'WS',  path: '/hubs/photos',          desc: 'SignalR hub' },
+          ].map(ep => (
+            <div key={ep.path} className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
+              <span className={`text-xs font-bold rounded px-1.5 py-0.5 ${ep.method === 'WS' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                {ep.method}
+              </span>
+              <code className="text-gray-700 flex-1">{ep.path}</code>
+              <span className="text-gray-400 text-xs">{ep.desc}</span>
+              {isHealthy && ep.method !== 'WS' && ep.path !== '/api/health/services' && (
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Network config */}
       <Card className="p-5">
         <h2 className="text-base font-semibold text-gray-900 mb-4">Network Configuration</h2>
         <NetworkConfig />
@@ -219,3 +316,4 @@ export default function HealthMonitoring() {
     </div>
   );
 }
+

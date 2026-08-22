@@ -61,6 +61,12 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod());
 });
 builder.Services.AddResponseCaching();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(
+        ["application/json", "text/plain", "application/javascript", "text/css"]);
+});
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -79,6 +85,14 @@ builder.Services.AddRateLimiter(options =>
         limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         limiterOptions.QueueLimit = 0;
     });
+    // Face search selfie uploads: max 10 per IP per 2 minutes — guards against DoS/abuse
+    options.AddFixedWindowLimiter("facesearch", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 10;
+        limiterOptions.Window = TimeSpan.FromMinutes(2);
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 0;
+    });
 });
 
 var app = builder.Build();
@@ -89,7 +103,12 @@ using (var scope = app.Services.CreateScope())
     var context = services.GetRequiredService<AppDbContext>();
     var passwordHasher = services.GetRequiredService<IPasswordHasher>();
     var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseSeeder");
-    await AppDbContextSeeder.SeedAsync(context, passwordHasher, logger);
+    var fingerprintService = services.GetService<EventPhoto.Application.Common.Interfaces.IFingerprintService>();
+    var installationRepo = services.GetService<EventPhoto.Domain.Interfaces.IInstallationRegistryRepository>();
+    var subscriptionRepo = services.GetService<EventPhoto.Domain.Interfaces.ISubscriptionRepository>();
+    var publisher = services.GetService<MediatR.IPublisher>();
+    await AppDbContextSeeder.SeedAsync(context, passwordHasher, logger,
+        fingerprintService, installationRepo, subscriptionRepo, publisher);
 
     // Auto-update ApplicationSettings.PublicBaseUrl and legacy app.serverUrl with current LAN IP.
     // Only updates when the stored URL uses a raw IP address (not a hostname like pixbridge.local).
@@ -183,6 +202,7 @@ app.UseSwaggerUI(options =>
 });
 
 app.UseCors();
+app.UseResponseCompression();
 app.UseResponseCaching();
 app.UseRateLimiter();
 app.UseAuthentication();

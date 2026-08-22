@@ -91,6 +91,9 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     /// <summary>Gets the subscription singleton record.</summary>
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
+    /// <summary>Gets the installation registry singleton record.</summary>
+    public DbSet<InstallationRegistry> InstallationRegistries => Set<InstallationRegistry>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -148,4 +151,8 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
 
     /// <inheritdoc />
     Task<int> IUnitOfWork.SaveChangesAsync(CancellationToken cancellationToken) => SaveChangesAsync(cancellationToken);
+
+    /// <inheritdoc />
+    /// Calls base SaveChangesAsync directly — no domain event dispatch — safe to call from event handlers.
+    Task<int> IUnitOfWork.SaveAuditAsync(CancellationToken cancellationToken) => base.SaveChangesAsync(cancellationToken);
 }

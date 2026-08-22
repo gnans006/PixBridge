@@ -13,4 +13,7 @@ public sealed record SubscriptionResponse(
     int MaxUsersPerStudio,
     bool IsOperational,
     int GracePeriodDaysRemaining,
-    string? Notes);
+    string? Notes,
+    int? DaysRemaining,
+    int DurationDays,
+    bool HasUsedTrialExtension);

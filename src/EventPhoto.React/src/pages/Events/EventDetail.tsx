@@ -13,10 +13,12 @@ import { Spinner } from '../../components/UI/Spinner';
 import { WatermarkConfigModal } from '../../components/UI/WatermarkConfigModal';
 import { formatDate } from '../../utils/format';
 import { apiError } from '../../utils/errorHandler';
+import { useConfirm } from '../../hooks/useConfirm';
 
 export default function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrBust, setQrBust] = useState(() => Date.now());
   const [showWatermarkModal, setShowWatermarkModal] = useState(false);
@@ -220,7 +222,16 @@ export default function EventDetail() {
           <div className="flex gap-2 rounded-b-2xl border-t border-gray-100 px-6 py-4">
             <button
               type="button"
-              onClick={() => refreshQrMutation.mutate()}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Regenerate QR Code?',
+                  message: 'The current QR code will stop working immediately. Any printed materials using this QR will need to be reprinted.',
+                  confirmLabel: 'Regenerate',
+                  variant: 'warning',
+                });
+                if (!ok) return;
+                refreshQrMutation.mutate();
+              }}
               disabled={refreshQrMutation.isPending}
               className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
               title="Regenerate QR with current server IP"

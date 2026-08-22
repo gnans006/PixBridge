@@ -30,7 +30,9 @@ import FaceRecognitionPage from './pages/AI/FaceRecognitionPage';
 import AiStudioPage from './pages/AI/AiStudioPage';
 import GuestUploadsPage from './pages/Experiences/GuestUploadsPage';
 import GuestUploadsOverviewPage from './pages/Experiences/GuestUploadsOverviewPage';
+import QrCenterPage from './pages/Experiences/QrCenterPage';
 import SubscriptionPage from './pages/Platform/SubscriptionPage';
+import { ConfirmProvider } from './hooks/useConfirm';
 import { apiError } from './utils/errorHandler';
 
 const queryClient = new QueryClient({
@@ -56,6 +58,7 @@ export default function App() {
   return (
     <ThemeProvider>
     <QueryClientProvider client={queryClient}>
+      <ConfirmProvider>
         <Toaster
           position="top-right"
           gutter={8}
@@ -119,7 +122,7 @@ export default function App() {
             <Route path="platform/configuration" element={<ConfigurationPage />} />
             <Route path="deployment" element={<DeploymentCenterPage />} />
             {/* Experiences */}
-            <Route path="experiences/qr" element={<Navigate to="/admin/events" replace />} />
+            <Route path="experiences/qr" element={<QrCenterPage />} />
             <Route path="experiences/guest-uploads" element={<GuestUploadsOverviewPage />} />
             <Route path="experiences/guest-uploads/:eventId" element={<GuestUploadsPage />} />
             {/* Platform */}
@@ -132,6 +135,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </ConfirmProvider>
     </QueryClientProvider>
     </ThemeProvider>
   );

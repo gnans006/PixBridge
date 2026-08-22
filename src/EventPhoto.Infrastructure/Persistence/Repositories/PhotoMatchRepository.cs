@@ -46,4 +46,18 @@ public sealed class PhotoMatchRepository(AppDbContext context) : IPhotoMatchRepo
     /// <inheritdoc />
     public async Task AddRangeAsync(IEnumerable<PhotoMatch> matches, CancellationToken cancellationToken = default)
         => await context.PhotoMatches.AddRangeAsync(matches, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<int> DeleteBySessionIdsAsync(
+        IEnumerable<Guid> sessionIds,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = sessionIds as ICollection<Guid> ?? sessionIds.ToList();
+        if (idList.Count == 0)
+            return 0;
+
+        return await context.PhotoMatches
+            .Where(m => idList.Contains(m.SessionId))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
 }

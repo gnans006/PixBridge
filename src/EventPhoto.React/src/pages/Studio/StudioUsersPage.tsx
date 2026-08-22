@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, UserCheck, UserX, KeyRound, Shield } from 'lucide-react';
+import { Plus, Pencil, UserCheck, UserX, KeyRound, Shield, HardDrive, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiClient } from '../../api/client';
+import { systemApi } from '../../api/system';
+import type { CacheStats } from '../../api/system';
 import type { ApiResponse } from '../../types';
 import { CreateUserDialog } from '../../components/Studio/CreateUserDialog';
 import { EditUserDialog } from '../../components/Studio/EditUserDialog';
 import { ResetPasswordDialog } from '../../components/Studio/ResetPasswordDialog';
+import { useConfirm } from '../../hooks/useConfirm';
+import { useEvents } from '../../hooks/useEvents';
 
 export interface StudioUser {
   id: string;
@@ -131,9 +135,185 @@ export default function StudioUsersPage() {
         )}
       </div>
 
+      {/* Cache Management */}
+      <CacheManagementCard />
+
       {createOpen && <CreateUserDialog onClose={() => setCreateOpen(false)} />}
       {editUser   && <EditUserDialog user={editUser} onClose={() => setEditUser(null)} />}
       {resetUser  && <ResetPasswordDialog user={resetUser} onClose={() => setResetUser(null)} />}
+    </div>
+  );
+}
+
+// ── Cache Management Card ─────────────────────────────────────────────────────
+
+function CacheManagementCard() {
+  const qc = useQueryClient();
+  const confirm = useConfirm();
+  const { data: events = [] } = useEvents();
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+
+  const { data: stats, isLoading, refetch } = useQuery<CacheStats>({
+    queryKey: ['cache-stats'],
+    queryFn: () => systemApi.getCacheStats(),
+    staleTime: 30_000,
+  });
+
+  const clearAll = useMutation({
+    mutationFn: () => systemApi.clearAllCache(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['cache-stats'] });
+      toast.success('Watermark cache cleared.');
+    },
+    onError: () => toast.error('Failed to clear cache. Check server logs.'),
+  });
+
+  const clearEvent = useMutation({
+    mutationFn: (eventId: string) => systemApi.clearEventCache(eventId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['cache-stats'] });
+      setSelectedEventId('');
+      toast.success('Event cache cleared.');
+    },
+    onError: () => toast.error('Failed to clear event cache.'),
+  });
+
+  async function handleClearAll() {
+    const ok = await confirm({
+      title: 'Clear Entire Watermark Cache?',
+      message:
+        'This will permanently delete all pre-processed watermarked files across every event. ' +
+        'Guests may experience slower download speeds until the cache rebuilds automatically on next download.',
+      confirmLabel: 'Yes, Clear All',
+      variant: 'danger',
+    });
+    if (ok) clearAll.mutate();
+  }
+
+  async function handleClearEvent() {
+    if (!selectedEventId) return;
+    const event = events.find(e => e.id === selectedEventId);
+    const ok = await confirm({
+      title: 'Clear Event Cache?',
+      message: `Cached watermarked files for "${event?.name ?? 'this event'}" will be deleted. ` +
+        'They will regenerate automatically on next download.',
+      confirmLabel: 'Clear Cache',
+      variant: 'warning',
+    });
+    if (ok) clearEvent.mutate(selectedEventId);
+  }
+
+  const usagePercent = stats
+    ? Math.min(100, Math.round((stats.totalSizeBytes / stats.maxSizeBytes) * 100))
+    : 0;
+
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900 p-6 space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10">
+            <HardDrive className="h-4 w-4 text-indigo-400" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-100">Watermark Cache</h2>
+            <p className="text-xs text-gray-500">Pre-processed files that speed up repeat downloads</p>
+          </div>
+        </div>
+        <button
+          onClick={() => void refetch()}
+          className="rounded-md p-1.5 text-gray-500 hover:bg-gray-800 hover:text-gray-300 transition-colors"
+          title="Refresh stats"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Warning banner */}
+      <div className="flex items-start gap-2 rounded-lg border border-amber-800/50 bg-amber-900/20 px-3 py-2.5 text-xs text-amber-300">
+        <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+        <span>
+          Clearing the cache does not delete original photos. Watermarks regenerate automatically
+          on the next download. Clearing during a live event may temporarily slow guest downloads.
+        </span>
+      </div>
+
+      {/* Stats */}
+      {isLoading ? (
+        <div className="text-xs text-gray-500 animate-pulse">Loading cache statistics…</div>
+      ) : stats ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-400">
+              {stats.totalSizeFormatted} used &nbsp;·&nbsp; {stats.totalFileCount} files
+            </span>
+            <span className="text-gray-500">{usagePercent}% of {stats.maxSizeFormatted}</span>
+          </div>
+          {/* Usage bar */}
+          <div className="h-1.5 w-full rounded-full bg-gray-800 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                usagePercent > 85 ? 'bg-red-500' : usagePercent > 60 ? 'bg-amber-500' : 'bg-indigo-500'
+              }`}
+              style={{ width: `${usagePercent}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-600 truncate" title={stats.cacheDirectory}>
+            📁 {stats.cacheDirectory}
+          </p>
+        </div>
+      ) : (
+        <div className="text-xs text-gray-500">Cache statistics unavailable.</div>
+      )}
+
+      <hr className="border-gray-800" />
+
+      {/* Clear by event */}
+      <div className="space-y-2">
+        <label className="block text-xs font-medium text-gray-400">Clear cache for a specific event</label>
+        <div className="flex gap-2">
+          <select
+            value={selectedEventId}
+            onChange={e => setSelectedEventId(e.target.value)}
+            className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 focus:border-indigo-500 focus:outline-none"
+          >
+            <option value="">Select an event…</option>
+            {events.map(event => {
+              const eventStat = stats?.events.find(s => s.eventId === event.id);
+              return (
+                <option key={event.id} value={event.id}>
+                  {event.name}
+                  {eventStat ? ` — ${eventStat.sizeFormatted} (${eventStat.fileCount} files)` : ''}
+                </option>
+              );
+            })}
+          </select>
+          <button
+            onClick={handleClearEvent}
+            disabled={!selectedEventId || clearEvent.isPending}
+            className="flex items-center gap-1.5 rounded-lg border border-amber-700 bg-amber-900/20 px-3 py-2 text-xs font-medium text-amber-300 hover:bg-amber-900/40 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {clearEvent.isPending ? 'Clearing…' : 'Clear'}
+          </button>
+        </div>
+      </div>
+
+      {/* Clear all */}
+      <div className="flex items-center justify-between rounded-lg border border-red-900/40 bg-red-950/20 px-4 py-3">
+        <div>
+          <p className="text-xs font-medium text-red-300">Clear Entire Cache</p>
+          <p className="text-xs text-gray-500 mt-0.5">Removes all pre-processed files across all events</p>
+        </div>
+        <button
+          onClick={handleClearAll}
+          disabled={clearAll.isPending || (stats?.totalFileCount === 0)}
+          className="flex items-center gap-1.5 rounded-lg bg-red-700/30 border border-red-700/50 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-700/50 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {clearAll.isPending ? 'Clearing…' : 'Clear All'}
+        </button>
+      </div>
     </div>
   );
 }

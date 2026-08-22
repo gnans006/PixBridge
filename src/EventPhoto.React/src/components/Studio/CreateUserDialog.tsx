@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiClient } from '../../api/client';
+import { isSubscriptionLimitError, apiErrorWithUpgrade } from '../../utils/errorHandler';
 
 const ROLES = ['StudioOwner', 'StudioManager', 'Operator'];
 
@@ -16,7 +17,14 @@ export function CreateUserDialog({ onClose }: Props) {
   const create = useMutation({
     mutationFn: (data: typeof form) => apiClient.post('/studio/users', data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['studio-users'] }); toast.success('User created.'); onClose(); },
-    onError: (e: any) => setError(e?.response?.data?.error ?? 'Failed to create user.'),
+    onError: (e: unknown) => {
+      if (isSubscriptionLimitError(e)) {
+        apiErrorWithUpgrade(e);
+      } else {
+        const msg = (e as any)?.response?.data?.error ?? 'Failed to create user.';
+        setError(msg);
+      }
+    },
   });
 
   function submit(e: React.FormEvent) {

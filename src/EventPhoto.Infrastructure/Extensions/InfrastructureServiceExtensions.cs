@@ -6,6 +6,7 @@ using EventPhoto.Infrastructure.Services;
 using EventPhoto.Infrastructure.Services.Auth;
 using EventPhoto.Infrastructure.Services.FaceRecognition;
 using EventPhoto.Infrastructure.Services.FileSystem;
+using EventPhoto.Infrastructure.Services.Licensing;
 using EventPhoto.Infrastructure.Services.Network;
 using EventPhoto.Infrastructure.Services.QrCode;
 using EventPhoto.Infrastructure.Services.Subscription;
@@ -71,16 +72,26 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
         services.AddScoped<IFeatureManager, FeatureManager>();
 
+        // Licensing Foundation
+        services.AddScoped<IInstallationRegistryRepository, InstallationRegistryRepository>();
+        services.AddSingleton<IFingerprintService, FingerprintService>();
+        services.AddSingleton<ILicenseKeyService, HmacLicenseKeyService>();
+
         // Existing services
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IThumbnailService, ThumbnailService>();
         services.AddScoped<IQrCodeService, QrCodeService>();
         services.AddScoped<IFileStorageService, FileStorageService>();
+        services.AddScoped<IPathValidationService, PathValidationService>();
         services.AddTransient<IFileService, EventPhoto.Infrastructure.Services.FileSystem.FileService>();
 
         // Watermark service
         services.AddScoped<IWatermarkService, WatermarkService>();
+
+        // Watermark cache — singleton: holds only filesystem paths + per-event semaphores
+        services.Configure<WatermarkCacheOptions>(configuration.GetSection(WatermarkCacheOptions.Section));
+        services.AddSingleton<IWatermarkCacheService, WatermarkCacheService>();
 
         // AI Discovery Engine services
         services.AddScoped<IFaceQualityService, FaceQualityService>();
@@ -88,8 +99,8 @@ public static class InfrastructureServiceExtensions
         // Network & URL services
         services.AddSingleton<INetworkInformationService, NetworkInformationService>();
         services.AddSingleton<IDeploymentInfoService, DeploymentInfoService>();
+        services.AddSingleton<IUrlGenerationService, UrlGenerationService>();
         services.AddScoped<IAiServiceHealthChecker, AiServiceHealthChecker>();
-        services.AddScoped<IUrlGenerationService, UrlGenerationService>();
         services.AddScoped<IUrlReachabilityService, UrlReachabilityService>();
 
         // Named HTTP client for URL reachability tests

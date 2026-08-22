@@ -24,4 +24,10 @@ public static class FeatureKey
 
     /// <summary>Access to the Guest Memories premium module.</summary>
     public const string GuestMemories = "GuestMemories";
+
+    /// <summary>Access to branding customisation.</summary>
+    public const string Branding = "Branding";
+
+    /// <summary>Access to the Deployment Center module.</summary>
+    public const string DeploymentCenter = "DeploymentCenter";
 }

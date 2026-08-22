@@ -41,7 +41,8 @@ public sealed class FaceProcessingJobRepository(AppDbContext context) : IFacePro
         int batchSize,
         CancellationToken cancellationToken = default)
         => context.FaceProcessingJobs
-            .Where(j => j.Status == FaceJobStatus.Pending)
+            .Where(j => j.Status == FaceJobStatus.Pending
+                     && context.Events.Any(e => e.Id == j.EventId && e.IsActive && !e.IsDeleted))
             .OrderBy(j => j.Priority)
             .ThenBy(j => j.CreatedAt)
             .Take(batchSize)
@@ -56,7 +57,8 @@ public sealed class FaceProcessingJobRepository(AppDbContext context) : IFacePro
         return context.FaceProcessingJobs
             .Where(j => j.Status == FaceJobStatus.Failed
                 && j.NextRetryAt != null
-                && j.NextRetryAt <= now)
+                && j.NextRetryAt <= now
+                && context.Events.Any(e => e.Id == j.EventId && e.IsActive && !e.IsDeleted))
             .OrderBy(j => j.NextRetryAt)
             .Take(batchSize)
             .ToListAsync(cancellationToken);

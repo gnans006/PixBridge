@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { eventsApi } from '../../api/events';
 import type { EventResponse } from '../../types';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface EventCardMenuProps {
   event: EventResponse;
@@ -19,6 +20,7 @@ export function EventCardMenu({
   event, onDelete, onToggleActive, onRefreshQr, refreshingQrId,
 }: EventCardMenuProps) {
   const [open, setOpen] = useState(false);
+  const confirm = useConfirm();
   const menuRef = useRef<HTMLDivElement>(null);
   const btnRef  = useRef<HTMLButtonElement>(null);
 
@@ -102,7 +104,17 @@ export function EventCardMenu({
           <button
             type="button"
             disabled={refreshingQrId === event.id}
-            onClick={() => { onRefreshQr(event.id); close(); }}
+            onClick={async () => {
+                const ok = await confirm({
+                  title: 'Regenerate QR Code?',
+                  message: 'The current QR code will stop working immediately. Any printed materials using this QR will need to be reprinted.',
+                  confirmLabel: 'Regenerate',
+                  variant: 'warning',
+                });
+                if (!ok) return;
+                onRefreshQr(event.id);
+                close();
+              }}
             className={`${row} disabled:opacity-50`}
             role="menuitem"
           >

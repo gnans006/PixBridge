@@ -78,5 +78,22 @@ public sealed class SelfieRetentionService : BackgroundService
         {
             _logger.LogError(ex, "Error during face session expiry.");
         }
+
+        // Delete photo match rows for sessions that expired more than 1 day ago
+        try
+        {
+            var cleanupResult = await mediator.Send(
+                new CleanupExpiredPhotoMatchesCommand(RetentionDays: 1), cancellationToken);
+
+            if (cleanupResult.IsSuccess && cleanupResult.Value > 0)
+            {
+                _logger.LogInformation(
+                    "PhotoMatch cleanup: removed {Count} stale match row(s).", cleanupResult.Value);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during photo match cleanup.");
+        }
     }
 }

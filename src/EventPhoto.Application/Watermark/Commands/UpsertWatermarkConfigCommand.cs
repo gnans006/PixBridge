@@ -1,3 +1,4 @@
+using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Contracts.Responses.Events;
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Entities;
@@ -34,6 +35,7 @@ public sealed record UpsertWatermarkConfigCommand(
 public sealed class UpsertWatermarkConfigCommandHandler(
     IWatermarkConfigurationRepository watermarkRepository,
     IEventRepository eventRepository,
+    IWatermarkCacheService watermarkCache,
     IUnitOfWork unitOfWork)
     : IRequestHandler<UpsertWatermarkConfigCommand, Result<WatermarkConfigResponse>>
 {
@@ -92,6 +94,10 @@ public sealed class UpsertWatermarkConfigCommandHandler(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Invalidate all cached watermarked files for this event — the new config
+        // hash will differ, so guests get freshly watermarked files on next download.
+        watermarkCache.InvalidateEvent(request.EventId);
 
         return Result.Success(MapToResponse(config));
     }

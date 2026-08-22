@@ -1,3 +1,4 @@
+using EventPhoto.Application.Common.Interfaces;
 using EventPhoto.Domain.Common;
 using EventPhoto.Domain.Enums;
 using EventPhoto.Domain.Exceptions;
@@ -9,13 +10,14 @@ namespace EventPhoto.Application.Subscription.Commands;
 /// <summary>Activates the studio subscription with a valid license key.</summary>
 public sealed record ActivateSubscriptionCommand(
     string LicenseKey,
-    string StudioEmail,
-    string Plan,
-    DateTimeOffset ExpiresAt) : IRequest<Result>;
+    string StudioEmail) : IRequest<Result>;
 
 /// <summary>Handles <see cref="ActivateSubscriptionCommand"/>.</summary>
 public sealed class ActivateSubscriptionCommandHandler(
     ISubscriptionRepository repository,
+    ILicenseKeyService licenseKeyService,
+    IFingerprintService fingerprintService,
+    IInstallationRegistryRepository installationRegistryRepository,
     IUnitOfWork unitOfWork)
     : IRequestHandler<ActivateSubscriptionCommand, Result>
 {
@@ -23,14 +25,29 @@ public sealed class ActivateSubscriptionCommandHandler(
         ActivateSubscriptionCommand request,
         CancellationToken cancellationToken)
     {
-        if (!Enum.TryParse<SubscriptionPlan>(request.Plan, ignoreCase: true, out var plan))
-            return Result.Failure($"Unknown subscription plan: {request.Plan}");
+        // Validate and decode the license key — plan and duration come from the key payload,
+        // never from the client request. This eliminates the "client sends ExpiresAt" security hole.
+        var payload = licenseKeyService.ValidateAndDecode(request.LicenseKey);
+        if (payload is null)
+            return Result.Failure("Invalid or tampered license key. Please contact support.");
+
+        // Compute machine fingerprint and fetch installation identity
+        var fingerprintHash   = fingerprintService.ComputeHash();
+        var registry          = await installationRegistryRepository.GetAsync(cancellationToken);
+        var installationId    = registry?.InstallationId;
 
         var sub = await repository.GetOrCreateTrialAsync(cancellationToken);
 
         try
         {
-            sub.Activate(request.LicenseKey, request.StudioEmail, plan, request.ExpiresAt);
+            sub.Activate(
+                request.LicenseKey,
+                request.StudioEmail,
+                payload.Plan,
+                payload.DurationDays,
+                installationId,
+                fingerprintHash,
+                integrityHash: null); // integrity hash computed inside the entity
         }
         catch (DomainException ex)
         {

@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Droplets, Layers, Palette, Type, Info } from 'lucide-react';
 import type { UpsertWatermarkConfigRequest, WatermarkMode, WatermarkStyle, WatermarkScale } from '../../types';
@@ -90,6 +91,18 @@ export function CreateEventWatermarkModal({
     value: UpsertWatermarkConfigRequest[K],
   ) => onChange({ ...config, [key]: value });
 
+  // Preserve left-panel scroll position across parent re-renders.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const savedScroll = useRef(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = savedScroll.current;
+  });
+  const handleScroll = () => {
+    savedScroll.current = scrollRef.current?.scrollTop ?? 0;
+  };
+
   const isBrandingMode =
     config.mode === 'StudioBranding' ||
     config.mode === 'EventBranding' ||
@@ -154,7 +167,7 @@ export function CreateEventWatermarkModal({
               {/* Body — 50/50 split */}
               <div className="flex min-h-0 flex-1 overflow-hidden">
                 {/* LEFT: Configuration */}
-                <div className="flex w-1/2 flex-col gap-5 overflow-y-auto border-r border-slate-800 p-5">
+                <div ref={scrollRef} onScroll={handleScroll} className="flex w-1/2 flex-col gap-5 overflow-y-auto border-r border-slate-800 p-5">
                   {/* Enable toggle */}
                   <div className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-800/60 p-4">
                     <div>
@@ -171,10 +184,8 @@ export function CreateEventWatermarkModal({
                       }`}
                       aria-label="Toggle watermarking"
                     >
-                      <motion.span
-                        layout
-                        transition={{ type: 'spring', stiffness: 600, damping: 30 }}
-                        className={`inline-block h-5 w-5 rounded-full bg-white shadow ${config.enabled ? 'translate-x-5' : 'translate-x-0'}`}
+                      <span
+                        className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${config.enabled ? 'translate-x-5' : 'translate-x-0'}`}
                       />
                     </button>
                   </div>

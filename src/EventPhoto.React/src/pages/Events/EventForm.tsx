@@ -9,7 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { eventsApi } from '../../api/events';
 import { watermarkApi } from '../../api/watermark';
-import { apiError } from '../../utils/errorHandler';
+import { apiErrorWithUpgrade } from '../../utils/errorHandler';
 import type { UpsertWatermarkConfigRequest } from '../../types';
 import { useApplicationSettings } from '../../hooks/useApplicationSettings';
 
@@ -222,7 +222,6 @@ export default function EventForm() {
   const mutation = useMutation({
     mutationFn: eventsApi.create,
     onSuccess: async (response) => {
-      void queryClient.invalidateQueries({ queryKey: ['events'] });
       const eventId = response?.data?.id;
       if (eventId && watermarkConfig.enabled) {
         try {
@@ -232,14 +231,18 @@ export default function EventForm() {
         }
       }
       toast.success('Event created successfully!');
+      // Navigate immediately — the workspace page fetches its own data.
+      // Invalidate the list cache in the background so it's fresh when the user
+      // navigates back; no need to block the transition on a list refetch.
       if (eventId) {
         navigate(`/admin/events/${eventId}`);
       } else {
         navigate('/admin/events');
       }
+      void queryClient.invalidateQueries({ queryKey: ['events'] });
     },
     onError: (error: unknown) => {
-      apiError(error, 'Failed to create event.');
+      apiErrorWithUpgrade(error, 'Failed to create event.');
     },
   });
 
@@ -291,6 +294,14 @@ export default function EventForm() {
 
               <ClientInformationSection register={register} errors={errors} />
 
+              <StorageSection
+                register={register}
+                errors={errors}
+                watch={watch}
+                setValue={setValue}
+                hasError={isSubmitted && !!(errors.watchFolder || errors.galleryRecentCount)}
+              />
+
               <GalleryExperienceSection
                 value={galleryMode}
                 onChange={handleGalleryModeChange}
@@ -307,12 +318,6 @@ export default function EventForm() {
                 config={watermarkConfig}
                 onToggleEnabled={(v) => setWatermarkConfig((c) => ({ ...c, enabled: v }))}
                 onOpenModal={() => setWatermarkModalOpen(true)}
-              />
-
-              <StorageSection
-                register={register}
-                errors={errors}
-                hasError={isSubmitted && !!(errors.watchFolder || errors.galleryRecentCount)}
               />
 
               {/* Submit row */}

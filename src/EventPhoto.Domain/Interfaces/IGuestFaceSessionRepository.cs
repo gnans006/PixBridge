@@ -30,6 +30,16 @@ public interface IGuestFaceSessionRepository
         DateTimeOffset expiredBefore,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns the IDs of all sessions with <see cref="FaceSessionStatus.Expired"/> status
+    /// whose <c>ExpiresAt</c> timestamp is earlier than <paramref name="expiredBefore"/>.
+    /// Used by the <c>CleanupExpiredPhotoMatchesCommand</c> to find sessions
+    /// whose match rows are safe to delete.
+    /// </summary>
+    Task<List<Guid>> GetExpiredSessionIdsByExpiryAsync(
+        DateTimeOffset expiredBefore,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Adds a new session.</summary>
     Task AddAsync(GuestFaceSession session, CancellationToken cancellationToken = default);
 

@@ -65,4 +65,18 @@ public interface IEventRepository
     /// to enforce per-plan event limits.
     /// </summary>
     Task<int> CountAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the total count of ALL events including soft-deleted ones.
+    /// Used exclusively by <see cref="EventPhoto.Infrastructure.Services.Subscription.FeatureManager"/>
+    /// to prevent re-use of trial slots by deleting and re-creating events.
+    /// </summary>
+    Task<int> CountAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns a lightweight list of (EventId, EventName, WatchFolder) tuples for all
+    /// non-deleted events. Used by path validation to detect folder conflicts cheaply.
+    /// </summary>
+    Task<IReadOnlyList<(Guid Id, string Name, string WatchFolder)>> GetWatchFoldersAsync(
+        CancellationToken cancellationToken = default);
 }
